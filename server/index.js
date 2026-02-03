@@ -16,7 +16,8 @@ app.use(express.json());
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.DirectMessages
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildMembers
     ],
     partials: [Partials.Channel] // Required to receive DMs
 });
@@ -44,10 +45,6 @@ app.use('/api/sessions', require('./routes/sessions'));
 
 app.get('/', (req, res) => {
     res.send('PLD Management API is running');
-});
-
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
 });
 
 app.listen(PORT, () => {

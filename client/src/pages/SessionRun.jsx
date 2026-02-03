@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Send, Download, Lightbulb } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { generateFeedback } from '../services/aiService';
+import { getSession, saveStudentNotes, saveStudentResult, endSession, sendToDiscord, sendAllToDiscord } from '../api';
 
 export default function SessionRun() {
     const { id } = useParams();
@@ -52,19 +53,14 @@ export default function SessionRun() {
 
     const fetchSession = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/sessions/${id}`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            const data = await getSession(id);
+            setSession(data);
+            // Pre-load results
+            const initialResults = {};
+            data.students.forEach(s => {
+                if (s.result) initialResults[s.id] = s.result;
             });
-            if (res.ok) {
-                const data = await res.json();
-                setSession(data);
-                // Pre-load results
-                const initialResults = {};
-                data.students.forEach(s => {
-                    if (s.result) initialResults[s.id] = s.result;
-                });
-                setResults(initialResults);
-            }
+            setResults(initialResults);
         } catch (err) {
             console.error(err);
         }
@@ -74,14 +70,7 @@ export default function SessionRun() {
         setSaving(true);
         try {
             const studentId = session.students[currentIndex].id;
-            await fetch(`http://localhost:5000/api/sessions/${session.id}/students/${studentId}/notes`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ notes: content })
-            });
+            await saveStudentNotes(session.id, studentId, content);
 
             setSession(prev => {
                 const newStudents = [...prev.students];
@@ -130,24 +119,14 @@ export default function SessionRun() {
             const feedback = await generateFeedback(student.name, session.groupName, student.notes || "Participated in session.");
             newResults[student.id] = feedback;
 
-            await fetch(`http://localhost:5000/api/sessions/${session.id}/students/${student.id}/result`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ result: feedback })
-            });
+            await saveStudentResult(session.id, student.id, feedback);
         }
 
         setResults(newResults);
 
         // Auto-mark completed if comprehensive? Or leave active?
         // Let's mark completed only manually or keep distinct.
-        await fetch(`http://localhost:5000/api/sessions/${session.id}/end`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
+        await endSession(session.id);
 
         setGenerating(false);
         fetchSession(); // Refresh status
@@ -159,17 +138,9 @@ export default function SessionRun() {
         setSentStatus(prev => ({ ...prev, [studentId]: 'sending' }));
 
         try {
-            const res = await fetch(`http://localhost:5000/api/sessions/${session.id}/students/${studentId}/send`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-
-            if (res.ok) {
-                setSentStatus(prev => ({ ...prev, [studentId]: true }));
-                alert("Sent successfully!");
-            } else {
-                throw new Error("Failed to send");
-            }
+            await sendToDiscord(session.id, studentId);
+            setSentStatus(prev => ({ ...prev, [studentId]: true }));
+            alert("Sent successfully!");
         } catch (err) {
             console.error(err);
             setSentStatus(prev => ({ ...prev, [studentId]: false }));
@@ -182,11 +153,7 @@ export default function SessionRun() {
 
         setGenerating(true); // Re-using generating state to show busy
         try {
-            const res = await fetch(`http://localhost:5000/api/sessions/${session.id}/send-all`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            const data = await res.json();
+            const data = await sendAllToDiscord(session.id);
 
             if (data.summary) {
                 // Update statuses based on summary

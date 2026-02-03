@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { loginUser } from '../api';
 
 export default function Login() {
     const [username, setUsername] = useState('');
@@ -13,14 +14,7 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
-
+            const data = await loginUser({ username, password });
             login(data.token, data.user);
             navigate('/');
         } catch (err) {

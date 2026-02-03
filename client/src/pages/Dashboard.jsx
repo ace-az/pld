@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Plus, Users, ArrowRight, Trash2 } from 'lucide-react';
+import { getSessions, createSession, deleteSession } from '../api';
 
 export default function Dashboard() {
     const { user } = useAuth();
@@ -21,13 +22,8 @@ export default function Dashboard() {
 
     const fetchSessions = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/sessions', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setSessions(data.reverse()); // Show newest first
-            }
+            const data = await getSessions();
+            setSessions(data.reverse()); // Show newest first
         } catch (err) {
             console.error(err);
         }
@@ -51,22 +47,11 @@ export default function Dashboard() {
         }
 
         try {
-            const res = await fetch('http://localhost:5000/api/sessions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ groupName, students })
-            });
-
-            if (res.ok) {
-                const newSession = await res.json();
-                setSessions([newSession, ...sessions]);
-                setShowCreate(false);
-                setGroupName('');
-                setStudentsText('');
-            }
+            const newSession = await createSession({ groupName, students });
+            setSessions([newSession, ...sessions]);
+            setShowCreate(false);
+            setGroupName('');
+            setStudentsText('');
         } catch (err) {
             alert("Failed to create session");
         }
@@ -76,16 +61,8 @@ export default function Dashboard() {
         if (!window.confirm("Are you sure you want to delete this session? This cannot be undone.")) return;
 
         try {
-            const res = await fetch(`http://localhost:5000/api/sessions/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-
-            if (res.ok) {
-                setSessions(sessions.filter(s => s.id !== id));
-            } else {
-                alert("Failed to delete session");
-            }
+            await deleteSession(id);
+            setSessions(sessions.filter(s => s.id !== id));
         } catch (err) {
             console.error(err);
             alert("Error deleting session");

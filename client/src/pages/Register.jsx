@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { registerUser } from '../api';
 
 export default function Register() {
     const [formData, setFormData] = useState({ username: '', password: '', discordId: '' });
@@ -12,14 +13,7 @@ export default function Register() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
-
+            const data = await registerUser(formData);
             login(data.token, data.user);
             navigate('/');
         } catch (err) {
