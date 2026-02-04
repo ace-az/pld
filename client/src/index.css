@@ -1,0 +1,127 @@
+:root {
+  /* Brand Colors */
+  --color-primary: #D32F2F;
+  /* Deep Red */
+  --color-primary-hover: #B71C1C;
+  --color-white: #FFFFFF;
+
+  /* Light Mode Defaults */
+  --bg-app: #F5F5F5;
+  --bg-card: #FFFFFF;
+  --text-main: #212121;
+  --text-secondary: #757575;
+  --border-color: #E0E0E0;
+
+  /* Utility */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+}
+
+[data-theme='dark'] {
+  /* Dark Mode Overrides */
+  --bg-app: #121212;
+  --bg-card: #1E1E1E;
+  --text-main: #EEEEEE;
+  --text-secondary: #B0B0B0;
+  --border-color: #333333;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Common Components */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 1rem;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-outline:hover {
+  background-color: rgba(211, 47, 47, 0.05);
+}
+
+.card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.input-control {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.input-control:focus {
+  outline: 2px solid var(--color-primary);
+  border-color: transparent;
+}
+
+/* Layout Utils */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
