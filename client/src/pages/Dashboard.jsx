@@ -2,17 +2,19 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Plus, Users, ArrowRight, Trash2, X, Search } from 'lucide-react';
-import { getSessions, createSession, deleteSession, getMasterStudents } from '../api';
+import { Plus, Users, ArrowRight, Trash2, X, Search, BookOpen, HelpCircle } from 'lucide-react';
+import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets } from '../api';
 
 export default function Dashboard() {
     const { user } = useAuth();
     const [sessions, setSessions] = useState([]);
     const [masterStudents, setMasterStudents] = useState([]);
+    const [questionSets, setQuestionSets] = useState([]);
     const [showCreate, setShowCreate] = useState(false);
 
     // New Session Form State
     const [groupName, setGroupName] = useState('');
+    const [topicId, setTopicId] = useState('');
     const [students, setStudents] = useState([{ name: '', discord: '' }]);
     const [searchIndex, setSearchIndex] = useState(-1);
     const [filteredStudents, setFilteredStudents] = useState([]);
@@ -22,25 +24,38 @@ export default function Dashboard() {
     useEffect(() => {
         fetchSessions();
         if (showCreate) {
-            fetchMasterStudents();
+            fetchMasterData();
         }
     }, [showCreate]);
 
     const fetchSessions = async () => {
         try {
             const data = await getSessions();
-            setSessions(data.reverse()); // Show newest first
+            if (Array.isArray(data)) {
+                setSessions(data.reverse()); // Show newest first
+            }
         } catch (err) {
-            console.error(err);
+            console.error('Error fetching sessions:', err);
         }
     };
 
-    const fetchMasterStudents = async () => {
+    const fetchMasterData = async () => {
         try {
-            const data = await getMasterStudents();
-            setMasterStudents(data);
+            const [studentsData, setsData] = await Promise.all([
+                getMasterStudents(),
+                getQuestionSets()
+            ]);
+
+            if (Array.isArray(studentsData)) setMasterStudents(studentsData);
+            if (Array.isArray(setsData)) {
+                setQuestionSets(setsData);
+                // Auto-select first topic if available and none selected
+                if (setsData.length > 0 && !topicId) {
+                    setTopicId(setsData[0].id);
+                }
+            }
         } catch (err) {
-            console.error(err);
+            console.error('Error fetching master data:', err);
         }
     };
 
@@ -90,14 +105,24 @@ export default function Dashboard() {
             return;
         }
 
+        if (!topicId) {
+            alert("Please select a topic for this session. Create one in Question Bank first.");
+            return;
+        }
+
         try {
-            const newSession = await createSession({ groupName, students: validStudents });
+            const newSession = await createSession({
+                groupName,
+                students: validStudents,
+                topicId
+            });
             setSessions([newSession, ...sessions]);
             setShowCreate(false);
             setGroupName('');
+            setTopicId('');
             setStudents([{ name: '', discord: '' }]);
         } catch (err) {
-            alert("Failed to create session");
+            alert(err.message || "Failed to create session");
         }
     };
 
@@ -108,7 +133,7 @@ export default function Dashboard() {
             await deleteSession(id);
             setSessions(sessions.filter(s => s.id !== id));
         } catch (err) {
-            console.error(err);
+            console.error('Error deleting session:', err);
             alert("Error deleting session");
         }
     };
@@ -124,17 +149,43 @@ export default function Dashboard() {
 
             {showCreate && (
                 <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid var(--color-primary)' }}>
-                    <h3>Create New Group</h3>
+                    <div className="flex-between">
+                        <h3>Create New Group</h3>
+                        <Link to="/questions" className="btn btn-outline flex-center" style={{ fontSize: '0.8rem', textDecoration: 'none', gap: '0.4rem' }}>
+                            <HelpCircle size={14} /> Manage Question Bank
+                        </Link>
+                    </div>
                     <form onSubmit={handleCreateSession}>
-                        <div className="input-group">
-                            <label>Group Name</label>
-                            <input
-                                className="input-control"
-                                value={groupName}
-                                onChange={e => setGroupName(e.target.value)}
-                                placeholder="e.g. Alpha Squad - Week 5"
-                                required
-                            />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div className="input-group">
+                                <label>Group Name</label>
+                                <input
+                                    className="input-control"
+                                    value={groupName}
+                                    onChange={e => setGroupName(e.target.value)}
+                                    placeholder="e.g. Alpha Squad - Week 5"
+                                    required
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label>Select Topic (Questions)</label>
+                                <select
+                                    className="input-control"
+                                    value={topicId}
+                                    onChange={e => setTopicId(e.target.value)}
+                                    required
+                                >
+                                    <option value="">Select a topic...</option>
+                                    {questionSets.map(set => (
+                                        <option key={set.id} value={set.id}>{set.topic}</option>
+                                    ))}
+                                </select>
+                                {questionSets.length === 0 && (
+                                    <small style={{ color: '#f44336', marginTop: '4px' }}>
+                                        No topics found. Please <Link to="/questions">add a topic</Link> first.
+                                    </small>
+                                )}
+                            </div>
                         </div>
 
                         <div className="input-group">
@@ -213,8 +264,8 @@ export default function Dashboard() {
                             </button>
                         </div>
 
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-                            Start Session Setup
+                        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', height: '45px' }}>
+                            {questionSets.length > 0 ? 'Start Session Setup' : 'Create Topic First'}
                         </button>
                     </form>
                 </div>
@@ -232,20 +283,26 @@ export default function Dashboard() {
                                     {new Date(session.createdAt).toLocaleDateString()}
                                 </div>
                             </div>
-                            <span style={{
-                                padding: '0.25rem 0.5rem',
-                                borderRadius: '4px',
-                                background: session.status === 'completed' ? '#4CAF50' : '#FF9800',
-                                color: 'white',
-                                fontSize: '0.8rem',
-                                whiteSpace: 'nowrap'
-                            }}>
-                                {session.status.toUpperCase()}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                                <span style={{
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    background: session.status === 'completed' ? '#4CAF50' : '#FF9800',
+                                    color: 'white',
+                                    fontSize: '0.8rem'
+                                }}>
+                                    {session.status.toUpperCase()}
+                                </span>
+                                {session.topicName && (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        <BookOpen size={12} /> {session.topicName}
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         <div style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Users size={16} /> {session.students.length} Students
+                            <Users size={16} /> {session.students?.length || 0} Students
                         </div>
 
                         <div className="flex-between">

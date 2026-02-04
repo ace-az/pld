@@ -2,7 +2,7 @@
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sun, Moon, LogOut, GraduationCap } from 'lucide-react';
+import { Sun, Moon, LogOut, GraduationCap, HelpCircle } from 'lucide-react';
 
 export default function Layout({ children }) {
     const { theme, toggleTheme } = useTheme();
@@ -31,6 +31,9 @@ export default function Layout({ children }) {
                         <div className="user-menu flex-center" style={{ gap: '1rem' }}>
                             <Link to="/students" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
                                 <GraduationCap size={18} /> <span>Students</span>
+                            </Link>
+                            <Link to="/questions" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
+                                <HelpCircle size={18} /> <span>Questions</span>
                             </Link>
                             <span>{user.username}</span>
                             <button onClick={handleLogout} className="btn-outline" style={{ padding: '0.5rem' }}>

@@ -3,10 +3,12 @@ const sessionModel = require('../models/sessionModel');
 
 exports.createSession = async (req, res) => {
     try {
-        const { groupName, students } = req.body; // students: [{name, discord}]
-        if (!groupName || !students || students.length === 0) return res.status(400).json({ error: 'Invalid data' });
+        const { groupName, students, topicId } = req.body; // students: [{name, discord}]
+        if (!groupName || !students || students.length === 0 || !topicId) {
+            return res.status(400).json({ error: 'Missing required fields (Group Name, Students, and Topic)' });
+        }
 
-        const session = await sessionModel.createSession(req.user.id, groupName, students);
+        const session = await sessionModel.createSession(req.user.id, groupName, students, topicId);
         res.json(session);
     } catch (err) {
         res.status(500).json({ error: err.message });

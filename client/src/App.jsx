@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import SessionRun from './pages/SessionRun';
 import Students from './pages/Students';
+import Questions from './pages/Questions';
 import { useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -32,6 +33,11 @@ export default function App() {
         <Route path="/students" element={
           <PrivateRoute>
             <Students />
+          </PrivateRoute>
+        } />
+        <Route path="/questions" element={
+          <PrivateRoute>
+            <Questions />
           </PrivateRoute>
         } />
       </Routes>

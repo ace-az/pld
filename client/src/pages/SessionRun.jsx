@@ -1,7 +1,7 @@
 // client/src/pages/SessionRun.jsx
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, Send, Download, Lightbulb } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Send, Download, Lightbulb, HelpCircle, BookOpen } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { generateFeedback } from '../services/aiService';
 import { getSession, saveStudentNotes, saveStudentResult, endSession, sendToDiscord, sendAllToDiscord } from '../api';
@@ -16,6 +16,7 @@ export default function SessionRun() {
     const [generating, setGenerating] = useState(false);
     const [results, setResults] = useState({}); // studentId -> feedback
     const [sentStatus, setSentStatus] = useState({}); // studentId -> boolean
+    const [showQuestions, setShowQuestions] = useState(true);
 
     // Debounce save ref
     const saveTimeout = useRef(null);
@@ -25,7 +26,7 @@ export default function SessionRun() {
     }, [id]);
 
     useEffect(() => {
-        if (session && session.students[currentIndex]) {
+        if (session && session.students && session.students[currentIndex]) {
             setNote(session.students[currentIndex].notes || '');
         }
     }, [currentIndex, session]);
@@ -38,7 +39,7 @@ export default function SessionRun() {
                 return;
             }
 
-            if (e.key === 'ArrowRight' && session && currentIndex < session.students.length - 1) {
+            if (e.key === 'ArrowRight' && session?.students && currentIndex < session.students.length - 1) {
                 e.preventDefault();
                 setCurrentIndex(prev => prev + 1);
             } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
@@ -54,25 +55,34 @@ export default function SessionRun() {
     const fetchSession = async () => {
         try {
             const data = await getSession(id);
+            if (!data) throw new Error("Session not found");
             setSession(data);
+
             // Pre-load results
             const initialResults = {};
-            data.students.forEach(s => {
-                if (s.result) initialResults[s.id] = s.result;
-            });
+            if (data.students && Array.isArray(data.students)) {
+                data.students.forEach(s => {
+                    if (s.result) initialResults[s.id] = s.result;
+                });
+            }
             setResults(initialResults);
         } catch (err) {
-            console.error(err);
+            console.error('Error fetching session:', err);
+            alert("Error loading session. Please try again.");
+            navigate('/');
         }
     };
 
     const saveNote = async (content) => {
+        if (!session?.students?.[currentIndex]) return;
+
         setSaving(true);
         try {
             const studentId = session.students[currentIndex].id;
             await saveStudentNotes(session.id, studentId, content);
 
             setSession(prev => {
+                if (!prev) return prev;
                 const newStudents = [...prev.students];
                 newStudents[currentIndex].notes = content;
                 return { ...prev, students: newStudents };
@@ -94,7 +104,7 @@ export default function SessionRun() {
     };
 
     const handleNext = () => {
-        if (session && currentIndex < session.students.length - 1) {
+        if (session?.students && currentIndex < session.students.length - 1) {
             setCurrentIndex(currentIndex + 1);
         }
     };
@@ -105,75 +115,62 @@ export default function SessionRun() {
         }
     };
 
-    // Generate Reports Only
     const handleGenerateReports = async () => {
+        if (!session?.students) return;
         if (!window.confirm("Generate AI reports for all students?")) return;
 
         setGenerating(true);
         const newResults = { ...results };
 
-        // Generate for all students
-        for (const student of session.students) {
-            if (newResults[student.id]) continue; // Skip existing
+        try {
+            for (const student of session.students) {
+                if (newResults[student.id]) continue;
 
-            const feedback = await generateFeedback(student.name, session.groupName, student.notes || "Participated in session.");
-            newResults[student.id] = feedback;
+                const feedback = await generateFeedback(student.name, session.groupName, student.notes || "Participated in session.");
+                newResults[student.id] = feedback;
 
-            await saveStudentResult(session.id, student.id, feedback);
+                await saveStudentResult(session.id, student.id, feedback);
+            }
+
+            setResults(newResults);
+            await endSession(session.id);
+            fetchSession(); // Refresh status
+        } catch (err) {
+            console.error('Error generating feedback:', err);
+            alert("Failed to generate some reports. Please try again.");
+        } finally {
+            setGenerating(false);
         }
-
-        setResults(newResults);
-
-        // Auto-mark completed if comprehensive? Or leave active?
-        // Let's mark completed only manually or keep distinct.
-        await endSession(session.id);
-
-        setGenerating(false);
-        fetchSession(); // Refresh status
     };
 
     const handleSendToDiscord = async (studentId) => {
-        // Optimistic Update
-        const oldStatus = sentStatus[studentId];
         setSentStatus(prev => ({ ...prev, [studentId]: 'sending' }));
-
         try {
             await sendToDiscord(session.id, studentId);
             setSentStatus(prev => ({ ...prev, [studentId]: true }));
-            alert("Sent successfully!");
         } catch (err) {
             console.error(err);
             setSentStatus(prev => ({ ...prev, [studentId]: false }));
-            alert("Failed to send message. Check server logs.");
+            alert("Failed to send message: " + (err.message || "Unknown error"));
         }
     };
 
     const handleSendAllToDiscord = async () => {
         if (!window.confirm("Are you sure you want to send feedback to ALL students via Discord?")) return;
 
-        setGenerating(true); // Re-using generating state to show busy
+        setGenerating(true);
         try {
             const data = await sendAllToDiscord(session.id);
-
             if (data.summary) {
-                // Update statuses based on summary
                 const newStatuses = { ...sentStatus };
-                let successCount = 0;
-                let failCount = 0;
-
                 data.summary.forEach(item => {
-                    // Find student ID by name (not ideal but safe enough here since we don't have ID in summary yet)
-                    // Better to update backend to return ID, but let's stick to simple matching or refresh session
                     const s = session.students.find(st => st.name === item.student);
                     if (s) {
                         newStatuses[s.id] = item.success;
                     }
-                    if (item.success) successCount++;
-                    else failCount++;
                 });
-
                 setSentStatus(newStatuses);
-                alert(`Batch Send Complete:\nSuccess: ${successCount}\nFailed: ${failCount}`);
+                alert("Batch processing complete.");
             }
         } catch (err) {
             console.error(err);
@@ -184,6 +181,7 @@ export default function SessionRun() {
     };
 
     const handleDownloadPDF = () => {
+        if (!session) return;
         const doc = new jsPDF();
         let y = 10;
         doc.setFontSize(16);
@@ -197,7 +195,7 @@ export default function SessionRun() {
             if (y > 250) { doc.addPage(); y = 10; }
             doc.setFontSize(14);
             doc.setTextColor(211, 47, 47);
-            doc.text(`Student: ${student.name} (${student.discord})`, 10, y);
+            doc.text(`Student: ${student.name} (${student.discord || 'No Discord'})`, 10, y);
             doc.setTextColor(0);
             y += 7;
 
@@ -228,31 +226,53 @@ export default function SessionRun() {
             y += 10;
         });
 
-        doc.save(`${session.groupName}_Report.pdf`);
+        doc.save(`${session.groupName.replace(/[^a-z0-9]/gi, '_')}_Report.pdf`);
     };
 
-    if (!session) return <div className="flex-center" style={{ height: '100vh' }}>Loading...</div>;
+    if (!session) return (
+        <div className="container flex-center" style={{ height: '80vh', flexDirection: 'column' }}>
+            <div className="spinner"></div>
+            <p style={{ marginTop: '1rem' }}>Loading session data...</p>
+        </div>
+    );
 
-    const currentStudent = session.students[currentIndex];
-    const progressText = `Student ${currentIndex + 1} / ${session.students.length}`;
+    const currentStudent = session.students?.[currentIndex];
+    const progressText = session.students ? `Student ${currentIndex + 1} / ${session.students.length}` : '';
+
+    if (!currentStudent) return <div className="container">No students found in this session.</div>;
 
     return (
         <div>
             <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
                 <div>
                     <button onClick={() => navigate('/')} className="btn-outline" style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', border: 'none', padding: 0 }}>
-                        <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} /> Back
+                        <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} /> Back to Dashboard
                     </button>
                     <h1>{session.groupName}</h1>
-                    <span style={{ color: 'var(--text-secondary)' }}>Status: {session.status.toUpperCase()}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-secondary)' }}>
+                        <span>Status: <strong style={{ color: session.status === 'completed' ? '#4CAF50' : 'var(--color-primary)' }}>{session.status.toUpperCase()}</strong></span>
+                        {session.topicName && (
+                            <span style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <HelpCircle size={16} /> {session.topicName}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="flex-center" style={{ gap: '1rem' }}>
+                    {session.questions && session.questions.length > 0 && (
+                        <button
+                            onClick={() => setShowQuestions(!showQuestions)}
+                            className={`btn ${showQuestions ? 'btn-primary' : 'btn-outline'} flex-center`}
+                            title={showQuestions ? 'Hide Sidebar' : 'Show Sidebar'}
+                        >
+                            <HelpCircle size={18} style={{ marginRight: '0.5rem' }} /> {showQuestions ? 'Hide Questions' : 'Show Questions'}
+                        </button>
+                    )}
                     {Object.keys(results).length > 0 && (
                         <button onClick={handleDownloadPDF} className="btn btn-outline flex-center">
                             <Download size={18} style={{ marginRight: '0.5rem' }} /> Download PDF
                         </button>
                     )}
-                    {/* Generate Button replaces End Session if active */}
                     {(session.status === 'active' || Object.keys(results).length < session.students.length) && (
                         <button
                             onClick={handleGenerateReports}
@@ -266,7 +286,7 @@ export default function SessionRun() {
                     <button
                         onClick={handleSendAllToDiscord}
                         className="btn flex-center"
-                        style={{ background: 'var(--color-primary)', color: 'white', border: 'none' }}
+                        style={{ background: '#5865F2', color: 'white', border: 'none' }}
                         disabled={generating || Object.keys(results).length === 0}
                     >
                         <Send size={18} style={{ marginRight: '0.5rem' }} />
@@ -275,64 +295,89 @@ export default function SessionRun() {
                 </div>
             </div>
 
-            <div className="card" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column' }}>
-                <div className="flex-between" style={{ marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-                    <button onClick={handlePrev} disabled={currentIndex === 0} className="btn-icon" style={{ opacity: currentIndex === 0 ? 0.3 : 1 }}>
-                        <ArrowLeft size={32} />
-                    </button>
+            <div style={{ display: 'grid', gridTemplateColumns: (session.questions && session.questions.length > 0 && showQuestions) ? '1fr 320px' : '1fr', gap: '2rem', transition: 'all 0.3s ease' }}>
+                <div className="card" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column' }}>
+                    <div className="flex-between" style={{ marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                        <button onClick={handlePrev} disabled={currentIndex === 0} className="btn-icon" style={{ padding: '10px', opacity: currentIndex === 0 ? 0.3 : 1 }}>
+                            <ArrowLeft size={32} />
+                        </button>
 
-                    <div style={{ textAlign: 'center' }}>
-                        <h2 style={{ margin: 0, color: 'var(--color-primary)' }}>{currentStudent.name}</h2>
-                        <div style={{ color: 'var(--text-secondary)' }}>{currentStudent.discord}</div>
-                        <div style={{ marginTop: '0.5rem', fontWeight: 'bold' }}>{progressText}</div>
+                        <div style={{ textAlign: 'center' }}>
+                            <h2 style={{ margin: 0, color: 'var(--color-primary)' }}>{currentStudent.name}</h2>
+                            <div style={{ color: 'var(--text-secondary)' }}>{currentStudent.discord || 'No Discord ID'}</div>
+                            <div style={{ marginTop: '0.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{progressText}</div>
+                        </div>
+
+                        <button onClick={handleNext} disabled={currentIndex === session.students.length - 1} className="btn-icon" style={{ padding: '10px', opacity: currentIndex === session.students.length - 1 ? 0.3 : 1 }}>
+                            <ArrowRight size={32} />
+                        </button>
                     </div>
 
-                    <button onClick={handleNext} disabled={currentIndex === session.students.length - 1} className="btn-icon" style={{ opacity: currentIndex === session.students.length - 1 ? 0.3 : 1 }}>
-                        <ArrowRight size={32} />
-                    </button>
-                </div>
-
-                <div style={{ flex: 1, display: 'flex', gap: '2rem' }}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
-                            <label style={{ fontWeight: '600' }}>Mentor Notes</label>
-                            {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}><Save size={12} style={{ marginRight: 4 }} /> Saving...</span>}
+                    <div style={{ flex: 1, display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                        <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column' }}>
+                            <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                                <label style={{ fontWeight: '600' }}>Mentor Notes</label>
+                                {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}><Save size={12} style={{ marginRight: 4 }} /> Saving...</span>}
+                            </div>
+                            <textarea
+                                className="input-control"
+                                style={{ flex: 1, minHeight: '350px', resize: 'none', padding: '1.25rem', lineHeight: '1.6', fontSize: '1rem' }}
+                                value={note}
+                                onChange={handleNoteChange}
+                                placeholder="Type performance observations, evaluation results, and common issues..."
+                            />
                         </div>
-                        <textarea
-                            className="input-control"
-                            style={{ flex: 1, minHeight: '300px', resize: 'none', fontFamily: 'monospace' }}
-                            value={note}
-                            onChange={handleNoteChange}
-                            placeholder="Write interview notes, observations, and feedback here..."
-                        />
+
+                        {/* Result View */}
+                        <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column' }}>
+                            <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                                <label style={{ fontWeight: '600' }}>AI Evaluation Result</label>
+                                {results[currentStudent.id] && (
+                                    <button
+                                        onClick={() => handleSendToDiscord(currentStudent.id)}
+                                        className="btn"
+                                        style={{ fontSize: '0.75rem', padding: '4px 10px', display: 'flex', alignItems: 'center', background: sentStatus[currentStudent.id] === true ? '#4CAF50' : '#5865F2', color: 'white', border: 'none' }}
+                                        disabled={sentStatus[currentStudent.id] === true || sentStatus[currentStudent.id] === 'sending'}
+                                    >
+                                        <Send size={12} style={{ marginRight: '4px' }} />
+                                        {sentStatus[currentStudent.id] === 'sending' ? 'Sending...' : (sentStatus[currentStudent.id] === true ? 'Sent to Discord' : 'Send Individually')}
+                                    </button>
+                                )}
+                            </div>
+                            {results[currentStudent.id] ? (
+                                <div style={{ flex: 1, whiteSpace: 'pre-wrap', fontSize: '0.95rem', overflowY: 'auto', maxHeight: '500px', background: 'var(--bg-app)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                                    {results[currentStudent.id]}
+                                </div>
+                            ) : (
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '2rem' }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <Lightbulb size={32} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                                        <p>Collect notes, then click "Generate AI Reports" to see results here.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-
-                    {/* Result View */}
-                    {results[currentStudent.id] && (
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-app)', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
-                            <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                                <strong style={{ color: 'var(--color-primary)' }}>AI Feedback Generated</strong>
-                                <button
-                                    onClick={() => handleSendToDiscord(currentStudent.id)}
-                                    className="btn btn-primary"
-                                    style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center' }}
-                                    disabled={sentStatus[currentStudent.id] === true || sentStatus[currentStudent.id] === 'sending'}
-                                >
-                                    <Send size={14} style={{ marginRight: '0.5rem' }} />
-                                    {sentStatus[currentStudent.id] === 'sending' ? 'Sending...' : (sentStatus[currentStudent.id] === true ? 'Sent!' : 'Send to Discord')}
-                                </button>
-                            </div>
-                            <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', flex: 1, overflowY: 'auto', maxHeight: '500px' }}>
-                                {results[currentStudent.id]}
-                            </div>
-                        </div>
-                    )}
-                    {!results[currentStudent.id] && (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
-                            <p>Notes collected. <br />Click "Generate AI Reports" when finished.</p>
-                        </div>
-                    )}
                 </div>
+
+                {/* Question Sidebar */}
+                {session.questions && session.questions.length > 0 && showQuestions && (
+                    <div className="card" style={{ height: 'fit-content', position: 'sticky', top: '2rem', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid var(--color-primary)' }}>
+                        <div style={{ borderBottom: '1px solid var(--border-color)', marginBottom: '1.25rem', paddingBottom: '0.5rem' }}>
+                            <h3 style={{ margin: 0, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <BookOpen size={20} /> <span>{session.topicName}</span>
+                            </h3>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {session.questions.map((q, idx) => (
+                                <div key={q.id || idx} style={{ fontSize: '0.9rem', padding: '1rem', background: 'var(--bg-app)', borderRadius: '8px', borderLeft: '3px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+                                    <div style={{ fontWeight: 'bold', marginBottom: '0.4rem', color: 'var(--color-primary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Question {idx + 1}</div>
+                                    <div style={{ color: 'var(--text-main)', lineHeight: '1.5' }}>{q.text || q}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

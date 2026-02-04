@@ -2,7 +2,7 @@
 const { db } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
-async function createSession(mentorId, groupName, studentsData) {
+async function createSession(mentorId, groupName, studentsData, topicId) {
     // studentsData = [{ name, discord }]
     const students = studentsData.map(s => ({
         id: uuidv4(),
@@ -12,10 +12,17 @@ async function createSession(mentorId, groupName, studentsData) {
         result: null // AI result
     }));
 
+    // Fetch snapshot of questions from the topic set
+    const questionSet = db.get('questions').find({ id: topicId }).value();
+    const questions = questionSet ? questionSet.questions : [];
+
     const session = {
         id: uuidv4(),
         mentorId,
         groupName,
+        topicId,
+        topicName: questionSet ? questionSet.topic : 'General',
+        questions, // Snapshot of questions at creation
         status: 'active', // active, completed
         createdAt: new Date().toISOString(),
         students

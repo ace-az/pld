@@ -235,5 +235,60 @@ export const deleteMasterStudent = async (id) => {
     return handleResponse(response);
 };
 
+// ==================== QUESTION BANK ENDPOINTS ====================
+
+/**
+ * Get all question sets
+ * @returns {Promise<Array>} Array of question set objects
+ */
+export const getQuestionSets = async () => {
+    const response = await fetch(`${API_URL}/api/questions`, {
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Add a new question set
+ * @param {Object} setData - { topic, questions: [string] }
+ * @returns {Promise<Object>} Created question set object
+ */
+export const addQuestionSet = async (setData) => {
+    const response = await fetch(`${API_URL}/api/questions`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(setData)
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Update a question set
+ * @param {string} id - Set ID
+ * @param {Object} setData - { topic, questions: [string] }
+ * @returns {Promise<Object>} Updated question set object
+ */
+export const updateQuestionSet = async (id, setData) => {
+    const response = await fetch(`${API_URL}/api/questions/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(setData)
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Delete a question set
+ * @param {string} id - Set ID
+ * @returns {Promise<Object>} Success response
+ */
+export const deleteQuestionSet = async (id) => {
+    const response = await fetch(`${API_URL}/api/questions/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
 export default API_URL;
 
