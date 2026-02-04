@@ -37,6 +37,15 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+router.delete('/all', async (req, res) => {
+    try {
+        await questionModel.deleteAllQuestionSets(req.user.id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.delete('/:id', async (req, res) => {
     try {
         await questionModel.deleteQuestionSet(req.params.id);

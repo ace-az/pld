@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Plus, Users, ArrowRight, Trash2, X, Search, BookOpen, HelpCircle } from 'lucide-react';
-import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets } from '../api';
+import { Plus, Users, ArrowRight, Trash2, X, Search, BookOpen, HelpCircle, Upload } from 'lucide-react';
+import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets, deleteAllSessions } from '../api';
 
 export default function Dashboard() {
     const { user } = useAuth();
@@ -138,6 +138,67 @@ export default function Dashboard() {
         }
     };
 
+    const handleDeleteAllSessions = async () => {
+        if (!window.confirm("CAUTION: Are you sure you want to delete ALL sessions? This action is permanent and cannot be undone.")) return;
+
+        try {
+            await deleteAllSessions();
+            setSessions([]);
+        } catch (err) {
+            console.error('Error deleting all sessions:', err);
+            alert("Error deleting sessions");
+        }
+    };
+
+    const handleCsvUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const text = event.target.result;
+                const lines = text.split('\n');
+                const seenDiscords = new Set();
+                const newStudents = [];
+
+                // Skip header if it exists
+                const startIdx = (lines[0].toLowerCase().includes('name') || lines[0].toLowerCase().includes('discord')) ? 1 : 0;
+
+                for (let i = startIdx; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const parts = line.includes(';') ? line.split(';') : line.split(',');
+                    if (parts.length >= 1) {
+                        const name = parts[0].trim();
+                        const discord = parts[1] ? parts[1].trim() : '';
+
+                        if (discord && seenDiscords.has(discord)) {
+                            continue; // Skip internal duplicates
+                        }
+
+                        newStudents.push({ name, discord });
+                        if (discord) seenDiscords.add(discord);
+                    }
+                }
+
+                if (newStudents.length > 0) {
+                    setStudents(newStudents);
+                    alert(`Successfully loaded ${newStudents.length} students into the session!`);
+                } else {
+                    alert('No valid student data found in file.');
+                }
+            } catch (err) {
+                console.error('CSV parse error:', err);
+                alert('Failed to parse CSV file.');
+            } finally {
+                e.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    };
+
     return (
         <div>
             <div className="flex-between" style={{ marginBottom: '2rem' }}>
@@ -254,14 +315,27 @@ export default function Dashboard() {
                                     </div>
                                 ))}
                             </div>
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                onClick={handleAddStudentRow}
-                                style={{ marginTop: '1rem', width: '100%' }}
-                            >
-                                <Plus size={16} style={{ marginRight: '0.5rem' }} /> Add Another Student
-                            </button>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline flex-center"
+                                    onClick={handleAddStudentRow}
+                                >
+                                    <Plus size={16} style={{ marginRight: '0.5rem' }} /> Add Student
+                                </button>
+                                <div>
+                                    <input
+                                        type="file"
+                                        id="session-csv-upload"
+                                        accept=".csv"
+                                        style={{ display: 'none' }}
+                                        onChange={handleCsvUpload}
+                                    />
+                                    <label htmlFor="session-csv-upload" className="btn btn-outline flex-center" style={{ cursor: 'pointer', width: '100%' }}>
+                                        <Upload size={16} style={{ marginRight: '0.5rem' }} /> Import CSV
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
                         <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', height: '45px' }}>
@@ -271,7 +345,18 @@ export default function Dashboard() {
                 </div>
             )}
 
-            <h2>Your Sessions</h2>
+            <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                <h2>Your Sessions</h2>
+                {sessions.length > 0 && (
+                    <button
+                        onClick={handleDeleteAllSessions}
+                        className="btn btn-outline"
+                        style={{ color: '#f44336', borderColor: '#f44336', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+                    >
+                        <Trash2 size={14} style={{ marginRight: '0.4rem' }} /> Delete All
+                    </button>
+                )}
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                 {sessions.map(session => (

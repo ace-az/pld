@@ -40,4 +40,11 @@ async function getQuestionSetById(id) {
     return db.get('questions').find({ id }).value();
 }
 
-module.exports = { getQuestionSets, addQuestionSet, updateQuestionSet, deleteQuestionSet, getQuestionSetById };
+async function deleteAllQuestionSets(mentorId) {
+    db.get('questions')
+        .remove({ mentorId })
+        .write();
+    return true;
+}
+
+module.exports = { getQuestionSets, addQuestionSet, updateQuestionSet, deleteQuestionSet, getQuestionSetById, deleteAllQuestionSets };

@@ -1,7 +1,8 @@
 // client/src/pages/Questions.jsx
 import { useState, useEffect } from 'react';
-import { getQuestionSets, addQuestionSet, deleteQuestionSet } from '../api';
-import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw } from 'lucide-react';
+import { getQuestionSets, addQuestionSet, deleteQuestionSet, deleteAllQuestionSets, updateQuestionSet } from '../api';
+import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw, FileText, Upload, Edit3 } from 'lucide-react';
+import * as mammoth from 'mammoth';
 
 export default function Questions() {
     const [questionSets, setQuestionSets] = useState([]);
@@ -11,6 +12,7 @@ export default function Questions() {
     // Form state
     const [topic, setTopic] = useState('');
     const [questions, setQuestions] = useState(['']); // Array of question strings
+    const [editingId, setEditingId] = useState(null);
 
     useEffect(() => {
         fetchQuestionSets();
@@ -59,14 +61,34 @@ export default function Questions() {
         }
 
         try {
-            const newSet = await addQuestionSet({ topic, questions: validQs });
-            setQuestionSets([newSet, ...questionSets]);
-            setTopic('');
-            setQuestions(['']);
+            if (editingId) {
+                const updated = await updateQuestionSet(editingId, { topic, questions: validQs });
+                setQuestionSets(questionSets.map(s => s.id === editingId ? updated : s));
+                alert("Question set updated successfully!");
+                cancelEdit();
+            } else {
+                const newSet = await addQuestionSet({ topic, questions: validQs });
+                setQuestionSets([newSet, ...questionSets]);
+                setTopic('');
+                setQuestions(['']);
+            }
         } catch (err) {
-            console.error('Error adding question set:', err);
-            alert('Error adding question set: ' + (err.message || 'Unknown error'));
+            console.error('Error saving question set:', err);
+            alert('Error saving question set: ' + (err.message || 'Unknown error'));
         }
+    };
+
+    const startEdit = (set) => {
+        setEditingId(set.id);
+        setTopic(set.topic);
+        setQuestions(set.questions.map(q => q.text || q));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setTopic('');
+        setQuestions(['']);
     };
 
     const handleDeleteSet = async (id) => {
@@ -78,6 +100,62 @@ export default function Questions() {
             console.error('Error deleting set:', err);
             alert('Error deleting question set');
         }
+    };
+
+    const handleDeleteAll = async () => {
+        if (!window.confirm("CAUTION: Are you sure you want to delete ALL question topics? This action is permanent and cannot be undone.")) return;
+
+        try {
+            await deleteAllQuestionSets();
+            setQuestionSets([]);
+        } catch (err) {
+            console.error('Error deleting all topics:', err);
+            alert("Error deleting topics");
+        }
+    };
+
+    const handleWordUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Extract topic as filename (without extension)
+        const fileName = file.name.replace(/\.[^/.]+$/, "");
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const arrayBuffer = event.target.result;
+                const result = await mammoth.extractRawText({ arrayBuffer });
+                const text = result.value;
+
+                // Improved parser: specifically look for matches starting with a number
+                const questionRegex = /(?:^|\n)\s*\d+[\.\)\-]\s+([\s\S]*?)(?=\n\s*\d+[\.\)\-]\s+|$)/g;
+                const matches = [...text.matchAll(questionRegex)];
+
+                const cleanedQuestions = matches
+                    .map(m => m[1].trim())
+                    .filter(q => q.length > 0);
+
+                if (cleanedQuestions.length > 0) {
+                    // Create directly in database like student importation
+                    const newSet = await addQuestionSet({
+                        topic: fileName,
+                        questions: cleanedQuestions
+                    });
+
+                    setQuestionSets([newSet, ...questionSets]);
+                    alert(`Successfully imported "${fileName}" with ${cleanedQuestions.length} questions!`);
+                } else {
+                    alert('Could not find any numbered questions in the file.\n\nRequired format: 1. Question, 2. Question, etc.');
+                }
+            } catch (err) {
+                console.error('Word parse error:', err);
+                alert('Error importing Word file: ' + err.message);
+            } finally {
+                e.target.value = ''; // Reset input
+            }
+        };
+        reader.readAsArrayBuffer(file);
     };
 
     if (loading) return (
@@ -109,8 +187,15 @@ export default function Questions() {
                 </div>
             </div>
 
-            <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid var(--color-primary)' }}>
-                <h3>Create New Question Set</h3>
+            <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid var(--color-primary)', background: editingId ? 'rgba(var(--color-primary-rgb), 0.05)' : 'var(--bg-card)' }}>
+                <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                    <h3 style={{ margin: 0 }}>{editingId ? 'Edit Question Set' : 'Create New Question Set'}</h3>
+                    {editingId && (
+                        <button onClick={cancelEdit} className="btn btn-outline" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>
+                            Cancel Edit
+                        </button>
+                    )}
+                </div>
                 <form onSubmit={handleAddSet}>
                     <div className="input-group">
                         <label>Topic Name (e.g. Arrays, Recursion, Git)</label>
@@ -157,22 +242,64 @@ export default function Questions() {
                     </div>
 
                     <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', height: '45px' }}>
-                        Save Question Set
+                        {editingId ? 'Update Question Set' : 'Save Question Set'}
                     </button>
+
+                    <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                        <input
+                            type="file"
+                            id="word-upload"
+                            accept=".docx"
+                            style={{ display: 'none' }}
+                            onChange={handleWordUpload}
+                        />
+                        <label htmlFor="word-upload" className="btn btn-outline flex-center" style={{ width: '100%', cursor: 'pointer', gap: '0.5rem' }}>
+                            <FileText size={18} /> Import from Word (.docx)
+                        </label>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.5rem' }}>
+                            Format: Numbered list (1. Question, 2. Question...)
+                        </p>
+                    </div>
                 </form>
             </div>
 
-            <h2>Available Topics</h2>
+            <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                <h2 style={{ margin: 0 }}>Available Topics</h2>
+                {questionSets.length > 0 && (
+                    <button
+                        onClick={handleDeleteAll}
+                        className="btn btn-outline flex-center"
+                        style={{ color: '#f44336', borderColor: '#f44336', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                    >
+                        <Trash2 size={16} style={{ marginRight: '0.4rem' }} /> Delete All Topics
+                    </button>
+                )}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
                 {questionSets.map(set => (
                     <div key={set.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                         <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'flex-start' }}>
-                            <h3 style={{ margin: 0, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
+                            <h3 style={{ margin: 0, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', flex: 1 }}>
                                 <BookOpen size={20} /> {set.topic}
                             </h3>
-                            <button onClick={() => handleDeleteSet(set.id)} className="btn-icon" style={{ color: '#f44336', padding: '4px' }} title="Delete Set">
-                                <X size={18} />
-                            </button>
+                            <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                <button
+                                    onClick={() => startEdit(set)}
+                                    className="btn-icon"
+                                    style={{ color: 'var(--text-secondary)', padding: '5px' }}
+                                    title="Edit Set"
+                                >
+                                    <Edit3 size={18} />
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteSet(set.id)}
+                                    className="btn-icon"
+                                    style={{ color: '#f44336', padding: '5px' }}
+                                    title="Delete Set"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
                         </div>
                         <div style={{ flex: 1 }}>
                             {set.questions && Array.isArray(set.questions) ? (

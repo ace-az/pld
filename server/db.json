@@ -7,538 +7,264 @@
       "discordId": "jalalahmadli",
       "role": "student",
       "createdAt": "2026-02-02T15:16:39.114Z"
+    },
+    {
+      "id": "bbbb7d02-155c-4b45-af1b-542ff6234669",
+      "username": "Elcan",
+      "password": "$2b$10$5EYYiK1CZBcUXVqG4NQ6C.CmhVhTkY77PAjmz36qWWSPDnBZK2R7G",
+      "discordId": "",
+      "role": "student",
+      "createdAt": "2026-02-04T15:16:50.879Z"
+    },
+    {
+      "id": "23d6b394-b4b4-4a51-911e-5832d30f256f",
+      "username": "Elcan1",
+      "password": "$2b$10$evy/xqcONL.Rx6jW8pVZIOLsG4y/irRDiFUp0iSZy/VWEi6PRLqyG",
+      "discordId": "elcanoo",
+      "role": "student",
+      "createdAt": "2026-02-04T17:37:03.898Z"
+    },
+    {
+      "id": "2f93fdea-e601-43da-a3fa-a4f1100a205c",
+      "username": "Jalal2",
+      "password": "$2b$10$YcSzTpN9Flq3n1RT47NqX.EfJ2uLJf85x5x.xPoKHzQvkE9UgTPBi",
+      "discordId": "1354759210231136286",
+      "role": "student",
+      "createdAt": "2026-02-04T17:38:30.266Z"
+    },
+    {
+      "id": "3b902388-6d2c-4e64-96bf-8489d38caccd",
+      "username": "Jalal3",
+      "password": "$2b$10$QksdUaMHpG.yL2Q0Fq7zI.H/aupLFctIUnUupN7FMIBXYjFi9fK.W",
+      "discordId": "clodrax_54593",
+      "role": "student",
+      "createdAt": "2026-02-04T17:54:35.694Z"
+    },
+    {
+      "id": "169f8326-557e-4bdc-a8eb-7fa8e958728b",
+      "username": "Jalal4",
+      "password": "$2b$10$x14RCJLgwUKMTQ4JJrn/qOJdGNDyy6yIJZ2CAFaCk/X7env5/Pb1S",
+      "discordId": "clodrax_54593",
+      "role": "student",
+      "createdAt": "2026-02-04T18:03:40.058Z"
     }
   ],
-  "sessions": [
-    {
-      "id": "33176e6b-1cd9-462c-8dbb-c3e04e9f67dd",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "group 1",
-      "status": "completed",
-      "createdAt": "2026-02-02T15:17:10.865Z",
-      "students": [
-        {
-          "id": "4a32a0a5-5bdc-4547-9b6f-021a6250556b",
-          "name": "jalal ahmadli",
-          "discord": "",
-          "notes": "knows while for loops great. need to repetition in recursion",
-          "result": "👋 Hi **jalal ahmadli**!  \nHere’s your feedback for **group 1**:\n\n✅ **Strengths**  \n- Excellent understanding and application of while and for loops.  \n- Solid problem-solving skills demonstrated in iterative constructs.  \n\n⚠️ **Areas for Improvement**  \n- Recursion concepts need stronger grasp and practice.  \n\n🔁 **Required Repetitions**  \n- Redo exercises focusing on recursion until you feel confident.  \n- Review relevant materials to solidify your understanding of recursive functions.  \n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        },
-        {
-          "id": "c64b44b2-39bb-469d-a4f8-c1731fe9f835",
-          "name": "elcan aliyev",
-          "discord": "",
-          "notes": "knows everything great",
-          "result": "👋 Hi **elcan aliyev**!  \nHere’s your feedback for **group 1**:\n\n✅ **Strengths**\n- Exceptional understanding and mastery of the concepts.\n- Demonstrated thorough and precise execution throughout the project.\n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Delve into advanced topics related to the project to further enhance your skills.\n- Consider mentoring peers who may benefit from your expertise.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "1ce9c769-8393-49df-908e-fb154363fad9",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "group 2",
-      "status": "completed",
-      "createdAt": "2026-02-02T15:26:57.924Z",
-      "students": [
-        {
-          "id": "f98d1350-6626-4495-9c7d-f510efdd2fd9",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "answered everything correctly",
-          "result": "👋 Hi **Elcan Aliyev**!  \nHere’s your feedback for **group 2**:\n\n✅ **Strengths**  \n- Demonstrated a clear understanding by answering everything correctly.  \n- Excellent grasp of the project material, reflecting thorough preparation.  \n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Adding more complexity to the project, such as integrating additional features or optimizing current solutions.  \n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "85ed6e15-aae2-423a-a473-9b9c96baeac6",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "Elcano",
-      "status": "completed",
-      "createdAt": "2026-02-03T12:53:30.816Z",
-      "students": [
-        {
-          "id": "f5800457-363d-4d24-b6d9-c4eecd286af0",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "answers while loop good",
-          "result": "I'm sorry, but I need some more information to provide feedback. Can you let me know if there were any specific comments or observations about Elcan Aliyev's work on the Elcano project?"
-        },
-        {
-          "id": "f7b02683-c2f9-4e88-85b9-f63fad96796c",
-          "name": "Aysel Mammedova",
-          "discord": "aysel.mammedova",
-          "notes": "for good",
-          "result": "Failed to generate feedback due to AI error."
-        },
-        {
-          "id": "e1d904cb-3ee1-4ab3-b579-87faa2831bab",
-          "name": "Celal Ehmedli",
-          "discord": "jalalahmadli",
-          "notes": "recursion bad",
-          "result": "👋 Hi **Celal Ehmedli**!  \nHere’s your feedback for **Elcano**:\n\n✅ **Strengths**  \n- Demonstrating initiative and willingness to tackle complex topics such as recursion.  \n- Committed effort to progress on the project despite challenges.\n\n⚠️ **Areas for Improvement**  \n- The implementation of recursion needs refinement. Ensuring a clearer understanding of base cases and recursive steps will improve functionality.\n\n🔁 **Required Repetitions**  \n- Redo the recursion segment of your project, focusing on correct logic flow and termination conditions.  \n- Review resources or examples related to recursion to solidify your understanding.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "f09812d0-1d2a-438f-bb74-626f2cbaee6c",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "group 1",
-      "status": "completed",
-      "createdAt": "2026-02-03T12:57:59.805Z",
-      "students": [
-        {
-          "id": "57362f17-8606-4305-9198-b4d001fa95bf",
-          "name": "Elcan Aliyev",
-          "discord": "",
-          "notes": "answered while loop okay,he knows everything well.",
-          "result": "👋 Hi **Elcan Aliyev**!  \nHere’s your feedback for **group 1**:\n\n✅ **Strengths**  \n- Demonstrated solid understanding of while loops.\n- Comprehensive knowledge across all project requirements.\n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Enhancing your code with optimization techniques for better performance.  \n- Experimenting with adding additional features to challenge your current understanding.  \n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        },
-        {
-          "id": "05517b88-31f9-41a4-b5cc-82f54a33e120",
-          "name": "Aysel Mammedova",
-          "discord": "",
-          "notes": "answered while loop okay, she knows everything well.",
-          "result": "👋 Hi **Aysel Mammedova**!  \nHere’s your feedback for **group 1**:\n\n✅ **Strengths**  \n- You have a solid understanding of the concepts, as demonstrated by your handling of the while loop.  \n- Your overall grasp of the material is strong and shows your dedication to learning.  \n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Experiment with more complex loops and conditions to deepen your understanding even further.  \n- Look into optimizing your code for efficiency in larger datasets or applications.  \n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        },
-        {
-          "id": "388a118b-d7ec-46d4-92f7-5409baa80aab",
-          "name": "Jalal Ahmadli",
-          "discord": "",
-          "notes": "he is master in loops,he is very handsome,and deserves to get the certificate early",
-          "result": "👋 Hi **Jalal Ahmadli**!  \nHere’s your feedback for **group 1**:\n\n✅ **Strengths**  \n- Outstanding proficiency with loops.  \n- Excellent problem-solving skills and effective implementation of concepts.  \n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Advanced data structures, like trees or graphs, to enhance your understanding.  \n- Optimizing your code further for better performance.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "41a11175-0f50-4396-8239-d5fbd3c92039",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "Group 1",
-      "status": "completed",
-      "createdAt": "2026-02-03T13:38:03.448Z",
-      "students": [
-        {
-          "id": "56e2a663-1cc6-4bb4-b3a9-b5ba6d3d4c55",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "answered everything correctly",
-          "result": "👋 Hi **Elcan Aliyev**!  \nHere’s your feedback for **Group 1**:\n\n✅ **Strengths**  \n- Clearly demonstrated understanding by answering everything correctly.  \n- Well-prepared and confident in your responses.\n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Delve deeper into the subject to uncover more complex scenarios.\n- Experiment with advanced features or techniques related to this topic.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "5e669b0a-22c1-4d70-b6cf-ed97e325fbf5",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "jalal",
-      "status": "completed",
-      "createdAt": "2026-02-03T13:45:14.877Z",
-      "students": [
-        {
-          "id": "d0259bb8-105d-4a64-8d95-3c3f088101f0",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "answered everthing okay",
-          "result": "👋 Hi **Jalal Ahmadli**!  \nHere’s your feedback for **jalal**:\n\n✅ **Strengths**\n- You have demonstrated a strong understanding of the project requirements.\n- Your solutions effectively address the tasks at hand, showing clear and logical thinking.\n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Enhancing the project by adding some advanced features or optimizations. Consider implementing additional functionalities that could further enrich user experience.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "0eb77a85-82d3-462e-b2bc-200c23af7b23",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "group 3",
-      "status": "completed",
-      "createdAt": "2026-02-03T14:07:50.571Z",
-      "students": [
-        {
-          "id": "68538915-3ae0-4e7a-b40b-d661faa7549f",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "he knows loops well",
-          "result": "👋 Hi **Elcan Aliyev**!  \nHere’s your feedback for **group 3**:\n\n✅ **Strengths**\n- Excellent understanding of loops, which is fundamental for developing efficient code.\n- Demonstrates good problem-solving skills by applying loops effectively.\n\n🚀 **Bonus Challenge**  \nTry exploring:\n- Implementing complex nested loops in small projects to test your skills and gain confidence.\n- Investigating different looping constructs in other programming languages to broaden your perspective.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "3395dc3d-3f91-41ca-b663-085a946178ef",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "group 5",
-      "status": "completed",
-      "createdAt": "2026-02-03T14:09:37.253Z",
-      "students": [
-        {
-          "id": "9dcd67c0-5f13-4b33-a5d1-202be5ac5de7",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "he knows everything well",
-          "result": "👋 Hi **Jalal Ahmadli**!  \nHere’s your feedback for **group 5**:\n\n✅ **Strengths**  \n- Demonstrates comprehensive understanding of project concepts.  \n- Consistently applied skills and knowledge throughout the project.  \n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Advanced optimization techniques or alternative methods to improve efficiency.  \n- Additional features that could enhance the existing project.  \n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "9a49c08a-a376-4daf-93a8-615b60e1d91a",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "group 6",
-      "status": "completed",
-      "createdAt": "2026-02-03T14:13:05.876Z",
-      "students": [
-        {
-          "id": "b4e35852-5f89-4986-920b-458eaecf4015",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "he knows everything well",
-          "result": "👋 Hi **Elcan Aliyev**!  \nHere’s your feedback for **group 6**:\n\n✅ **Strengths**  \n- Comprehensive understanding of the material.  \n- Consistent high-quality work with attention to detail.  \n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Expanding your current solution to include additional features or functionalities.  \n- Sharing your insights with peers to enhance collaborative learning.  \n\nKeep pushing forward — consistency is what turns effort into mastery. 💪  "
-        }
-      ]
-    },
-    {
-      "id": "641d0bb0-e835-4ced-853f-9485452b0a74",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "group",
-      "status": "completed",
-      "createdAt": "2026-02-03T17:04:07.135Z",
-      "students": [
-        {
-          "id": "e2e58a27-8f8c-446d-a425-77808f2bc20f",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "he answered everything well.",
-          "result": "👋 Hi **Jalal Ahmadli**!  \nHere’s your feedback for **group**:\n\n✅ **Strengths**\n- Comprehensive understanding of the project requirements.\n- Clear and accurate responses.\n\n🚀 **Bonus Challenge**  \nTry exploring:\n- Advanced group management features like dynamic role assignments.\n- Implementing an intuitive UI for group interactions.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "2fb7ef9e-bba8-4bab-9d2a-094f508b6f3c",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "new group",
-      "status": "completed",
-      "createdAt": "2026-02-03T17:06:03.966Z",
-      "students": [
-        {
-          "id": "38b73517-d08b-40ef-8960-21d79d2e0e67",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "he knows while and for loops well",
-          "result": "👋 Hi **Elcan Aliyev**!  \nHere’s your feedback for **new group**:\n\n✅ **Strengths**\n- You have a solid understanding of while loops.\n- Your proficiency with for loops is commendable.\n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Different looping techniques, such as nested loops or using built-in functions like `map` and `filter`.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "837cad02-c06c-4df7-b96f-1f0aae5b9d6b",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "new_group",
-      "status": "completed",
-      "createdAt": "2026-02-03T17:14:23.854Z",
-      "students": [
-        {
-          "id": "5fff8401-6c10-437d-b896-673a7bd5c21f",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "he knows about while and for loops, he must take repetition in pointers",
-          "result": "👋 Hi **Jalal Ahmadli**!  \nHere’s your feedback for **new_group**:\n\n✅ **Strengths**  \n- You have a good understanding of while and for loops, which is crucial for controlling flow in your projects.  \n\n⚠️ **Areas for Improvement**  \n- You need to strengthen your understanding of pointers to ensure a solid foundation in this key area.  \n\n🔁 **Required Repetitions**  \n- Redo sections involving pointers to solidify your comprehension.  \n- Review your work with pointers to identify and correct any misunderstandings.  \n\nKeep pushing forward — consistency is what turns effort into mastery. 💪  "
-        }
-      ]
-    },
-    {
-      "id": "c3048488-257c-4e13-9617-ab3ba651ba25",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "neü_group",
-      "status": "completed",
-      "createdAt": "2026-02-03T17:18:12.347Z",
-      "students": [
-        {
-          "id": "6dc3e38c-7ce7-4090-9bf5-66b9b6864faa",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "he knows about while and for loops, he must take repetition in pointers",
-          "result": "👋 Hi **Jalal Ahmadli**!  \nHere’s your feedback for **neü_group**:\n\n✅ **Strengths**\n- You have a good understanding of while and for loops, which is fundamental for controlling the flow of your programs. \n- Your persistence in tackling challenging concepts is evident and commendable.\n\n⚠️ **Areas for Improvement**\n- It's important to deepen your grasp of pointers. This concept is crucial for effective memory management and manipulation in your programs.\n\n🔁 **Required Repetitions**\n- Redo exercises involving pointers to solidify your understanding.\n- Review resources or tutorials focused specifically on pointers and their usage in practical applications.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "3ca186f4-de67-4a22-94ab-0cb592c69a2d",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "djanavarlar",
-      "status": "completed",
-      "createdAt": "2026-02-03T17:22:35.409Z",
-      "students": [
-        {
-          "id": "2de75cbf-e607-45a9-aac0-b4c90845d3c0",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "he knows while loops well, need to repeat for loops, answered pointers not good",
-          "result": "👋 Hi **Elcan Aliyev**!  \nHere’s your feedback for **djanavarlar**:\n\n✅ **Strengths**  \n- Strong understanding of while loops  \n- Demonstrates a good foundation in programming concepts  \n\n⚠️ **Areas for Improvement**  \n- Need to enhance your understanding of for loops  \n- Work on answering pointers more accurately\n\n🔁 **Required Repetitions**  \n- Redo exercises involving for loops  \n- Review materials on pointers to improve your responses  \n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        },
-        {
-          "id": "34b7e513-95bb-4509-a83a-cab72f87e212",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "he is king, he knows everything, he must be the owner of the course",
-          "result": "👋 Hi **Jalal Ahmadli**!  \nHere’s your feedback for **djanavarlar**:\n\n✅ **Strengths**  \n- Exceptional understanding of all project requirements.  \n- Demonstrated mastery in implementation and execution.  \n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Implementing advanced features or optimizations that could enhance the functionality further.  \n- Sharing your insights or best practices with your peers to elevate their understanding.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        },
-        {
-          "id": "8dda8c76-9a32-4993-b9cb-befcb3e1b4b0",
-          "name": "Aysel Mammedova",
-          "discord": "aysel.mammedova",
-          "notes": "she knows everything well, answered while and for loops great",
-          "result": "👋 Hi **Aysel Mammedova**!  \nHere’s your feedback for **djanavarlar**:\n\n✅ **Strengths**  \n- Demonstrates a strong understanding of key concepts.  \n- Answered while and for loops excellently.\n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Implementing more complex data structures in your project.  \n- Writing tests to ensure code reliability and efficiency.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        }
-      ]
-    },
-    {
-      "id": "4fb0ab38-3944-414d-9bb1-b1aa3e11f81c",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "Clash Royale E-Spor",
-      "status": "completed",
-      "createdAt": "2026-02-03T17:39:30.715Z",
-      "students": [
-        {
-          "id": "8a78cfe9-7b0c-4352-80e8-f0e02fbcc767",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "he knows while loops great, need to revise to for loops and pointers",
-          "result": "👋 Hi **Elcan Aliyev**!  \nHere’s your feedback for **Clash Royale E-Spor**:\n\n✅ **Strengths**\n- Strong understanding of while loops.\n- Demonstrated persistence and dedication.\n\n⚠️ **Areas for Improvement**\n- Transition your understanding from while loops to for loops for enhanced versatility.\n- Deepen your comprehension of pointers and their practical applications.\n\n🔁 **Required Repetitions**\n- Redo exercises incorporating for loops in varying scenarios.\n- Review materials and practice problems involving pointers.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪"
-        },
-        {
-          "id": "e8c17849-c719-4b68-a2b8-3831f9c2adac",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "this guy knows everything perfect",
-          "result": "👋 Hi **Jalal Ahmadli**!  \nHere’s your feedback for **Clash Royale E-Spor**:\n\n✅ **Strengths**\n- Demonstrated comprehensive understanding of the project requirements.\n- Impeccable execution with no issues or errors identified.\n\n🚀 **Bonus Challenge**  \nTry exploring:  \n- Developing an advanced feature, such as real-time analytics or a strategic tips module.\n- Delving into performance optimization to further elevate your project.\n\nKeep pushing forward — consistency is what turns effort into mastery. 💪  "
-        }
-      ]
-    },
-    {
-      "id": "0ae0f572-51c4-45da-a196-bfad62936449",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "test",
-      "status": "completed",
-      "createdAt": "2026-02-03T18:16:34.717Z",
-      "students": [
-        {
-          "id": "d2672887-5a00-41da-975f-db5afcea0489",
-          "name": "jalal ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "knows for, while loops great. explained recursion well, understanded linked lists. need to review to file/io",
-          "result": "Hello, I am your Teaching Assistant. This is your last week PLD report.\n\nJalal Ahmadli knows for loops, while loops, recursion, and linked lists.\n\nMust be reviewed: file I/O"
-        }
-      ]
-    },
-    {
-      "id": "9f5467f6-42a1-41ad-aae4-4a0cede9a90a",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "test",
-      "status": "completed",
-      "createdAt": "2026-02-03T18:18:40.379Z",
-      "students": [
-        {
-          "id": "169e36a4-8cec-4038-ab9f-18fadd41244a",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "knows for, while loops great. explained recursion well, understanded linked lists. need to review to file/io",
-          "result": "Hello, I am your Teaching Assistant. This is your last week PLD report.\n\nElcan Aliyev knows for loops, while loops, recursion, and linked lists.\n\nMust be reviewed: file I/O"
-        },
-        {
-          "id": "a69fc3ca-291c-4f20-a5c2-f69bb2363184",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "knows for, while loops great. explained recursion well, understanded linked lists. need to review to file/io",
-          "result": "Hello, I am your Teaching Assistant. This is your last week PLD report.\n\nJalal Ahmadli knows for loops, while loops, recursion, and linked lists.\n\nMust be reviewed: file I/O"
-        }
-      ]
-    },
-    {
-      "id": "aa1f951b-ba1a-48d6-b116-a449fd45f113",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "test2",
-      "status": "completed",
-      "createdAt": "2026-02-03T18:23:45.244Z",
-      "students": [
-        {
-          "id": "3a475733-bcc1-4875-9510-87ccf8a1c705",
-          "name": "Elcan Aliyev",
-          "discord": "elcanoo",
-          "notes": "knows for, while loops great. explained recursion well, understanded linked lists. need to review to file/io",
-          "result": "\"Hi Elcan! This week, you did a great job with for and while loops, explained recursion, and understood linked lists. Let's spend some time reviewing file/I/O. Keep it up!\""
-        },
-        {
-          "id": "19fbe694-bf7a-449d-95a8-383f9ee2821d",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "knows for, while loops great. explained recursion well, understanded linked lists. need to review to file/io",
-          "result": "Hello Jalal Ahmadli, this is your PLD report for this week.  \nYou know: for loops, while loops, recursion, and linked lists very well.  \nNeed to review: file input and output. Keep learning!"
-        }
-      ]
-    },
-    {
-      "id": "42509191-73ec-4ab6-bc42-fae5d0b48ab9",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "group new",
-      "status": "completed",
-      "createdAt": "2026-02-03T20:18:58.008Z",
-      "students": [
-        {
-          "id": "9b6e3565-8829-4e91-842a-efcb82e81647",
-          "name": "jalal ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "he knows everything well he is king",
-          "result": "\"Hello Jalal Ahmadli, here's your report for the week.  \nYou know everything well. You are the king! Keep up the great work!\""
-        }
-      ]
-    },
-    {
-      "id": "ad4bdf89-658c-4b7e-a7b4-1899cde9bebf",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "testing",
-      "status": "completed",
-      "createdAt": "2026-02-04T07:53:08.017Z",
-      "students": [
-        {
-          "id": "c462c4ea-cd33-4208-b20f-419ba594ecda",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "he knows everything well",
-          "result": "\"Hello Jalal, this is your PLD report for this week. You know everything well! Great job!\""
-        }
-      ]
-    },
-    {
-      "id": "b7a3d92a-96bc-43a1-b063-8a69ee50fe0a",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "test",
-      "topic": "loops",
-      "questions": [
-        {
-          "id": "57730316-5b14-4b60-8e9a-46dd21afdf30",
-          "text": "what is while loops"
-        },
-        {
-          "id": "a417eb3f-4ee8-45a1-a615-4d085ca86d86",
-          "text": "what is for loop"
-        }
-      ],
-      "status": "active",
-      "createdAt": "2026-02-04T09:18:40.794Z",
-      "students": [
-        {
-          "id": "ad1ce8e1-e508-4163-b40a-cc0e461ac36f",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "",
-          "result": null
-        }
-      ]
-    },
-    {
-      "id": "7a12eced-cb3e-4e2b-bbcc-fd1de541faa7",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "testing3",
-      "topicId": "91ff757c-adca-4a3c-8d06-3674b40b898f",
-      "topicName": "recursion",
-      "questions": [
-        {
-          "id": "daf202d0-c4c8-4b82-b503-cbd1fab8ac02",
-          "text": "what is recursion"
-        },
-        {
-          "id": "2aefc213-ec78-4ff2-aff5-d85f5cbef8b7",
-          "text": "how can end recursion"
-        }
-      ],
-      "status": "completed",
-      "createdAt": "2026-02-04T10:07:03.766Z",
-      "students": [
-        {
-          "id": "d519986a-e63f-49cc-918d-d4deb22fb31b",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "answered everything well",
-          "result": "\"Hi Jalal! Awesome job on testing3. You answered everything really well. Keep it up!\""
-        }
-      ]
-    },
-    {
-      "id": "31d2c450-2476-4879-8756-99101cca057d",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "sdfds",
-      "topicId": "57730316-5b14-4b60-8e9a-46dd21afdf30",
-      "topicName": "loops",
-      "status": "completed",
-      "createdAt": "2026-02-04T11:14:39.431Z",
-      "students": [
-        {
-          "id": "2a906576-9845-4c3e-a09f-e604b6757943",
-          "name": "fdsfdsf",
-          "discord": "fdsfds",
-          "notes": "dfdsf",
-          "result": "\"Hello fdsfdsf, this is your PLD report for this week. You know: dfdsf. Need to review: [no weaknesses noted]\""
-        }
-      ]
-    },
-    {
-      "id": "5b2e8f47-3ec6-4545-b288-40c2b32813ea",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "groupName": "helloooo",
-      "topicId": "57730316-5b14-4b60-8e9a-46dd21afdf30",
-      "topicName": "loops",
-      "status": "completed",
-      "createdAt": "2026-02-04T11:15:03.306Z",
-      "students": [
-        {
-          "id": "d7922b10-04cb-4641-aba4-cb46a0ec3323",
-          "name": "Jalal Ahmadli",
-          "discord": "jalalahmadli",
-          "notes": "he knows",
-          "result": "Hello Jalal Ahmadli, this is your PLD report for this week.  \nYou know: all the topics! Great job!"
-        }
-      ]
-    }
-  ],
+  "sessions": [],
   "notes": [],
   "students": [
     {
-      "id": "45bc9463-26f1-481f-b5f5-a47d93307e5c",
+      "id": "91b8534b-acc6-441c-9158-57dfd109f991",
       "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
       "name": "Jalal Ahmadli",
       "discord": "jalalahmadli",
-      "createdAt": "2026-02-04T07:52:04.253Z"
+      "createdAt": "2026-02-04T15:05:51.429Z"
     },
     {
-      "id": "229a03a1-40d2-4c4d-b4cb-6344e8e4b42d",
+      "id": "468bdfae-b86f-4ba1-b509-a20febf0ae6e",
       "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
       "name": "Elcan Aliyev",
       "discord": "elcanoo",
-      "createdAt": "2026-02-04T07:52:14.460Z"
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "3c8e9299-a4e6-4950-a541-668cbd7784c4",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Tamerlan Kerimov",
+      "discord": "kerim0v",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "c7a9c341-cf91-4ee9-8de4-3143dee2aa1e",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Ziya Safaraliyev",
+      "discord": "ziyasenior",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "1caa946b-2a2f-4e6b-8b52-abed24d86f55",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Lucas Martin",
+      "discord": "lucas.fr",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "271ea3b8-7e20-49e6-9e92-a439262527c2",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Camille Dupont",
+      "discord": "camille.dev",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "8e160baa-af80-4c33-abc1-5278faded5fc",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Julien Moreau",
+      "discord": "julien_code",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "ef24043a-ba12-4256-9b81-6350ef686af9",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Sophie Laurent",
+      "discord": "sophie.ui",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "928d58fc-edb1-4b73-ab0a-d6ef23126f91",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Ahmed Al-Farsi",
+      "discord": "ahmed.sa",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "45c35338-d814-4053-99e7-66272e072c67",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Omar Al-Nasser",
+      "discord": "omar.backend",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "00f64ee9-5f76-4342-9a29-2389fbb8e39a",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Yasmin Al-Harbi",
+      "discord": "yasmin.dev",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "631ea554-86c1-4278-9788-ba289272fbbd",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Khalid Al-Mutairi",
+      "discord": "khalid.api",
+      "createdAt": "2026-02-04T15:05:51.429Z"
+    },
+    {
+      "id": "74f56052-6195-4fb6-8ff1-030494fab107",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Jack Wilson",
+      "discord": "jack.aus",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "ceaa8253-dd49-43ec-811e-26990e6b2aab",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Emily Carter",
+      "discord": "emily.react",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "b78362c5-a002-4229-ab64-91d84e966cd6",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Noah Thompson",
+      "discord": "noah.node",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "00c60243-d9b9-47e3-934b-731ce2bf08f2",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Oliver Brown",
+      "discord": "oliver.cloud",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "fcec99b2-43f6-4ef4-b92e-873ffafd7f97",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Michael Johnson",
+      "discord": "mike.fullstack",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "9f20007e-0812-4b01-b2b6-9ce865496c5c",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Sarah Miller",
+      "discord": "sarah.codes",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "e92adc9b-eda0-489c-84c2-80ad1cfea49f",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Daniel Anderson",
+      "discord": "dan_backend",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "10700a19-493f-47a7-93bf-af15e7c8870c",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Jessica White",
+      "discord": "jess.uiux",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "8cec2766-8949-4a8c-97d4-1a924d7c8c48",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Elvin Məmmədov",
+      "discord": "elvin.dev",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "18c879df-5b31-4f96-8e57-6e4b40fcbbbe",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Aysel Hüseynova",
+      "discord": "aysel.frontend",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "4891e501-b4a0-4b3d-8af1-7b1b52146db6",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Kamal Əliyev",
+      "discord": "kamal.api",
+      "createdAt": "2026-02-04T15:05:51.430Z"
+    },
+    {
+      "id": "75616922-86cf-40cc-874a-cfb9afcf9760",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "name": "Nigar Qasımova",
+      "discord": "nigar.sql",
+      "createdAt": "2026-02-04T15:05:51.430Z"
     }
   ],
   "questions": [
     {
-      "id": "57730316-5b14-4b60-8e9a-46dd21afdf30",
+      "id": "26026e59-f10f-4309-a966-95c43355b32e",
       "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "text": "what is while loops",
-      "topic": "loops",
-      "createdAt": "2026-02-04T09:18:01.671Z"
-    },
-    {
-      "id": "a417eb3f-4ee8-45a1-a615-4d085ca86d86",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "text": "what is for loop",
-      "topic": "loops",
-      "createdAt": "2026-02-04T09:18:12.650Z"
-    },
-    {
-      "id": "91ff757c-adca-4a3c-8d06-3674b40b898f",
-      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
-      "topic": "recursion",
+      "topic": "Loops",
       "questions": [
         {
-          "id": "daf202d0-c4c8-4b82-b503-cbd1fab8ac02",
-          "text": "what is recursion"
+          "id": "dd726596-8cc9-42a2-af10-c35247a4aa94",
+          "text": "What is while loop?"
         },
         {
-          "id": "2aefc213-ec78-4ff2-aff5-d85f5cbef8b7",
-          "text": "how can end recursion"
+          "id": "64ace15a-ac2b-4fb9-995e-321ffa60cb1f",
+          "text": "What is for loop?\n\n3.What is difference between while and for loop?\n\n4.What is nested loops?\n\n5.What is variable scopes?"
         }
       ],
-      "createdAt": "2026-02-04T10:06:33.752Z"
+      "createdAt": "2026-02-04T16:40:31.205Z"
+    },
+    {
+      "id": "1573e185-c081-48e3-a4ee-1593563e0069",
+      "mentorId": "fc761c56-03a2-4e31-a6d0-663164264328",
+      "topic": "Loops",
+      "questions": [
+        {
+          "id": "458e7d7d-39ce-44ed-9f14-b503d2408ac7",
+          "text": "What is while loop?"
+        },
+        {
+          "id": "bea9bab9-eefc-4927-83d9-005da338a495",
+          "text": "What is for loop?"
+        },
+        {
+          "id": "acef945c-17fa-4ac8-91cc-a9ef1e0569ba",
+          "text": "What is difference between while and for loop?"
+        },
+        {
+          "id": "294b6e2e-7352-4227-b72b-60d2112051c2",
+          "text": "What is nested loops?"
+        },
+        {
+          "id": "2b967ea3-cfc6-44ac-a7b6-d3b090f8b9e2",
+          "text": "What is variable scopes?"
+        }
+      ],
+      "createdAt": "2026-02-04T16:42:29.853Z"
     }
   ]
 }

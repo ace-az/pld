@@ -13,6 +13,7 @@ router.put('/:sessionId/students/:studentId/notes', sessionController.updateNote
 router.put('/:sessionId/students/:studentId/result', sessionController.saveResult);
 router.post('/:sessionId/students/:studentId/send', sessionController.sendFeedback);
 router.post('/:sessionId/send-all', sessionController.sendAllFeedback);
+router.delete('/all', sessionController.deleteAllSessions);
 router.delete('/:id', sessionController.deleteSession);
 router.post('/:id/end', sessionController.endSession);
 

@@ -12,6 +12,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const verifications = {};
+module.exports.verifications = verifications;
+
 // Discord Bot Setup
 const client = new Client({
     intents: [
@@ -37,6 +40,10 @@ app.use((req, res, next) => {
     req.discordClient = client;
     next();
 });
+
+// Discord Verification Routes
+app.use('/register', require('./routes/register'));
+app.use('/verify', require('./routes/verify'));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));

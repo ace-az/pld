@@ -1,7 +1,7 @@
 // client/src/pages/Students.jsx
 import { useState, useEffect } from 'react';
-import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent } from '../api';
-import { UserPlus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents } from '../api';
+import { UserPlus, Trash2, Edit2, Check, X, Upload } from 'lucide-react';
 
 export default function Students() {
     const [students, setStudents] = useState([]);
@@ -14,6 +14,7 @@ export default function Students() {
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
     const [editDiscord, setEditDiscord] = useState('');
+    const [importing, setImporting] = useState(false);
 
     useEffect(() => {
         fetchStudents();
@@ -33,8 +34,17 @@ export default function Students() {
     const handleAddStudent = async (e) => {
         e.preventDefault();
         try {
+            const studentExists = students.some(s => s.discord && s.discord.toLowerCase() === discord.trim().toLowerCase());
+            if (studentExists) {
+                alert('A student with this Discord account already exists.');
+                return;
+            }
+
             const newStudent = await addMasterStudent({ name, discord });
-            setStudents([...students, newStudent]);
+            // Only add if not already in list (API returns existing student if found)
+            if (!students.find(s => s.id === newStudent.id)) {
+                setStudents([...students, newStudent]);
+            }
             setName('');
             setDiscord('');
         } catch (err) {
@@ -74,12 +84,91 @@ export default function Students() {
         }
     };
 
+    const handleDeleteAll = async () => {
+        if (!window.confirm("CAUTION: Are you sure you want to delete ALL students? This action is permanent and cannot be undone.")) return;
+
+        try {
+            await deleteAllMasterStudents();
+            setStudents([]);
+        } catch (err) {
+            console.error('Error deleting all students:', err);
+            alert("Error deleting students");
+        }
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setImporting(true);
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const text = event.target.result;
+                const lines = text.split('\n');
+                const seenDiscords = new Set(students.map(s => s.discord?.toLowerCase()).filter(Boolean));
+                const newStudents = [];
+
+                // Skip header if it exists
+                const startIdx = (lines[0].toLowerCase().includes('name') || lines[0].toLowerCase().includes('discord')) ? 1 : 0;
+
+                for (let i = startIdx; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    // Support both comma and semicolon
+                    const parts = line.includes(';') ? line.split(';') : line.split(',');
+                    if (parts.length >= 1) {
+                        const name = parts[0].trim();
+                        const discord = parts[1] ? parts[1].trim() : '';
+                        const discordLower = discord.toLowerCase();
+
+                        if (discord && seenDiscords.has(discordLower)) {
+                            continue; // Skip if already in list or batch
+                        }
+
+                        newStudents.push({ name, discord });
+                        if (discord) seenDiscords.add(discordLower);
+                    }
+                }
+
+                if (newStudents.length > 0) {
+                    const created = await bulkAddMasterStudents(newStudents);
+                    setStudents(prev => [...prev, ...created]);
+                    alert(`Successfully imported ${created.length} students!`);
+                } else {
+                    alert('No new student data found (duplicates are hidden).');
+                }
+            } catch (err) {
+                console.error('Import error:', err);
+                alert('Failed to parse or import CSV file.');
+            } finally {
+                setImporting(false);
+                e.target.value = ''; // Reset input
+            }
+        };
+        reader.readAsText(file);
+    };
+
     if (loading) return <div>Loading...</div>;
 
     return (
         <div className="students-container">
             <div className="flex-between" style={{ marginBottom: '2rem' }}>
                 <h1>Manage Students</h1>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                        type="file"
+                        id="csv-upload"
+                        accept=".csv"
+                        style={{ display: 'none' }}
+                        onChange={handleFileUpload}
+                        disabled={importing}
+                    />
+                    <label htmlFor="csv-upload" className="btn btn-outline flex-center" style={{ cursor: 'pointer', opacity: importing ? 0.5 : 1 }}>
+                        <Upload size={20} style={{ marginRight: '0.5rem' }} /> {importing ? 'Importing...' : 'Import CSV'}
+                    </label>
+                </div>
             </div>
 
             <div className="card" style={{ marginBottom: '2rem' }}>
@@ -111,7 +200,18 @@ export default function Students() {
             </div>
 
             <div className="card">
-                <h3>Student List ({students.length})</h3>
+                <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                    <h3 style={{ margin: 0 }}>Student List ({students.length})</h3>
+                    {students.length > 0 && (
+                        <button
+                            onClick={handleDeleteAll}
+                            className="btn btn-outline flex-center"
+                            style={{ color: '#f44336', borderColor: '#f44336', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        >
+                            <Trash2 size={16} style={{ marginRight: '0.4rem' }} /> Delete All
+                        </button>
+                    )}
+                </div>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>

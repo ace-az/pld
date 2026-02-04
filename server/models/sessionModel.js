@@ -85,4 +85,11 @@ async function deleteSession(sessionId) {
     return true;
 }
 
-module.exports = { createSession, getSessionsByMentor, getSessionById, updateStudentNote, updateStudentResult, completeSession, deleteSession };
+async function deleteAllSessions(mentorId) {
+    db.get('sessions')
+        .remove({ mentorId })
+        .write();
+    return true;
+}
+
+module.exports = { createSession, getSessionsByMentor, getSessionById, updateStudentNote, updateStudentResult, completeSession, deleteSession, deleteAllSessions };

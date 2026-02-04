@@ -78,6 +78,15 @@ exports.deleteSession = async (req, res) => {
     }
 };
 
+exports.deleteAllSessions = async (req, res) => {
+    try {
+        await sessionModel.deleteAllSessions(req.user.id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 
 // Helper to find user and send DM
 async function sendDiscordDM(discordClient, username, message) {

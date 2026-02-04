@@ -55,6 +55,43 @@ export const loginUser = async (credentials) => {
     return handleResponse(response);
 };
 
+/**
+ * Send Discord verification code
+ * @param {string} discordUsername - Discord username
+ * @returns {Promise<string>} Success message
+ */
+export const sendVerificationCode = async (discordUsername) => {
+    const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discordUsername })
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to send verification code');
+    }
+    return response.text();
+};
+
+/**
+ * Verify Discord code
+ * @param {string} discordUsername - Discord username
+ * @param {string} code - Verification code
+ * @returns {Promise<string>} Success message
+ */
+export const verifyDiscordCode = async (discordUsername, code) => {
+    const response = await fetch(`${API_URL}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discordUsername, code })
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Verification failed');
+    }
+    return response.text();
+};
+
 // ==================== SESSION ENDPOINTS ====================
 
 /**
@@ -101,6 +138,18 @@ export const createSession = async (sessionData) => {
  */
 export const deleteSession = async (id) => {
     const response = await fetch(`${API_URL}/api/sessions/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Delete all sessions for the current user
+ * @returns {Promise<Object>} Success response
+ */
+export const deleteAllSessions = async () => {
+    const response = await fetch(`${API_URL}/api/sessions/all`, {
         method: 'DELETE',
         headers: getAuthHeaders()
     });
@@ -194,16 +243,25 @@ export const getMasterStudents = async () => {
     return handleResponse(response);
 };
 
-/**
- * Add a student to the master list
- * @param {Object} studentData - { name, discord }
- * @returns {Promise<Object>} Created student object
- */
 export const addMasterStudent = async (studentData) => {
     const response = await fetch(`${API_URL}/api/students`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(studentData)
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Bulk add students to the master list
+ * @param {Array} students - Array of { name, discord }
+ * @returns {Promise<Array>} Created student objects
+ */
+export const bulkAddMasterStudents = async (students) => {
+    const response = await fetch(`${API_URL}/api/students/bulk`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ students })
     });
     return handleResponse(response);
 };
@@ -230,6 +288,18 @@ export const updateMasterStudent = async (id, studentData) => {
  */
 export const deleteMasterStudent = async (id) => {
     const response = await fetch(`${API_URL}/api/students/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Delete all students from the master list
+ * @returns {Promise<Object>} Success response
+ */
+export const deleteAllMasterStudents = async () => {
+    const response = await fetch(`${API_URL}/api/students/all`, {
         method: 'DELETE',
         headers: getAuthHeaders()
     });
@@ -285,6 +355,18 @@ export const updateQuestionSet = async (id, setData) => {
  */
 export const deleteQuestionSet = async (id) => {
     const response = await fetch(`${API_URL}/api/questions/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Delete all question sets
+ * @returns {Promise<Object>} Success response
+ */
+export const deleteAllQuestionSets = async () => {
+    const response = await fetch(`${API_URL}/api/questions/all`, {
         method: 'DELETE',
         headers: getAuthHeaders()
     });
