@@ -1,6 +1,6 @@
 // server/controllers/authController.js
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { createUser, findUserByUsername } = require('../models/userModel');
 
 const SECRET = process.env.JWT_SECRET || 'secret';
