@@ -1,9 +1,11 @@
 // client/src/pages/Students.jsx
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents } from '../api';
-import { UserPlus, Trash2, Edit2, Check, X, Upload } from 'lucide-react';
+import { UserPlus, Trash2, Edit2, Check, X, Upload, ArrowLeft } from 'lucide-react';
 
 export default function Students() {
+    const navigate = useNavigate();
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -155,7 +157,12 @@ export default function Students() {
     return (
         <div className="students-container">
             <div className="flex-between" style={{ marginBottom: '2rem' }}>
-                <h1>Manage Students</h1>
+                <div>
+                    <button onClick={() => navigate('/')} className="btn-outline" style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', border: 'none', padding: 0 }}>
+                        <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} /> Back to Dashboard
+                    </button>
+                    <h1>Manage Students</h1>
+                </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
                         type="file"

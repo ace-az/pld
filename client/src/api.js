@@ -204,6 +204,22 @@ export const saveStudentResult = async (sessionId, studentId, result) => {
 };
 
 /**
+ * Toggle student status (present/absent)
+ * @param {string} sessionId - Session ID
+ * @param {string} studentId - Student ID
+ * @param {string} status - 'present' or 'absent'
+ * @returns {Promise<Object>} Updated student object
+ */
+export const toggleStudentStatus = async (sessionId, studentId, status) => {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status })
+    });
+    return handleResponse(response);
+};
+
+/**
  * Send feedback to a single student via Discord
  * @param {string} sessionId - Session ID
  * @param {string} studentId - Student ID

@@ -1,10 +1,10 @@
 // client/src/pages/SessionRun.jsx
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, Send, Download, Lightbulb, HelpCircle, BookOpen } from 'lucide-react';
-import { jsPDF } from 'jspdf';
+import { ArrowLeft, ArrowRight, Save, Send, Download, Lightbulb, HelpCircle, BookOpen, PhoneOff, CheckCircle, XCircle } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { generateFeedback } from '../services/aiService';
-import { getSession, saveStudentNotes, saveStudentResult, endSession, sendToDiscord, sendAllToDiscord } from '../api';
+import { getSession, saveStudentNotes, saveStudentResult, endSession, sendToDiscord, sendAllToDiscord, toggleStudentStatus } from '../api';
 
 export default function SessionRun() {
     const { id } = useParams();
@@ -17,9 +17,12 @@ export default function SessionRun() {
     const [results, setResults] = useState({}); // studentId -> feedback
     const [sentStatus, setSentStatus] = useState({}); // studentId -> boolean
     const [showQuestions, setShowQuestions] = useState(true);
+    const [navigationMode, setNavigationMode] = useState(false); // ESC toggle for navigation
 
     // Debounce save ref
     const saveTimeout = useRef(null);
+    const notesTextareaRef = useRef(null);
+    const cursorPositionRef = useRef(0); // Track cursor position
 
     useEffect(() => {
         fetchSession();
@@ -31,12 +34,45 @@ export default function SessionRun() {
         }
     }, [currentIndex, session]);
 
-    // Keyboard navigation
+    // Keyboard navigation with ESC toggle
     useEffect(() => {
         const handleKeyDown = (e) => {
-            // Only handle arrow keys if not typing in an input/textarea
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            // ESC key toggles navigation mode
+            if (e.key === 'Escape') {
+                e.preventDefault();
+
+                if (navigationMode) {
+                    // Exiting navigation mode - restore focus and cursor position
+                    setNavigationMode(false);
+                    if (notesTextareaRef.current) {
+                        notesTextareaRef.current.focus();
+                        // Restore cursor position
+                        setTimeout(() => {
+                            if (notesTextareaRef.current) {
+                                notesTextareaRef.current.setSelectionRange(
+                                    cursorPositionRef.current,
+                                    cursorPositionRef.current
+                                );
+                            }
+                        }, 0);
+                    }
+                } else {
+                    // Entering navigation mode - save cursor position and blur
+                    if (notesTextareaRef.current) {
+                        cursorPositionRef.current = notesTextareaRef.current.selectionStart;
+                        notesTextareaRef.current.blur();
+                    }
+                    setNavigationMode(true);
+                }
                 return;
+            }
+
+            // Arrow key navigation
+            // Works in navigation mode OR when not focused on input/textarea
+            const isInputFocused = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+
+            if (!navigationMode && isInputFocused) {
+                return; // Don't navigate if in editing mode and typing
             }
 
             if (e.key === 'ArrowRight' && session?.students && currentIndex < session.students.length - 1) {
@@ -50,7 +86,7 @@ export default function SessionRun() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentIndex, session]);
+    }, [currentIndex, session, navigationMode]);
 
     const fetchSession = async () => {
         try {
@@ -124,22 +160,58 @@ export default function SessionRun() {
 
         try {
             for (const student of session.students) {
+                if (student.status === 'absent') {
+                    console.log(`Skipping AI report for absent student: ${student.name}`);
+                    continue;
+                }
                 if (newResults[student.id]) continue;
 
-                const feedback = await generateFeedback(student.name, session.groupName, student.notes || "Participated in session.");
+                const feedback = await generateFeedback(student.name, session.topicName || session.groupName, student.notes || "Participated in session.");
                 newResults[student.id] = feedback;
 
                 await saveStudentResult(session.id, student.id, feedback);
             }
 
             setResults(newResults);
-            await endSession(session.id);
+            // Removed auto-end session
+            // await endSession(session.id); 
             fetchSession(); // Refresh status
+            alert("Reports generated!");
         } catch (err) {
             console.error('Error generating feedback:', err);
             alert("Failed to generate some reports. Please try again.");
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const handleFinishSession = async () => {
+        if (!window.confirm("Are you sure you want to finish this session? This will mark it as completed.")) return;
+        try {
+            await endSession(session.id);
+            navigate('/');
+        } catch (err) {
+            console.error('Error finishing session:', err);
+            alert("Failed to finish session");
+        }
+    };
+
+    const handleToggleAbsence = async (studentId, currentStatus) => {
+        const newStatus = currentStatus === 'absent' ? 'present' : 'absent';
+        if (newStatus === 'absent' && !window.confirm("Mark this student as absent? A PTO notification will be queued to send when you click 'Send All to Discord'.")) return;
+
+        try {
+            await toggleStudentStatus(session.id, studentId, newStatus);
+            // Update local state immediately
+            setSession(prev => {
+                const newStudents = prev.students.map(s =>
+                    s.id === studentId ? { ...s, status: newStatus } : s
+                );
+                return { ...prev, students: newStudents };
+            });
+        } catch (err) {
+            console.error('Error toggling status:', err);
+            alert("Failed to update status");
         }
     };
 
@@ -163,14 +235,24 @@ export default function SessionRun() {
             const data = await sendAllToDiscord(session.id);
             if (data.summary) {
                 const newStatuses = { ...sentStatus };
+                let sentCount = 0;
+                let absentCount = 0;
+                let errorCount = 0;
+
                 data.summary.forEach(item => {
                     const s = session.students.find(st => st.name === item.student);
                     if (s) {
                         newStatuses[s.id] = item.success;
                     }
+                    if (item.success) {
+                        if (item.type === 'absent_notification') absentCount++;
+                        else sentCount++;
+                    } else {
+                        errorCount++;
+                    }
                 });
                 setSentStatus(newStatuses);
-                alert("Batch processing complete.");
+                alert(`Batch processing complete.\n\n✅ Reports Sent: ${sentCount}\nzzz Absent Notifications: ${absentCount}\n❌ Errors: ${errorCount}`);
             }
         } catch (err) {
             console.error(err);
@@ -249,9 +331,27 @@ export default function SessionRun() {
                         <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} /> Back to Dashboard
                     </button>
                     <h1>{session.groupName}</h1>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
                         <span>Status: <strong style={{ color: session.status === 'completed' ? '#4CAF50' : 'var(--color-primary)' }}>{session.status.toUpperCase()}</strong></span>
-                        {session.topicName && (
+                        {session.topicNames && session.topicNames.length > 0 ? (
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {session.topicNames.map((name, i) => (
+                                    <span key={i} style={{
+                                        background: 'var(--bg-card)',
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '0.8rem',
+                                        border: '1px solid var(--border-color)',
+                                        color: 'var(--color-primary)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem'
+                                    }}>
+                                        <HelpCircle size={12} /> {name}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : session.topicName && (
                             <span style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                 <HelpCircle size={16} /> {session.topicName}
                             </span>
@@ -280,14 +380,23 @@ export default function SessionRun() {
                             disabled={generating}
                         >
                             <Lightbulb size={18} style={{ marginRight: '0.5rem' }} />
-                            {generating ? 'Generating Reports...' : 'Generate AI Reports'}
+                            {generating ? 'Generating...' : (Object.keys(results).length > 0 ? 'Regenerate Reports' : 'Generate AI Reports')}
+                        </button>
+                    )}
+                    {session.status === 'active' && (
+                        <button
+                            onClick={handleFinishSession}
+                            className="btn flex-center"
+                            style={{ background: '#d32f2f', color: 'white', border: 'none' }}
+                        >
+                            <XCircle size={18} style={{ marginRight: '0.5rem' }} /> Finish Session
                         </button>
                     )}
                     <button
                         onClick={handleSendAllToDiscord}
                         className="btn flex-center"
                         style={{ background: '#5865F2', color: 'white', border: 'none' }}
-                        disabled={generating || Object.keys(results).length === 0}
+                        disabled={generating || (Object.keys(results).length === 0 && !session.students.some(s => s.status === 'absent'))}
                     >
                         <Send size={18} style={{ marginRight: '0.5rem' }} />
                         Send All to Discord
@@ -317,13 +426,55 @@ export default function SessionRun() {
                         <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column' }}>
                             <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
                                 <label style={{ fontWeight: '600' }}>Mentor Notes</label>
-                                {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}><Save size={12} style={{ marginRight: 4 }} /> Saving...</span>}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    {navigationMode && (
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            color: 'white',
+                                            background: 'var(--color-primary)',
+                                            padding: '2px 8px',
+                                            borderRadius: '4px',
+                                            fontWeight: '600'
+                                        }}>
+                                            🎯 Navigation Mode (ESC to exit)
+                                        </span>
+                                    )}
+                                    {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}><Save size={12} style={{ marginRight: 4 }} /> Saving...</span>}
+                                    <button
+                                        onClick={() => handleToggleAbsence(currentStudent.id, currentStudent.status || 'present')}
+                                        className="btn btn-outline"
+                                        style={{
+                                            fontSize: '0.75rem',
+                                            padding: '2px 8px',
+                                            marginLeft: '1rem',
+                                            color: currentStudent.status === 'absent' ? '#d32f2f' : 'var(--text-secondary)',
+                                            borderColor: currentStudent.status === 'absent' ? '#d32f2f' : 'var(--border-color)'
+                                        }}
+                                    >
+                                        {currentStudent.status === 'absent' ? (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><PhoneOff size={12} /> Mark Present</span>
+                                        ) : (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> Mark Absent</span>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                             <textarea
+                                ref={notesTextareaRef}
                                 className="input-control"
-                                style={{ flex: 1, minHeight: '350px', resize: 'none', padding: '1.25rem', lineHeight: '1.6', fontSize: '1rem' }}
-                                value={note}
+                                style={{
+                                    flex: 1,
+                                    minHeight: '350px',
+                                    resize: 'none',
+                                    padding: '1.25rem',
+                                    lineHeight: '1.6',
+                                    fontSize: '1rem',
+                                    background: currentStudent.status === 'absent' ? 'var(--bg-app)' : 'var(--bg-input)',
+                                    color: currentStudent.status === 'absent' ? 'var(--text-secondary)' : 'inherit'
+                                }}
+                                value={currentStudent.status === 'absent' ? "Student marked as absent." : note}
                                 onChange={handleNoteChange}
+                                disabled={currentStudent.status === 'absent'}
                                 placeholder="Type performance observations, evaluation results, and common issues..."
                             />
                         </div>
@@ -362,16 +513,41 @@ export default function SessionRun() {
 
                 {/* Question Sidebar */}
                 {session.questions && session.questions.length > 0 && showQuestions && (
-                    <div className="card" style={{ height: 'fit-content', position: 'sticky', top: '2rem', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid var(--color-primary)' }}>
+                    <div className="card" style={{ height: 'fit-content', position: 'sticky', top: '2rem', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid var(--color-primary)', padding: '1.25rem' }}>
                         <div style={{ borderBottom: '1px solid var(--border-color)', marginBottom: '1.25rem', paddingBottom: '0.5rem' }}>
                             <h3 style={{ margin: 0, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <BookOpen size={20} /> <span>{session.topicName}</span>
+                                <BookOpen size={20} /> <span>Session Questions</span>
                             </h3>
+                            <small style={{ color: 'var(--text-secondary)' }}>{session.questions.length} questions available</small>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
                             {session.questions.map((q, idx) => (
-                                <div key={q.id || idx} style={{ fontSize: '0.9rem', padding: '1rem', background: 'var(--bg-app)', borderRadius: '8px', borderLeft: '3px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-                                    <div style={{ fontWeight: 'bold', marginBottom: '0.4rem', color: 'var(--color-primary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Question {idx + 1}</div>
+                                <div key={q.id || idx} style={{
+                                    fontSize: '0.9rem',
+                                    padding: '1rem',
+                                    background: 'var(--bg-app)',
+                                    borderRadius: '8px',
+                                    borderLeft: '4px solid var(--color-primary)',
+                                    boxShadow: 'var(--shadow-sm)',
+                                    position: 'relative'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
+                                        <div style={{ fontWeight: 'bold', color: 'var(--color-primary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            Question {idx + 1}
+                                        </div>
+                                        {q.topicName && (
+                                            <div style={{
+                                                fontSize: '0.65rem',
+                                                background: 'var(--color-primary)',
+                                                color: 'white',
+                                                padding: '1px 6px',
+                                                borderRadius: '3px',
+                                                fontWeight: '600'
+                                            }}>
+                                                {q.topicName}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div style={{ color: 'var(--text-main)', lineHeight: '1.5' }}>{q.text || q}</div>
                                 </div>
                             ))}

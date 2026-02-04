@@ -3,12 +3,13 @@ const sessionModel = require('../models/sessionModel');
 
 exports.createSession = async (req, res) => {
     try {
-        const { groupName, students, topicId } = req.body; // students: [{name, discord}]
-        if (!groupName || !students || students.length === 0 || !topicId) {
-            return res.status(400).json({ error: 'Missing required fields (Group Name, Students, and Topic)' });
+        const { groupName, students, topicIds } = req.body; // students: [{name, discord}], topicIds: [id1, id2]
+
+        if (!groupName || !students || students.length === 0 || !topicIds || (Array.isArray(topicIds) && topicIds.length === 0)) {
+            return res.status(400).json({ error: 'Missing required fields (Group Name, Students, and Topics)' });
         }
 
-        const session = await sessionModel.createSession(req.user.id, groupName, students, topicId);
+        const session = await sessionModel.createSession(req.user.id, groupName, students, topicIds);
         res.json(session);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -143,6 +144,10 @@ exports.sendFeedback = async (req, res) => {
         const student = session.students.find(s => s.id === studentId);
         if (!student) return res.status(404).json({ error: 'Student not found' });
 
+        // If absent, we shouldn't really be sending "feedback", but we might notify them of absence.
+        // The toggleStatus endpoint handles absence notification.
+        // This endpoint is for AI result feedback.
+
         if (!student.result) return res.status(400).json({ error: 'No feedback generated to send' });
         if (!student.discord) return res.status(400).json({ error: 'No Discord username provided' });
 
@@ -158,6 +163,22 @@ exports.sendFeedback = async (req, res) => {
     }
 };
 
+exports.toggleStatus = async (req, res) => {
+    try {
+        const { sessionId, studentId } = req.params;
+        const { status } = req.body; // 'present' or 'absent'
+
+        const updatedStudent = await sessionModel.updateStudentStatus(sessionId, studentId, status);
+        if (!updatedStudent) return res.status(404).json({ error: 'Student or session not found' });
+
+        // Notification is now deferred to "Send All"
+
+        res.json(updatedStudent);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 // Validates and sends to ALL students
 exports.sendAllFeedback = async (req, res) => {
     try {
@@ -166,21 +187,51 @@ exports.sendAllFeedback = async (req, res) => {
         if (!session) return res.status(404).json({ error: 'Session not found' });
 
         const results = [];
+        console.log(`[Batch Send] Starting batch for session ${sessionId}`);
 
         for (const student of session.students) {
+            console.log(`[Batch Send] Processing student: ${student.name}, Status: ${student.status}`);
+
+            // Check for Absent Status
+            // Normalize status check just in case
+            if (student.status === 'absent') {
+                if (student.discord) {
+                    const message = `Hello ${student.name},\n\nYou have been marked as absent for the PLD session "${session.groupName || 'today'}".\nPlease note that you must use your 1 PTO for this absence.\n\nBest regards,\nPLD Manager`;
+                    const result = await sendDiscordDM(req.discordClient, student.discord, message);
+                    results.push({
+                        student: student.name,
+                        discord: student.discord,
+                        success: result.success,
+                        error: result.error,
+                        type: 'absent_notification'
+                    });
+                } else {
+                    results.push({
+                        student: student.name,
+                        success: false,
+                        error: 'Absent but no Discord username',
+                        type: 'absent_notification'
+                    });
+                }
+                continue; // Move to next student
+            }
+
+            // Normal Feedback Logic for Present Students
             if (student.result && student.discord) {
                 const result = await sendDiscordDM(req.discordClient, student.discord, student.result);
                 results.push({
                     student: student.name,
                     discord: student.discord,
                     success: result.success,
-                    error: result.error
+                    error: result.error,
+                    type: 'feedback'
                 });
             } else {
                 results.push({
                     student: student.name,
                     success: false,
-                    error: 'Missing result or discord username'
+                    error: 'Missing result or discord username',
+                    type: 'feedback'
                 });
             }
         }

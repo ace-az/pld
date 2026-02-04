@@ -11,6 +11,7 @@ router.get('/', sessionController.getMySessions);
 router.get('/:id', sessionController.getSession);
 router.put('/:sessionId/students/:studentId/notes', sessionController.updateNote);
 router.put('/:sessionId/students/:studentId/result', sessionController.saveResult);
+router.put('/:sessionId/students/:studentId/status', sessionController.toggleStatus);
 router.post('/:sessionId/students/:studentId/send', sessionController.sendFeedback);
 router.post('/:sessionId/send-all', sessionController.sendAllFeedback);
 router.delete('/all', sessionController.deleteAllSessions);

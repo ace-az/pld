@@ -47,6 +47,14 @@
       "discordId": "clodrax_54593",
       "role": "student",
       "createdAt": "2026-02-04T18:03:40.058Z"
+    },
+    {
+      "id": "73751f96-d40f-443b-b123-f212100f3ddd",
+      "username": "Jalall",
+      "password": "$2b$10$xvCrKxtFsWXjkh.vOzktq.wJD2SbPZC7iJq3roq/JbVRVplODzTkO",
+      "discordId": "jalalahmadli",
+      "role": "student",
+      "createdAt": "2026-02-04T21:46:42.094Z"
     }
   ],
   "sessions": [],

@@ -1,10 +1,13 @@
 // client/src/pages/Questions.jsx
 import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getQuestionSets, addQuestionSet, deleteQuestionSet, deleteAllQuestionSets, updateQuestionSet } from '../api';
-import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw, FileText, Upload, Edit3 } from 'lucide-react';
+import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw, FileText, Upload, Edit3, ArrowLeft } from 'lucide-react';
 import * as mammoth from 'mammoth';
 
 export default function Questions() {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [questionSets, setQuestionSets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -13,6 +16,9 @@ export default function Questions() {
     const [topic, setTopic] = useState('');
     const [questions, setQuestions] = useState(['']); // Array of question strings
     const [editingId, setEditingId] = useState(null);
+
+    // Check if we came from session creation
+    const fromSessionCreation = location.state?.from === 'session-creation';
 
     useEffect(() => {
         fetchQuestionSets();
@@ -181,9 +187,19 @@ export default function Questions() {
     return (
         <div className="questions-container">
             <div className="flex-between" style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <HelpCircle size={32} color="var(--color-primary)" />
-                    <h1>Question Bank</h1>
+                <div>
+                    <button
+                        onClick={() => navigate('/', fromSessionCreation ? { state: { returnToSessionCreation: true } } : undefined)}
+                        className="btn-outline"
+                        style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', border: 'none', padding: 0 }}
+                    >
+                        <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} />
+                        {fromSessionCreation ? 'Back to Session' : 'Back to Dashboard'}
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <HelpCircle size={32} color="var(--color-primary)" />
+                        <h1>Question Bank</h1>
+                    </div>
                 </div>
             </div>
 

@@ -1,12 +1,13 @@
 // client/src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Plus, Users, ArrowRight, Trash2, X, Search, BookOpen, HelpCircle, Upload } from 'lucide-react';
 import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets, deleteAllSessions } from '../api';
 
 export default function Dashboard() {
     const { user } = useAuth();
+    const location = useLocation();
     const [sessions, setSessions] = useState([]);
     const [masterStudents, setMasterStudents] = useState([]);
     const [questionSets, setQuestionSets] = useState([]);
@@ -14,7 +15,7 @@ export default function Dashboard() {
 
     // New Session Form State
     const [groupName, setGroupName] = useState('');
-    const [topicId, setTopicId] = useState('');
+    const [topicIds, setTopicIds] = useState([]); // Array of selected topic IDs
     const [students, setStudents] = useState([{ name: '', discord: '' }]);
     const [searchIndex, setSearchIndex] = useState(-1);
     const [filteredStudents, setFilteredStudents] = useState([]);
@@ -27,6 +28,29 @@ export default function Dashboard() {
             fetchMasterData();
         }
     }, [showCreate]);
+
+    // Restore showCreate state and form data when returning from Questions page
+    useEffect(() => {
+        if (location.state?.returnToSessionCreation) {
+            setShowCreate(true);
+
+            // Restore form data from localStorage
+            const savedFormData = localStorage.getItem('sessionFormData');
+            if (savedFormData) {
+                try {
+                    const formData = JSON.parse(savedFormData);
+                    setGroupName(formData.groupName || '');
+                    setTopicIds(formData.topicIds || []);
+                    setStudents(formData.students || [{ name: '', discord: '' }]);
+
+                    // Clear the saved data after restoring
+                    localStorage.removeItem('sessionFormData');
+                } catch (err) {
+                    console.error('Error restoring form data:', err);
+                }
+            }
+        }
+    }, [location]);
 
     const fetchSessions = async () => {
         try {
@@ -49,10 +73,7 @@ export default function Dashboard() {
             if (Array.isArray(studentsData)) setMasterStudents(studentsData);
             if (Array.isArray(setsData)) {
                 setQuestionSets(setsData);
-                // Auto-select first topic if available and none selected
-                if (setsData.length > 0 && !topicId) {
-                    setTopicId(setsData[0].id);
-                }
+                // Removed auto-select logic to let user explicitly choose
             }
         } catch (err) {
             console.error('Error fetching master data:', err);
@@ -105,8 +126,8 @@ export default function Dashboard() {
             return;
         }
 
-        if (!topicId) {
-            alert("Please select a topic for this session. Create one in Question Bank first.");
+        if (topicIds.length === 0) {
+            alert("Please select at least one topic for this session. Create one in Question Bank first.");
             return;
         }
 
@@ -114,12 +135,12 @@ export default function Dashboard() {
             const newSession = await createSession({
                 groupName,
                 students: validStudents,
-                topicId
+                topicIds
             });
             setSessions([newSession, ...sessions]);
             setShowCreate(false);
             setGroupName('');
-            setTopicId('');
+            setTopicIds([]);
             setStudents([{ name: '', discord: '' }]);
         } catch (err) {
             alert(err.message || "Failed to create session");
@@ -212,9 +233,23 @@ export default function Dashboard() {
                 <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid var(--color-primary)' }}>
                     <div className="flex-between">
                         <h3>Create New Group</h3>
-                        <Link to="/questions" className="btn btn-outline flex-center" style={{ fontSize: '0.8rem', textDecoration: 'none', gap: '0.4rem' }}>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                // Save current form data to localStorage
+                                localStorage.setItem('sessionFormData', JSON.stringify({
+                                    groupName,
+                                    topicIds,
+                                    students
+                                }));
+                                // Navigate to questions page
+                                navigate('/questions', { state: { from: 'session-creation' } });
+                            }}
+                            className="btn btn-outline flex-center"
+                            style={{ fontSize: '0.8rem', gap: '0.4rem' }}
+                        >
                             <HelpCircle size={14} /> Manage Question Bank
-                        </Link>
+                        </button>
                     </div>
                     <form onSubmit={handleCreateSession}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -228,22 +263,87 @@ export default function Dashboard() {
                                     required
                                 />
                             </div>
-                            <div className="input-group">
-                                <label>Select Topic (Questions)</label>
-                                <select
-                                    className="input-control"
-                                    value={topicId}
-                                    onChange={e => setTopicId(e.target.value)}
-                                    required
-                                >
-                                    <option value="">Select a topic...</option>
-                                    {questionSets.map(set => (
-                                        <option key={set.id} value={set.id}>{set.topic}</option>
-                                    ))}
-                                </select>
+                            <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                                <label>Select Topics</label>
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <select
+                                        className="input-control"
+                                        onChange={(e) => {
+                                            const id = e.target.value;
+                                            if (id && !topicIds.includes(id)) {
+                                                setTopicIds([...topicIds, id]);
+                                                e.target.value = ""; // Reset select
+                                            }
+                                        }}
+                                        defaultValue=""
+                                    >
+                                        <option value="" disabled>Select a topic to add...</option>
+                                        {questionSets.filter(qs => !topicIds.includes(qs.id)).map(set => (
+                                            <option key={set.id} value={set.id}>{set.topic}</option>
+                                        ))}
+                                        {questionSets.length === 0 && <option disabled>No topics available</option>}
+                                    </select>
+                                </div>
+
+                                {/* Selected Topics List */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', minHeight: '40px' }}>
+                                    {topicIds.length > 0 ? topicIds.map(id => {
+                                        const topic = questionSets.find(q => q.id === id);
+                                        return topic ? (
+                                            <div key={id} style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                padding: '0.4rem 0.8rem',
+                                                background: 'var(--color-primary)',
+                                                color: 'white',
+                                                borderRadius: '20px',
+                                                fontSize: '0.9rem',
+                                                boxShadow: 'var(--shadow-sm)'
+                                            }}>
+                                                <span>{topic.topic}</span>
+                                                <X
+                                                    size={14}
+                                                    style={{ cursor: 'pointer', opacity: 0.8 }}
+                                                    onClick={() => setTopicIds(topicIds.filter(tid => tid !== id))}
+                                                    onMouseOver={e => e.target.style.opacity = 1}
+                                                    onMouseOut={e => e.target.style.opacity = 0.8}
+                                                />
+                                            </div>
+                                        ) : null;
+                                    }) : (
+                                        <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.9rem', padding: '0.5rem 0' }}>
+                                            No topics selected. Please select at least one.
+                                        </div>
+                                    )}
+                                </div>
+
                                 {questionSets.length === 0 && (
-                                    <small style={{ color: '#f44336', marginTop: '4px' }}>
-                                        No topics found. Please <Link to="/questions">add a topic</Link> first.
+                                    <small style={{ color: '#f44336', marginTop: '4px', display: 'block' }}>
+                                        Please{' '}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                localStorage.setItem('sessionFormData', JSON.stringify({
+                                                    groupName,
+                                                    topicIds,
+                                                    students
+                                                }));
+                                                navigate('/questions', { state: { from: 'session-creation' } });
+                                            }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#f44336',
+                                                textDecoration: 'underline',
+                                                cursor: 'pointer',
+                                                padding: 0,
+                                                font: 'inherit'
+                                            }}
+                                        >
+                                            add a topic
+                                        </button>{' '}
+                                        first.
                                     </small>
                                 )}
                             </div>
