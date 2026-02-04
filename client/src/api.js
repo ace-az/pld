@@ -1,6 +1,7 @@
 // client/src/api.js
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+console.log('Using API_URL:', API_URL);
 
 /**
  * Helper function to get authorization headers
