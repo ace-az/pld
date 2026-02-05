@@ -1,9 +1,8 @@
 // client/src/pages/AdminPanel.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAdminUsers, deleteUserAccount } from '../api';
 import { Shield, Trash2, User, Key, LogOut, ArrowLeft } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const AdminPanel = () => {
     const navigate = useNavigate();
@@ -27,11 +26,11 @@ const AdminPanel = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/admin/users`);
-            const data = await res.json();
+            const data = await getAdminUsers();
             setUsers(data);
         } catch (err) {
             console.error('Failed to fetch users:', err);
+            setError('Failed to load users from server.');
         } finally {
             setLoading(false);
         }
@@ -41,14 +40,11 @@ const AdminPanel = () => {
         if (!window.confirm('Are you sure you want to delete this account? This action cannot be undone.')) return;
 
         try {
-            const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
-                method: 'DELETE'
-            });
-            if (res.ok) {
-                setUsers(users.filter(u => u.id !== id));
-            }
+            await deleteUserAccount(id);
+            setUsers(users.filter(u => u.id !== id));
         } catch (err) {
             console.error('Delete error:', err);
+            alert('Error deleting user: ' + err.message);
         }
     };
 

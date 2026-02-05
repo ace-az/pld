@@ -286,4 +286,17 @@ export const getLeaderboard = async () => {
     return handleResponse(response);
 };
 
+// Admin API
+export const getAdminUsers = async () => {
+    const response = await fetch(`${API_URL}/api/admin/users`);
+    return handleResponse(response);
+};
+
+export const deleteUserAccount = async (id) => {
+    const response = await fetch(`${API_URL}/api/admin/users/${id}`, {
+        method: 'DELETE'
+    });
+    return handleResponse(response);
+};
+
 export default API_URL;
