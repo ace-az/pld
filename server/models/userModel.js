@@ -36,6 +36,14 @@ async function getAllStudentUsers() {
     return db.get('users').filter({ role: 'student' }).value();
 }
 
+async function getAllUsers() {
+    return db.get('users').value();
+}
+
+async function deleteUser(id) {
+    return db.get('users').remove({ id }).write();
+}
+
 async function updateUserPassword(username, newPassword) {
     return db.get('users')
         .find({ username })
@@ -43,4 +51,13 @@ async function updateUserPassword(username, newPassword) {
         .write();
 }
 
-module.exports = { createUser, findUserByUsername, findUserById, findUserByDiscordId, updateUserPassword, getAllStudentUsers };
+module.exports = {
+    createUser,
+    findUserByUsername,
+    findUserById,
+    findUserByDiscordId,
+    updateUserPassword,
+    getAllStudentUsers,
+    getAllUsers,
+    deleteUser
+};

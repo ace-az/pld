@@ -182,12 +182,10 @@ export async function chatWithTutor(sessionId, studentId, message, mentorReport,
     }
 
     try {
-        // 1. Format History
         const formattedHistory = chatHistory.map(msg =>
             `${msg.role === 'user' ? 'Student' : 'AI Tutor'}: ${msg.content}`
         ).join('\n');
 
-        // 2. Construct Prompt
         let prompt = TUTOR_SYSTEM_PROMPT
             .replace('{{STUDENT_ID}}', studentId)
             .replace('{{STUDENT_LEVEL}}', studentLevel || 'Intermediate')
@@ -196,26 +194,14 @@ export async function chatWithTutor(sessionId, studentId, message, mentorReport,
             .replace('{{MENTOR_REPORT_TEXT}}', JSON.stringify(mentorReport))
             .replace('{{CHAT_HISTORY}}', formattedHistory);
 
-        // Append the current message
         prompt += `\n\nStudent Message: ${message}`;
-
-        // 3. Save User Message to Backend ASYNC
-        // We don't await this to speed up UI, but might need to for consistency. 
-        // Let's await to ensure order.
         await saveMessageToBackend(sessionId, studentId, 'user', message);
 
-        // 4. Call Puter AI
-        // Using chat with history array is strictly better if supported, but to keep prompt strict adherence:
-        // Puter supports array of messages. BUT our system prompt is a block of text designed for completion.
-        // Let's use the single prompt approach as per the prompt design.
         const response = await window.puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
         const aiText = response.message.content;
 
-        // 5. Save AI Message to Backend
         await saveMessageToBackend(sessionId, studentId, 'model', aiText);
-
         return aiText;
-
     } catch (error) {
         console.error("Chat Error:", error);
         throw error;
@@ -232,6 +218,70 @@ async function saveMessageToBackend(sessionId, studentId, role, content) {
         if (!res.ok) throw new Error('Failed to save message');
     } catch (err) {
         console.error("Backend Save Error:", err);
-        // Continue even if save fails? Ideally yes, to not break chat.
+    }
+}
+
+// --- Practice Minigame Functions ---
+
+export async function generatePracticeQuestions(topic, difficulty, count) {
+    if (!window.puter) return null;
+
+    const prompt = `
+    You are an AI Practice Bot. Generate ${count} practice questions for a student.
+    Topic: ${topic}
+    Difficulty: ${difficulty} (use appropriate technical depth for this level)
+    
+    RULES:
+    - Questions should be clear and test fundamental concepts.
+    - Return the questions as a JSON array of strings.
+    - Do not include any other text, only the JSON array.
+    
+    Example format:
+    ["What is a pointer?", "Explain malloc."]
+    `;
+
+    try {
+        const response = await window.puter.ai.chat(prompt, { model: 'gpt-4o' });
+        const content = response.message.content;
+        const match = content.match(/\[.*\]/s);
+        if (match) {
+            return JSON.parse(match[0]);
+        }
+        return [content];
+    } catch (err) {
+        console.error("AI Practice Gen Error:", err);
+        return null;
+    }
+}
+
+export async function evaluatePracticeAnswer(question, answer, topic, difficulty) {
+    if (!window.puter) return null;
+
+    const prompt = `
+    You are an AI Practice Bot. Evaluate the student's answer to a practice question.
+    Topic: ${topic}
+    Difficulty: ${difficulty}
+    Question: ${question}
+    Student Answer: ${answer}
+    
+    RULES:
+    - Return a JSON object with:
+        "score": number (0-100),
+        "feedback": string (simple, encouraging),
+        "correctAnswer": string (briefly explain the right answer)
+    - Do not include any other text, only the JSON object.
+    `;
+
+    try {
+        const response = await window.puter.ai.chat(prompt, { model: 'gpt-4o' });
+        const content = response.message.content;
+        const match = content.match(/\{.*\}/s);
+        if (match) {
+            return JSON.parse(match[0]);
+        }
+        return { score: 0, feedback: "Error evaluating answer.", correctAnswer: "" };
+    } catch (err) {
+        console.error("AI Practice Eval Error:", err);
+        return null;
     }
 }

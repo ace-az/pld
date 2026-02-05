@@ -10,6 +10,8 @@ import Questions from './pages/Questions';
 import StudentDashboard from './pages/StudentDashboard';
 import StudentReportsPage from './pages/StudentReportsPage';
 import Leaderboard from './pages/Leaderboard';
+import AIPractice from './pages/AIPractice';
+import AdminPanel from './pages/AdminPanel';
 import { useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -53,6 +55,12 @@ export default function App() {
         <Route path="/leaderboard" element={
           <PrivateRoute>
             <Leaderboard />
+          </PrivateRoute>
+        } />
+        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/practice" element={
+          <PrivateRoute>
+            <AIPractice />
           </PrivateRoute>
         } />
         <Route path="/student-dashboard" element={

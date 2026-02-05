@@ -1,32 +1,35 @@
 // client/src/pages/StudentDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getSessions } from '../api';
-import { BookOpen, Calendar, ChevronDown, ChevronUp, Award } from 'lucide-react';
+import { Calendar, BookOpen, Clock, ChevronRight, Award, Brain, ChevronDown, ChevronUp } from 'lucide-react';
 
-const StudentDashboard = () => {
+export default function StudentDashboard() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState({});
 
     useEffect(() => {
-        const fetchSessions = async () => {
-            try {
-                const data = await getSessions();
-                setSessions(data.reverse());
-            } catch (err) {
-                console.error("Failed to fetch sessions", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchSessions();
+        fetchData();
     }, []);
 
+    const fetchData = async () => {
+        try {
+            const data = await getSessions();
+            // Filter completed sessions for reports, active for current
+            setSessions(data || []);
+        } catch (err) {
+            console.error('Error fetching dashboard data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const getMyData = (session) => {
-        if (!session.students || !user) return null;
+        if (!user || !session.students) return null;
         const searchKey = user.discordId || user.username;
         if (!searchKey) return null;
         return session.students.find(s =>
@@ -42,7 +45,7 @@ const StudentDashboard = () => {
         return (
             <div className="flex-center" style={{ height: '50vh', flexDirection: 'column' }}>
                 <div className="spinner"></div>
-                <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Loading...</p>
+                <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Loading your dashboard...</p>
             </div>
         );
     }
@@ -55,9 +58,35 @@ const StudentDashboard = () => {
                 <div>
                     <h1>Student Dashboard</h1>
                     <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                        Welcome, {user?.username}!
+                        Welcome, {user?.username}! Ready for some peer learning?
                     </p>
                 </div>
+            </div>
+
+            {/* AI Practice Banner */}
+            <div className="card" style={{
+                marginBottom: '2rem',
+                background: 'linear-gradient(135deg, var(--color-primary), #6366f1)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1.5rem 2rem',
+                border: 'none',
+                cursor: 'pointer'
+            }} onClick={() => navigate('/practice')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: '1rem', borderRadius: '12px' }}>
+                        <Brain size={32} />
+                    </div>
+                    <div>
+                        <h2 style={{ margin: 0, color: 'white' }}>AI Practice Mode</h2>
+                        <p style={{ margin: '5px 0 0 0', opacity: 0.9 }}>Test your knowledge and level up your skills with our AI tutor.</p>
+                    </div>
+                </div>
+                <button className="btn" style={{ background: 'white', color: 'var(--color-primary)', border: 'none' }}>
+                    Start Now
+                </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
@@ -249,6 +278,6 @@ const StudentDashboard = () => {
             </div>
         </div>
     );
-};
+}
 
-export default StudentDashboard;
+// StudentDashboard.jsx component finished

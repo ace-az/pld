@@ -51,6 +51,7 @@ app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/questions', require('./routes/questions'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/admin', require('./routes/admin'));
 
 app.get('/', (req, res) => {
     res.send('PLD Management API is running');

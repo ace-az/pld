@@ -1,52 +1,12 @@
 {
   "users": [
     {
-      "id": "bbbb7d02-155c-4b45-af1b-542ff6234669",
-      "username": "Elcan",
-      "password": "$2b$10$5EYYiK1CZBcUXVqG4NQ6C.CmhVhTkY77PAjmz36qWWSPDnBZK2R7G",
-      "discordId": "",
-      "role": "student",
-      "createdAt": "2026-02-04T15:16:50.879Z"
-    },
-    {
-      "id": "23d6b394-b4b4-4a51-911e-5832d30f256f",
-      "username": "Elcan1",
-      "password": "$2b$10$evy/xqcONL.Rx6jW8pVZIOLsG4y/irRDiFUp0iSZy/VWEi6PRLqyG",
-      "discordId": "elcanoo",
-      "role": "student",
-      "createdAt": "2026-02-04T17:37:03.898Z"
-    },
-    {
-      "id": "2f93fdea-e601-43da-a3fa-a4f1100a205c",
-      "username": "Jalal2",
-      "password": "$2b$10$YcSzTpN9Flq3n1RT47NqX.EfJ2uLJf85x5x.xPoKHzQvkE9UgTPBi",
-      "discordId": "1354759210231136286",
-      "role": "student",
-      "createdAt": "2026-02-04T17:38:30.266Z"
-    },
-    {
-      "id": "550428a7-f573-4620-ac1b-662bcea75fe7",
-      "username": "corbin",
-      "password": "$2b$10$NyFyOmc9YPxac0ouHZWdbOIBXrOajql30orU05/P9JioVMuwzfXkS",
-      "discordId": "clodrax_54593",
-      "role": "student",
-      "createdAt": "2026-02-05T07:53:47.064Z"
-    },
-    {
       "id": "a62ec445-cbee-407f-98c3-6c3a9c4a893b",
       "username": "Jalal",
       "password": "$2b$10$SlL1crO.PngnEebxZFECiO7ylHCFcwFesYI0Q5fAThD1PVs4AunVm",
       "discordId": "jalalahmadli",
       "role": "mentor",
       "createdAt": "2026-02-05T07:54:27.955Z"
-    },
-    {
-      "id": "47fd9fec-b5f9-4583-8241-d103f8167467",
-      "username": "Aysel",
-      "password": "$2b$10$u9UxseM//eg73XUjCh/hN.D1joKdCcrfkWjbLS/Lq3.NTd2RZNe0a",
-      "discordId": "aysel.mammedova",
-      "role": "student",
-      "createdAt": "2026-02-05T08:52:04.308Z"
     }
   ],
   "sessions": [
