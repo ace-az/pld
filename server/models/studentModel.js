@@ -6,7 +6,7 @@ async function getStudents(mentorId) {
     return db.get('students').filter({ mentorId }).value();
 }
 
-async function addStudent(mentorId, name, discord) {
+async function addStudent(mentorId, name, discord, major) {
     if (discord) {
         const exists = db.get('students').find({ mentorId, discord }).value();
         if (exists) return exists;
@@ -17,6 +17,7 @@ async function addStudent(mentorId, name, discord) {
         mentorId,
         name,
         discord,
+        major: major || '',
         createdAt: new Date().toISOString()
     };
     db.get('students').push(student).write();
@@ -54,6 +55,7 @@ async function bulkAddStudents(mentorId, studentsArray) {
             mentorId,
             name: s.name,
             discord: discord,
+            major: s.major || '',
             createdAt: new Date().toISOString()
         });
 

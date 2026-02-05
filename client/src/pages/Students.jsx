@@ -13,9 +13,11 @@ export default function Students() {
     // Form state
     const [name, setName] = useState('');
     const [discord, setDiscord] = useState('');
+    const [major, setMajor] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
     const [editDiscord, setEditDiscord] = useState('');
+    const [editMajor, setEditMajor] = useState('');
     const [importing, setImporting] = useState(false);
 
     useEffect(() => {
@@ -42,13 +44,14 @@ export default function Students() {
                 return;
             }
 
-            const newStudent = await addMasterStudent({ name, discord });
+            const newStudent = await addMasterStudent({ name, discord, major });
             // Only add if not already in list (API returns existing student if found)
             if (!students.find(s => s.id === newStudent.id)) {
                 setStudents([...students, newStudent]);
             }
             setName('');
             setDiscord('');
+            setMajor('');
         } catch (err) {
             alert('Error adding student');
         }
@@ -68,17 +71,19 @@ export default function Students() {
         setEditingId(student.id);
         setEditName(student.name);
         setEditDiscord(student.discord);
+        setEditMajor(student.major || '');
     };
 
     const cancelEdit = () => {
         setEditingId(null);
         setEditName('');
         setEditDiscord('');
+        setEditMajor('');
     };
 
     const handleUpdate = async (id) => {
         try {
-            const updated = await updateMasterStudent(id, { name: editName, discord: editDiscord });
+            const updated = await updateMasterStudent(id, { name: editName, discord: editDiscord, major: editMajor });
             setStudents(students.map(s => s.id === id ? updated : s));
             cancelEdit();
         } catch (err) {
@@ -123,13 +128,14 @@ export default function Students() {
                     if (parts.length >= 1) {
                         const name = parts[0].trim();
                         const discord = parts[1] ? parts[1].trim() : '';
+                        const major = parts[2] ? parts[2].trim() : '';
                         const discordLower = discord.toLowerCase();
 
                         if (discord && seenDiscords.has(discordLower)) {
                             continue; // Skip if already in list or batch
                         }
 
-                        newStudents.push({ name, discord });
+                        newStudents.push({ name, discord, major });
                         if (discord) seenDiscords.add(discordLower);
                     }
                 }
@@ -180,7 +186,7 @@ export default function Students() {
 
             <div className="card" style={{ marginBottom: '2rem' }}>
                 <h3>Add New Student</h3>
-                <form onSubmit={handleAddStudent} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
+                <form onSubmit={handleAddStudent} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
                     <div className="input-group" style={{ marginBottom: 0 }}>
                         <label>Full Name</label>
                         <input
@@ -198,6 +204,15 @@ export default function Students() {
                             value={discord}
                             onChange={e => setDiscord(e.target.value)}
                             placeholder="e.g. john_doe#1234"
+                        />
+                    </div>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label>Major</label>
+                        <input
+                            className="input-control"
+                            value={major}
+                            onChange={e => setMajor(e.target.value)}
+                            placeholder="e.g. Computer Science"
                         />
                     </div>
                     <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>
@@ -225,6 +240,7 @@ export default function Students() {
                             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
                                 <th style={{ padding: '1rem' }}>Name</th>
                                 <th style={{ padding: '1rem' }}>Discord</th>
+                                <th style={{ padding: '1rem' }}>Major</th>
                                 <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
@@ -251,6 +267,19 @@ export default function Students() {
                                             <code style={{ fontSize: '0.9rem', color: 'var(--color-primary)' }}>
                                                 {student.discord || 'N/A'}
                                             </code>
+                                        )}
+                                    </td>
+                                    <td style={{ padding: '1rem' }}>
+                                        {editingId === student.id ? (
+                                            <input
+                                                className="input-control"
+                                                value={editMajor}
+                                                onChange={e => setEditMajor(e.target.value)}
+                                            />
+                                        ) : (
+                                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                                {student.major || 'N/A'}
+                                            </span>
                                         )}
                                     </td>
                                     <td style={{ padding: '1rem', textAlign: 'right' }}>

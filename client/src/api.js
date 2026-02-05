@@ -1,11 +1,7 @@
 // client/src/api.js
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-console.log('Using API_URL:', API_URL);
 
-/**
- * Helper function to get authorization headers
- */
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return {
@@ -14,9 +10,6 @@ const getAuthHeaders = () => {
     };
 };
 
-/**
- * Helper function to handle API responses
- */
 const handleResponse = async (response) => {
     const data = await response.json();
     if (!response.ok) {
@@ -25,13 +18,6 @@ const handleResponse = async (response) => {
     return data;
 };
 
-// ==================== AUTH ENDPOINTS ====================
-
-/**
- * Register a new user
- * @param {Object} userData - { username, password, discordId }
- * @returns {Promise<Object>} { token, user }
- */
 export const registerUser = async (userData) => {
     const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
@@ -41,11 +27,6 @@ export const registerUser = async (userData) => {
     return handleResponse(response);
 };
 
-/**
- * Login user
- * @param {Object} credentials - { username, password }
- * @returns {Promise<Object>} { token, user }
- */
 export const loginUser = async (credentials) => {
     const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
@@ -55,11 +36,24 @@ export const loginUser = async (credentials) => {
     return handleResponse(response);
 };
 
-/**
- * Send Discord verification code
- * @param {string} discordUsername - Discord username
- * @returns {Promise<string>} Success message
- */
+export const requestPasswordReset = async (discordUsername) => {
+    const response = await fetch(`${API_URL}/api/auth/request-password-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discordUsername })
+    });
+    return handleResponse(response);
+};
+
+export const resetPassword = async (discordUsername, code, newPassword) => {
+    const response = await fetch(`${API_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discordUsername, code, newPassword })
+    });
+    return handleResponse(response);
+};
+
 export const sendVerificationCode = async (discordUsername) => {
     const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
@@ -73,12 +67,6 @@ export const sendVerificationCode = async (discordUsername) => {
     return response.text();
 };
 
-/**
- * Verify Discord code
- * @param {string} discordUsername - Discord username
- * @param {string} code - Verification code
- * @returns {Promise<string>} Success message
- */
 export const verifyDiscordCode = async (discordUsername, code) => {
     const response = await fetch(`${API_URL}/verify`, {
         method: 'POST',
@@ -92,12 +80,6 @@ export const verifyDiscordCode = async (discordUsername, code) => {
     return response.text();
 };
 
-// ==================== SESSION ENDPOINTS ====================
-
-/**
- * Get all sessions for the current user
- * @returns {Promise<Array>} Array of session objects
- */
 export const getSessions = async () => {
     const response = await fetch(`${API_URL}/api/sessions`, {
         headers: getAuthHeaders()
@@ -105,11 +87,6 @@ export const getSessions = async () => {
     return handleResponse(response);
 };
 
-/**
- * Get a single session by ID
- * @param {string} id - Session ID
- * @returns {Promise<Object>} Session object
- */
 export const getSession = async (id) => {
     const response = await fetch(`${API_URL}/api/sessions/${id}`, {
         headers: getAuthHeaders()
@@ -117,11 +94,6 @@ export const getSession = async (id) => {
     return handleResponse(response);
 };
 
-/**
- * Create a new session
- * @param {Object} sessionData - { groupName, students }
- * @returns {Promise<Object>} Created session object
- */
 export const createSession = async (sessionData) => {
     const response = await fetch(`${API_URL}/api/sessions`, {
         method: 'POST',
@@ -131,11 +103,6 @@ export const createSession = async (sessionData) => {
     return handleResponse(response);
 };
 
-/**
- * Delete a session by ID
- * @param {string} id - Session ID
- * @returns {Promise<Object>} Success response
- */
 export const deleteSession = async (id) => {
     const response = await fetch(`${API_URL}/api/sessions/${id}`, {
         method: 'DELETE',
@@ -144,10 +111,6 @@ export const deleteSession = async (id) => {
     return handleResponse(response);
 };
 
-/**
- * Delete all sessions for the current user
- * @returns {Promise<Object>} Success response
- */
 export const deleteAllSessions = async () => {
     const response = await fetch(`${API_URL}/api/sessions/all`, {
         method: 'DELETE',
@@ -156,11 +119,6 @@ export const deleteAllSessions = async () => {
     return handleResponse(response);
 };
 
-/**
- * End a session (mark as completed)
- * @param {string} sessionId - Session ID
- * @returns {Promise<Object>} Success response
- */
 export const endSession = async (sessionId) => {
     const response = await fetch(`${API_URL}/api/sessions/${sessionId}/end`, {
         method: 'POST',
@@ -169,15 +127,6 @@ export const endSession = async (sessionId) => {
     return handleResponse(response);
 };
 
-// ==================== STUDENT ENDPOINTS ====================
-
-/**
- * Save notes for a student in a session
- * @param {string} sessionId - Session ID
- * @param {string} studentId - Student ID
- * @param {string} notes - Notes content
- * @returns {Promise<Object>} Success response
- */
 export const saveStudentNotes = async (sessionId, studentId, notes) => {
     const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/notes`, {
         method: 'PUT',
@@ -187,13 +136,24 @@ export const saveStudentNotes = async (sessionId, studentId, notes) => {
     return handleResponse(response);
 };
 
-/**
- * Save AI-generated result for a student
- * @param {string} sessionId - Session ID
- * @param {string} studentId - Student ID
- * @param {string} result - AI-generated feedback
- * @returns {Promise<Object>} Success response
- */
+export const saveStudentGrade = async (sessionId, studentId, grade) => {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/grade`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ grade })
+    });
+    return handleResponse(response);
+};
+
+export const saveStudentQuestions = async (sessionId, studentId, { answered, incorrect }) => {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/questions`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ answered, incorrect })
+    });
+    return handleResponse(response);
+};
+
 export const saveStudentResult = async (sessionId, studentId, result) => {
     const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/result`, {
         method: 'PUT',
@@ -203,13 +163,6 @@ export const saveStudentResult = async (sessionId, studentId, result) => {
     return handleResponse(response);
 };
 
-/**
- * Toggle student status (present/absent)
- * @param {string} sessionId - Session ID
- * @param {string} studentId - Student ID
- * @param {string} status - 'present' or 'absent'
- * @returns {Promise<Object>} Updated student object
- */
 export const toggleStudentStatus = async (sessionId, studentId, status) => {
     const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/status`, {
         method: 'PUT',
@@ -219,12 +172,6 @@ export const toggleStudentStatus = async (sessionId, studentId, status) => {
     return handleResponse(response);
 };
 
-/**
- * Send feedback to a single student via Discord
- * @param {string} sessionId - Session ID
- * @param {string} studentId - Student ID
- * @returns {Promise<Object>} Success response
- */
 export const sendToDiscord = async (sessionId, studentId) => {
     const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/send`, {
         method: 'POST',
@@ -233,11 +180,6 @@ export const sendToDiscord = async (sessionId, studentId) => {
     return handleResponse(response);
 };
 
-/**
- * Send feedback to all students in a session via Discord
- * @param {string} sessionId - Session ID
- * @returns {Promise<Object>} { summary: Array of results }
- */
 export const sendAllToDiscord = async (sessionId) => {
     const response = await fetch(`${API_URL}/api/sessions/${sessionId}/send-all`, {
         method: 'POST',
@@ -246,12 +188,6 @@ export const sendAllToDiscord = async (sessionId) => {
     return handleResponse(response);
 };
 
-// ==================== MASTER STUDENT LIST ENDPOINTS ====================
-
-/**
- * Get all students in the master list
- * @returns {Promise<Array>} Array of student objects
- */
 export const getMasterStudents = async () => {
     const response = await fetch(`${API_URL}/api/students`, {
         headers: getAuthHeaders()
@@ -268,11 +204,6 @@ export const addMasterStudent = async (studentData) => {
     return handleResponse(response);
 };
 
-/**
- * Bulk add students to the master list
- * @param {Array} students - Array of { name, discord }
- * @returns {Promise<Array>} Created student objects
- */
 export const bulkAddMasterStudents = async (students) => {
     const response = await fetch(`${API_URL}/api/students/bulk`, {
         method: 'POST',
@@ -282,12 +213,6 @@ export const bulkAddMasterStudents = async (students) => {
     return handleResponse(response);
 };
 
-/**
- * Update a student in the master list
- * @param {string} id - Student ID
- * @param {Object} studentData - { name, discord }
- * @returns {Promise<Object>} Updated student object
- */
 export const updateMasterStudent = async (id, studentData) => {
     const response = await fetch(`${API_URL}/api/students/${id}`, {
         method: 'PUT',
@@ -297,11 +222,6 @@ export const updateMasterStudent = async (id, studentData) => {
     return handleResponse(response);
 };
 
-/**
- * Delete a student from the master list
- * @param {string} id - Student ID
- * @returns {Promise<Object>} Success response
- */
 export const deleteMasterStudent = async (id) => {
     const response = await fetch(`${API_URL}/api/students/${id}`, {
         method: 'DELETE',
@@ -310,10 +230,6 @@ export const deleteMasterStudent = async (id) => {
     return handleResponse(response);
 };
 
-/**
- * Delete all students from the master list
- * @returns {Promise<Object>} Success response
- */
 export const deleteAllMasterStudents = async () => {
     const response = await fetch(`${API_URL}/api/students/all`, {
         method: 'DELETE',
@@ -322,12 +238,6 @@ export const deleteAllMasterStudents = async () => {
     return handleResponse(response);
 };
 
-// ==================== QUESTION BANK ENDPOINTS ====================
-
-/**
- * Get all question sets
- * @returns {Promise<Array>} Array of question set objects
- */
 export const getQuestionSets = async () => {
     const response = await fetch(`${API_URL}/api/questions`, {
         headers: getAuthHeaders()
@@ -335,11 +245,6 @@ export const getQuestionSets = async () => {
     return handleResponse(response);
 };
 
-/**
- * Add a new question set
- * @param {Object} setData - { topic, questions: [string] }
- * @returns {Promise<Object>} Created question set object
- */
 export const addQuestionSet = async (setData) => {
     const response = await fetch(`${API_URL}/api/questions`, {
         method: 'POST',
@@ -349,12 +254,6 @@ export const addQuestionSet = async (setData) => {
     return handleResponse(response);
 };
 
-/**
- * Update a question set
- * @param {string} id - Set ID
- * @param {Object} setData - { topic, questions: [string] }
- * @returns {Promise<Object>} Updated question set object
- */
 export const updateQuestionSet = async (id, setData) => {
     const response = await fetch(`${API_URL}/api/questions/${id}`, {
         method: 'PUT',
@@ -364,11 +263,6 @@ export const updateQuestionSet = async (id, setData) => {
     return handleResponse(response);
 };
 
-/**
- * Delete a question set
- * @param {string} id - Set ID
- * @returns {Promise<Object>} Success response
- */
 export const deleteQuestionSet = async (id) => {
     const response = await fetch(`${API_URL}/api/questions/${id}`, {
         method: 'DELETE',
@@ -377,10 +271,6 @@ export const deleteQuestionSet = async (id) => {
     return handleResponse(response);
 };
 
-/**
- * Delete all question sets
- * @returns {Promise<Object>} Success response
- */
 export const deleteAllQuestionSets = async () => {
     const response = await fetch(`${API_URL}/api/questions/all`, {
         method: 'DELETE',
@@ -389,5 +279,11 @@ export const deleteAllQuestionSets = async () => {
     return handleResponse(response);
 };
 
-export default API_URL;
+export const getLeaderboard = async () => {
+    const response = await fetch(`${API_URL}/api/sessions/stats/leaderboard`, {
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
 
+export default API_URL;

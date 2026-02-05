@@ -3,9 +3,11 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerUser, sendVerificationCode, verifyDiscordCode } from '../api';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Register() {
     const [formData, setFormData] = useState({ username: '', password: '', discordId: '' });
+    const [showPassword, setShowPassword] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
     const [error, setError] = useState('');
@@ -67,7 +69,13 @@ export default function Register() {
         try {
             const data = await registerUser(formData);
             login(data.token, data.user);
-            navigate('/');
+
+            // Redirect based on role
+            if (data.user.role === 'student') {
+                navigate('/student-dashboard');
+            } else {
+                navigate('/');
+            }
         } catch (err) {
             setError(err.message);
         }
@@ -90,12 +98,30 @@ export default function Register() {
 
                 <div className="input-group">
                     <label>Password</label>
-                    <input
-                        type="password"
-                        className="input-control"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    />
+                    <div style={{ position: 'relative' }}>
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            className="input-control"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            style={{
+                                position: 'absolute',
+                                right: '10px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#888'
+                            }}
+                        >
+                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="input-group">

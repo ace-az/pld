@@ -8,9 +8,13 @@ async function createSession(mentorId, groupName, studentsData, topicIds) {
         id: uuidv4(),
         name: s.name,
         discord: s.discord,
+        major: s.major || '',
         notes: '',
+        grade: 0, // Default grade
         status: 'present', // Default status
-        result: null // AI result
+        result: null, // AI result
+        answeredQuestions: [], // Tracking covered questions IDs
+        incorrectQuestions: [] // Tracking incorrect questions IDs
     }));
 
     // topicIds is expected to be an array
@@ -56,6 +60,15 @@ async function getSessionsByMentor(mentorId) {
     return db.get('sessions').filter({ mentorId }).value();
 }
 
+async function getSessionsForStudent(username) {
+    // Filter sessions where any student in the 'students' array matches the username
+    // Note: session.students contains objects like { name, discord, id }
+    // We should match by 'discord' username since that's our unique identifier from login
+    return db.get('sessions')
+        .filter(session => session.students.some(s => s.discord === username))
+        .value();
+}
+
 async function getSessionById(id) {
     return db.get('sessions').find({ id }).value();
 }
@@ -85,6 +98,20 @@ async function updateStudentResult(sessionId, studentId, resultSummary) {
 
     student.result = resultSummary;
     db.write(); // Persist
+    return student;
+}
+
+async function updateStudentQuestions(sessionId, studentId, { answered, incorrect }) {
+    const session = db.get('sessions').find({ id: sessionId }).value();
+    if (!session) return null;
+
+    const student = session.students.find(s => s.id === studentId);
+    if (!student) return null;
+
+    if (answered) student.answeredQuestions = answered;
+    if (incorrect) student.incorrectQuestions = incorrect;
+
+    db.write();
     return student;
 }
 
@@ -129,4 +156,61 @@ async function updateStudentStatus(sessionId, studentId, status) {
     return student;
 }
 
-module.exports = { createSession, getSessionsByMentor, getSessionById, updateStudentNote, updateStudentResult, completeSession, deleteSession, deleteAllSessions, updateStudentStatus };
+async function updateStudentGrade(sessionId, studentId, grade) {
+    const session = db.get('sessions').find({ id: sessionId }).value();
+    if (!session) return null;
+
+    const student = session.students.find(s => s.id === studentId);
+    if (!student) return null;
+
+    student.grade = grade;
+    db.write();
+    return student;
+}
+
+// Aggregate grades across all completed sessions per student and return sorted leaderboard
+async function getLeaderboard() {
+    const sessions = db.get('sessions').filter({ status: 'completed' }).value();
+
+    // Map: discordId -> { name, totalGrade, count }
+    const studentStats = {};
+
+    sessions.forEach(session => {
+        if (!session.students) return;
+
+        session.students.forEach(student => {
+            if (!student.discord || student.status === 'absent') return;
+            const grade = student.grade || 0;
+            if (grade === 0) return; // Skip ungraded
+
+            const key = student.discord.toLowerCase();
+            if (!studentStats[key]) {
+                studentStats[key] = {
+                    name: student.name,
+                    discord: student.discord,
+                    totalGrade: 0,
+                    sessionsCount: 0,
+                    grades: []
+                };
+            }
+            studentStats[key].totalGrade += grade;
+            studentStats[key].sessionsCount += 1;
+            studentStats[key].grades.push(grade);
+        });
+    });
+
+    // Convert to array and calculate averages
+    const leaderboard = Object.values(studentStats)
+        .map(s => ({
+            name: s.name,
+            discord: s.discord,
+            averageGrade: s.sessionsCount > 0 ? (s.totalGrade / s.sessionsCount).toFixed(2) : 0,
+            sessionsCount: s.sessionsCount,
+            totalGrade: s.totalGrade
+        }))
+        .sort((a, b) => parseFloat(b.averageGrade) - parseFloat(a.averageGrade));
+
+    return leaderboard;
+}
+
+module.exports = { createSession, getSessionsByMentor, getSessionsForStudent, getSessionById, updateStudentNote, updateStudentResult, updateStudentQuestions, completeSession, deleteSession, deleteAllSessions, updateStudentStatus, updateStudentGrade, getLeaderboard };

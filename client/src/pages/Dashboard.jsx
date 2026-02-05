@@ -16,7 +16,7 @@ export default function Dashboard() {
     // New Session Form State
     const [groupName, setGroupName] = useState('');
     const [topicIds, setTopicIds] = useState([]); // Array of selected topic IDs
-    const [students, setStudents] = useState([{ name: '', discord: '' }]);
+    const [students, setStudents] = useState([{ name: '', discord: '', major: '' }]);
     const [searchIndex, setSearchIndex] = useState(-1);
     const [filteredStudents, setFilteredStudents] = useState([]);
 
@@ -41,7 +41,7 @@ export default function Dashboard() {
                     const formData = JSON.parse(savedFormData);
                     setGroupName(formData.groupName || '');
                     setTopicIds(formData.topicIds || []);
-                    setStudents(formData.students || [{ name: '', discord: '' }]);
+                    setStudents(formData.students || [{ name: '', discord: '', major: '' }]);
 
                     // Clear the saved data after restoring
                     localStorage.removeItem('sessionFormData');
@@ -81,12 +81,12 @@ export default function Dashboard() {
     };
 
     const handleAddStudentRow = () => {
-        setStudents([...students, { name: '', discord: '' }]);
+        setStudents([...students, { name: '', discord: '', major: '' }]);
     };
 
     const handleRemoveStudentRow = (index) => {
         const newStudents = students.filter((_, i) => i !== index);
-        setStudents(newStudents.length ? newStudents : [{ name: '', discord: '' }]);
+        setStudents(newStudents.length ? newStudents : [{ name: '', discord: '', major: '' }]);
     };
 
     const handleStudentChange = (index, field, value) => {
@@ -112,6 +112,7 @@ export default function Dashboard() {
         const newStudents = [...students];
         newStudents[index].name = student.name;
         newStudents[index].discord = student.discord;
+        newStudents[index].major = student.major || '';
         setStudents(newStudents);
         setFilteredStudents([]);
         setSearchIndex(-1);
@@ -141,7 +142,7 @@ export default function Dashboard() {
             setShowCreate(false);
             setGroupName('');
             setTopicIds([]);
-            setStudents([{ name: '', discord: '' }]);
+            setStudents([{ name: '', discord: '', major: '' }]);
         } catch (err) {
             alert(err.message || "Failed to create session");
         }
@@ -194,12 +195,13 @@ export default function Dashboard() {
                     if (parts.length >= 1) {
                         const name = parts[0].trim();
                         const discord = parts[1] ? parts[1].trim() : '';
+                        const major = parts[2] ? parts[2].trim() : '';
 
                         if (discord && seenDiscords.has(discord)) {
                             continue; // Skip internal duplicates
                         }
 
-                        newStudents.push({ name, discord });
+                        newStudents.push({ name, discord, major });
                         if (discord) seenDiscords.add(discord);
                     }
                 }
@@ -353,8 +355,8 @@ export default function Dashboard() {
                             <label>Students</label>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 {students.map((student, idx) => (
-                                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', position: 'relative' }}>
-                                        <div style={{ flex: 1, position: 'relative' }}>
+                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1.5fr) 1fr 1fr auto', gap: '0.5rem', position: 'relative', alignItems: 'center' }}>
+                                        <div style={{ position: 'relative' }}>
                                             <input
                                                 className="input-control"
                                                 value={student.name}
@@ -386,12 +388,19 @@ export default function Dashboard() {
                                                                 cursor: 'pointer',
                                                                 borderBottom: '1px solid var(--border-color)',
                                                                 display: 'flex',
-                                                                justifyContent: 'space-between'
+                                                                justifyContent: 'space-between',
+                                                                flexDirection: 'column'
                                                             }}
                                                             className="suggestion-item"
                                                         >
-                                                            <span>{s.name}</span>
-                                                            <code style={{ fontSize: '0.8rem', color: 'var(--color-primary)' }}>{s.discord}</code>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                <span style={{ fontWeight: 500 }}>{s.name}</span>
+                                                                {s.major && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{s.major}</span>}
+                                                            </div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <code style={{ fontSize: '0.8rem', color: 'var(--color-primary)' }}>{s.discord}</code>
+                                                                {s.isUser && <span style={{ fontSize: '0.7rem', background: '#e0e7ff', color: '#4338ca', padding: '1px 4px', borderRadius: '4px' }}>Registered</span>}
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -399,10 +408,17 @@ export default function Dashboard() {
                                         </div>
                                         <input
                                             className="input-control"
+                                            value={student.major}
+                                            onChange={e => handleStudentChange(idx, 'major', e.target.value)}
+                                            placeholder="Major (e.g. CS)"
+                                            style={{ marginBottom: 0 }}
+                                        />
+                                        <input
+                                            className="input-control"
                                             value={student.discord}
                                             onChange={e => handleStudentChange(idx, 'discord', e.target.value)}
-                                            placeholder="Discord (optional)"
-                                            style={{ flex: 1, marginBottom: 0 }}
+                                            placeholder="Discord"
+                                            style={{ marginBottom: 0 }}
                                         />
                                         <button
                                             type="button"
@@ -445,21 +461,13 @@ export default function Dashboard() {
                 </div>
             )}
 
+            {/* Active Sessions */}
             <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                <h2>Your Sessions</h2>
-                {sessions.length > 0 && (
-                    <button
-                        onClick={handleDeleteAllSessions}
-                        className="btn btn-outline"
-                        style={{ color: '#f44336', borderColor: '#f44336', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
-                    >
-                        <Trash2 size={14} style={{ marginRight: '0.4rem' }} /> Delete All
-                    </button>
-                )}
+                <h2>Current Sessions</h2>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                {sessions.map(session => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+                {sessions.filter(s => s.status !== 'completed').map(session => (
                     <div key={session.id} className="card" style={{ position: 'relative' }}>
                         <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'flex-start' }}>
                             <div style={{ flex: 1, marginRight: '1rem' }}>
@@ -472,7 +480,7 @@ export default function Dashboard() {
                                 <span style={{
                                     padding: '0.25rem 0.5rem',
                                     borderRadius: '4px',
-                                    background: session.status === 'completed' ? '#4CAF50' : '#FF9800',
+                                    background: '#FF9800',
                                     color: 'white',
                                     fontSize: '0.8rem'
                                 }}>
@@ -492,7 +500,7 @@ export default function Dashboard() {
 
                         <div className="flex-between">
                             <Link to={`/session/${session.id}`} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: 1, justifyContent: 'center', marginRight: '0.5rem' }}>
-                                {session.status === 'active' ? 'Resume' : 'Report'} <ArrowRight size={16} style={{ marginLeft: '0.5rem' }} />
+                                Resume <ArrowRight size={16} style={{ marginLeft: '0.5rem' }} />
                             </Link>
                             <button
                                 onClick={() => handleDeleteSession(session.id)}
@@ -505,8 +513,74 @@ export default function Dashboard() {
                         </div>
                     </div>
                 ))}
-                {sessions.length === 0 && (
-                    <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No sessions found. Create one to get started!</div>
+                {sessions.filter(s => s.status !== 'completed').length === 0 && (
+                    <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', gridColumn: '1/-1' }}>No active sessions. Create one to get started!</div>
+                )}
+            </div>
+
+            {/* Completed Sessions */}
+            <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                <h2 style={{ color: 'var(--text-secondary)' }}>History</h2>
+                {sessions.length > 0 && (
+                    <button
+                        onClick={handleDeleteAllSessions}
+                        className="btn btn-outline"
+                        style={{ color: '#f44336', borderColor: '#f44336', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+                    >
+                        <Trash2 size={14} style={{ marginRight: '0.4rem' }} /> Delete All
+                    </button>
+                )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                {sessions.filter(s => s.status === 'completed').map(session => (
+                    <div key={session.id} className="card" style={{ position: 'relative', opacity: 0.8 }}>
+                        <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1, marginRight: '1rem' }}>
+                                <h3 style={{ margin: '0 0 0.25rem 0', color: 'var(--text-main)' }}>{session.groupName}</h3>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                    {new Date(session.createdAt).toLocaleDateString()}
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                                <span style={{
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    background: '#4CAF50',
+                                    color: 'white',
+                                    fontSize: '0.8rem'
+                                }}>
+                                    {session.status.toUpperCase()}
+                                </span>
+                                {session.topicName && (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        <BookOpen size={12} /> {session.topicName}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Users size={16} /> {session.students?.length || 0} Students
+                        </div>
+
+                        <div className="flex-between">
+                            <Link to={`/session/${session.id}`} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: 1, justifyContent: 'center', marginRight: '0.5rem' }}>
+                                Report <ArrowRight size={16} style={{ marginLeft: '0.5rem' }} />
+                            </Link>
+                            <button
+                                onClick={() => handleDeleteSession(session.id)}
+                                className="btn-icon"
+                                style={{ color: 'white', padding: '0.5rem', border: 'none', background: 'var(--text-secondary)', borderRadius: '4px' }}
+                                title="Delete Session"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {sessions.filter(s => s.status === 'completed').length === 0 && (
+                    <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', gridColumn: '1/-1' }}>No completed sessions yet.</div>
                 )}
             </div>
         </div>

@@ -2,10 +2,14 @@ const express = require("express");
 const router = express.Router();
 const generateCode = require("../utils/generateCode");
 const verifications = require("../utils/verificationStore");
+const { findUserByDiscordId } = require('../models/userModel');
 
 router.post("/", async (req, res) => {
     const { discordUsername } = req.body;
     if (!discordUsername) return res.status(400).send("Discord username required");
+
+    const existingDiscord = await findUserByDiscordId(discordUsername);
+    if (existingDiscord) return res.status(400).send("This Discord account is already registered.");
 
     const code = generateCode();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes

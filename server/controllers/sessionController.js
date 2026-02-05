@@ -1,6 +1,8 @@
 // server/controllers/sessionController.js
 const sessionModel = require('../models/sessionModel');
 
+const userModel = require('../models/userModel');
+
 exports.createSession = async (req, res) => {
     try {
         const { groupName, students, topicIds } = req.body; // students: [{name, discord}], topicIds: [id1, id2]
@@ -18,9 +20,28 @@ exports.createSession = async (req, res) => {
 
 exports.getMySessions = async (req, res) => {
     try {
-        const sessions = await sessionModel.getSessionsByMentor(req.user.id);
+        console.log(`[getMySessions] User requesting: ${req.user.username} (${req.user.role})`);
+        let sessions;
+        if (req.user.role === 'student') {
+            // For students, fetch sessions where they are included via their Discord username
+            // We must fetch the latest user data to get the correct discordId, as the token might just have the portal username
+            const fullUser = await userModel.findUserById(req.user.id);
+            console.log(`[getMySessions] Full user found:`, fullUser ? fullUser.username : 'null');
+
+            if (!fullUser || !fullUser.discordId) {
+                console.log(`[getMySessions] No discordId for user ${req.user.username}`);
+                return res.json([]); // No discord ID linked, so no sessions
+            }
+            console.log(`[getMySessions] Searching sessions for discordId: ${fullUser.discordId}`);
+            sessions = await sessionModel.getSessionsForStudent(fullUser.discordId);
+            console.log(`[getMySessions] Found ${sessions.length} sessions`);
+        } else {
+            // For mentors (or default), fetch by mentorId
+            sessions = await sessionModel.getSessionsByMentor(req.user.id);
+        }
         res.json(sessions);
     } catch (err) {
+        console.error('[getMySessions] Error:', err);
         res.status(500).json({ error: err.message });
     }
 };
@@ -29,6 +50,15 @@ exports.getSession = async (req, res) => {
     try {
         const session = await sessionModel.getSessionById(req.params.id);
         if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        // Security Check: If student, ensure they are in this session
+        if (req.user.role === 'student') {
+            const isInSession = session.students.some(s => s.discord === req.user.username);
+            if (!isInSession) {
+                return res.status(403).json({ error: 'Access denied: You are not in this session.' });
+            }
+        }
+
         res.json(session);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -40,6 +70,30 @@ exports.updateNote = async (req, res) => {
         const { sessionId, studentId } = req.params;
         const { notes } = req.body;
         const updated = await sessionModel.updateStudentNote(sessionId, studentId, notes);
+        if (!updated) return res.status(404).json({ error: 'Student or Session not found' });
+        res.json(updated);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.updateGrade = async (req, res) => {
+    try {
+        const { sessionId, studentId } = req.params;
+        const { grade } = req.body;
+        const updated = await sessionModel.updateStudentGrade(sessionId, studentId, grade);
+        if (!updated) return res.status(404).json({ error: 'Student or Session not found' });
+        res.json(updated);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.updateQuestions = async (req, res) => {
+    try {
+        const { sessionId, studentId } = req.params;
+        const { answered, incorrect } = req.body;
+        const updated = await sessionModel.updateStudentQuestions(sessionId, studentId, { answered, incorrect });
         if (!updated) return res.status(404).json({ error: 'Student or Session not found' });
         res.json(updated);
     } catch (err) {
@@ -151,7 +205,10 @@ exports.sendFeedback = async (req, res) => {
         if (!student.result) return res.status(400).json({ error: 'No feedback generated to send' });
         if (!student.discord) return res.status(400).json({ error: 'No Discord username provided' });
 
-        const result = await sendDiscordDM(req.discordClient, student.discord, student.result);
+        const gradeText = student.grade ? `**Total Grade: ${student.grade}/5**\n\n` : '';
+        const messageContent = gradeText + student.result;
+
+        const result = await sendDiscordDM(req.discordClient, student.discord, messageContent);
 
         if (!result.success) {
             return res.status(500).json({ error: result.error });
@@ -218,7 +275,9 @@ exports.sendAllFeedback = async (req, res) => {
 
             // Normal Feedback Logic for Present Students
             if (student.result && student.discord) {
-                const result = await sendDiscordDM(req.discordClient, student.discord, student.result);
+                const gradeText = student.grade ? `**Total Grade: ${student.grade}/5**\n\n` : '';
+                const messageContent = gradeText + student.result;
+                const result = await sendDiscordDM(req.discordClient, student.discord, messageContent);
                 results.push({
                     student: student.name,
                     discord: student.discord,
@@ -238,6 +297,15 @@ exports.sendAllFeedback = async (req, res) => {
 
         res.json({ summary: results });
 
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getLeaderboard = async (req, res) => {
+    try {
+        const leaderboard = await sessionModel.getLeaderboard();
+        res.json(leaderboard);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

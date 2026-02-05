@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Send, Download, Lightbulb, HelpCircle, BookOpen, PhoneOff, CheckCircle, XCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { generateFeedback } from '../services/aiService';
-import { getSession, saveStudentNotes, saveStudentResult, endSession, sendToDiscord, sendAllToDiscord, toggleStudentStatus } from '../api';
+import { getSession, saveStudentNotes, saveStudentResult, saveStudentGrade, saveStudentQuestions, endSession, sendToDiscord, sendAllToDiscord, toggleStudentStatus } from '../api';
 
 export default function SessionRun() {
     const { id } = useParams();
@@ -14,6 +14,8 @@ export default function SessionRun() {
     const [note, setNote] = useState('');
     const [saving, setSaving] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [grade, setGrade] = useState(0); // Current grade state
+    const [savedGrade, setSavedGrade] = useState(0); // Confirmed/Saved grade
     const [results, setResults] = useState({}); // studentId -> feedback
     const [sentStatus, setSentStatus] = useState({}); // studentId -> boolean
     const [showQuestions, setShowQuestions] = useState(true);
@@ -31,18 +33,30 @@ export default function SessionRun() {
     useEffect(() => {
         if (session && session.students && session.students[currentIndex]) {
             setNote(session.students[currentIndex].notes || '');
+            const currentGrade = session.students[currentIndex].grade || 0;
+            setGrade(currentGrade);
+            setSavedGrade(currentGrade);
         }
     }, [currentIndex, session]);
 
     // Keyboard navigation with ESC toggle
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // Grading shortcut: Enter to confirm grade
+            // Only if we are not in the textarea (unless Ctrl+Enter?) or if we explicitly focus the grade area
+            // Ideally, the user wants "enter confirms it". 
+            // If they are in the note box, Enter usually means new line.
+            // Let's implement: If specific grade squares are focused or global hotkeys?
+            // "when we press enter it confirms it" implies after selecting?
+            // Let's assume global Enter saves grade if it changed? Or strictly when focusing grade controls.
+            // Simplified: If not in textarea, Enter saves. The user probably clicks, then hits Enter?
+
             // ESC key toggles navigation mode
             if (e.key === 'Escape') {
                 e.preventDefault();
 
                 if (navigationMode) {
-                    // Exiting navigation mode - restore focus and cursor position
+                    // Exiting navigation mode - restore focus
                     setNavigationMode(false);
                     if (notesTextareaRef.current) {
                         notesTextareaRef.current.focus();
@@ -70,6 +84,18 @@ export default function SessionRun() {
             // Arrow key navigation
             // Works in navigation mode OR when not focused on input/textarea
             const isInputFocused = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+
+            if (e.key === 'Enter' && !isInputFocused) {
+                // Confirm grade if not editing text
+                handleSaveGrade();
+                return;
+            }
+
+            // Shift key to cycle grades in Navigation Mode
+            if (navigationMode && e.key === 'Shift') {
+                setGrade(prev => (prev >= 5 ? 1 : prev + 1));
+                return;
+            }
 
             if (!navigationMode && isInputFocused) {
                 return; // Don't navigate if in editing mode and typing
@@ -137,6 +163,28 @@ export default function SessionRun() {
         saveTimeout.current = setTimeout(() => {
             saveNote(content);
         }, 1000);
+    };
+
+    const handleSaveGrade = async () => {
+        if (!session?.students?.[currentIndex]) return;
+        const studentId = session.students[currentIndex].id;
+
+        try {
+            await saveStudentGrade(session.id, studentId, grade);
+            setSavedGrade(grade);
+
+            // Update local state
+            setSession(prev => {
+                const newStudents = [...prev.students];
+                newStudents[currentIndex].grade = grade;
+                return { ...prev, students: newStudents };
+            });
+
+            // Visual feedback could be added here (toast)
+        } catch (err) {
+            console.error('Failed to save grade', err);
+            alert("Failed to save grade");
+        }
     };
 
     const handleNext = () => {
@@ -213,6 +261,53 @@ export default function SessionRun() {
             console.error('Error toggling status:', err);
             alert("Failed to update status");
         }
+    };
+
+    // 3-state cycle: not asked → correct (green) → incorrect (red) → not asked
+    const handleQuestionClick = async (questionId) => {
+        if (!session?.students?.[currentIndex]) return;
+        const student = session.students[currentIndex];
+
+        let newAnswered = [...(student.answeredQuestions || [])];
+        let newIncorrect = [...(student.incorrectQuestions || [])];
+
+        const isAnswered = newAnswered.includes(questionId);
+        const isIncorrect = newIncorrect.includes(questionId);
+
+        if (!isAnswered && !isIncorrect) {
+            // State: Not asked → Correct (green)
+            newAnswered.push(questionId);
+        } else if (isAnswered && !isIncorrect) {
+            // State: Correct → Incorrect (red)
+            newAnswered = newAnswered.filter(id => id !== questionId);
+            newIncorrect.push(questionId);
+        } else if (isIncorrect) {
+            // State: Incorrect → Not asked (default)
+            newIncorrect = newIncorrect.filter(id => id !== questionId);
+        }
+
+        // Optimistic UI update
+        setSession(prev => {
+            const newStudents = [...prev.students];
+            newStudents[currentIndex] = {
+                ...student,
+                answeredQuestions: newAnswered,
+                incorrectQuestions: newIncorrect
+            };
+            return { ...prev, students: newStudents };
+        });
+
+        try {
+            await saveStudentQuestions(session.id, student.id, { answered: newAnswered, incorrect: newIncorrect });
+        } catch (err) {
+            console.error('Error saving question state:', err);
+        }
+    };
+
+    // For backwards compatibility if double-click is still used somewhere
+    const handleQuestionDoubleClick = (questionId) => {
+        // Double-click now does nothing since single-click cycles through states
+        // This prevents the default text selection behavior
     };
 
     const handleSendToDiscord = async (studentId) => {
@@ -477,6 +572,48 @@ export default function SessionRun() {
                                 disabled={currentStudent.status === 'absent'}
                                 placeholder="Type performance observations, evaluation results, and common issues..."
                             />
+
+                            {/* Grading System */}
+                            <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Grade Performance</label>
+                                    {grade !== savedGrade && <span style={{ fontSize: '0.75rem', color: '#ff9800' }}>Unsaved (Press Enter)</span>}
+                                    {grade === savedGrade && grade > 0 && <span style={{ fontSize: '0.75rem', color: '#4CAF50' }}>Saved</span>}
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    {[1, 2, 3, 4, 5].map(val => (
+                                        <div
+                                            key={val}
+                                            onClick={() => setGrade(val)}
+                                            style={{
+                                                width: '32px',
+                                                height: '32px',
+                                                borderRadius: '4px',
+                                                border: `2px solid ${grade >= val ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                                                background: grade >= val ? 'var(--color-primary)' : 'transparent',
+                                                color: grade >= val ? 'white' : 'var(--text-secondary)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer',
+                                                fontWeight: 'bold',
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                            title={`Rate ${val}/5`}
+                                        >
+                                            {val}
+                                        </div>
+                                    ))}
+                                    <button
+                                        onClick={handleSaveGrade}
+                                        disabled={grade === savedGrade}
+                                        className="btn-outline"
+                                        style={{ marginLeft: 'auto', padding: '4px 8px', fontSize: '0.8rem' }}
+                                    >
+                                        Confirm
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Result View */}
@@ -521,36 +658,69 @@ export default function SessionRun() {
                             <small style={{ color: 'var(--text-secondary)' }}>{session.questions.length} questions available</small>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                            {session.questions.map((q, idx) => (
-                                <div key={q.id || idx} style={{
-                                    fontSize: '0.9rem',
-                                    padding: '1rem',
-                                    background: 'var(--bg-app)',
-                                    borderRadius: '8px',
-                                    borderLeft: '4px solid var(--color-primary)',
-                                    boxShadow: 'var(--shadow-sm)',
-                                    position: 'relative'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
-                                        <div style={{ fontWeight: 'bold', color: 'var(--color-primary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                            Question {idx + 1}
-                                        </div>
-                                        {q.topicName && (
-                                            <div style={{
-                                                fontSize: '0.65rem',
-                                                background: 'var(--color-primary)',
-                                                color: 'white',
-                                                padding: '1px 6px',
-                                                borderRadius: '3px',
-                                                fontWeight: '600'
-                                            }}>
-                                                {q.topicName}
+                            {session.questions.map((q, idx) => {
+                                const qId = q.id || idx;
+                                const isAnswered = currentStudent.answeredQuestions && currentStudent.answeredQuestions.includes(qId);
+                                const isIncorrect = currentStudent.incorrectQuestions && currentStudent.incorrectQuestions.includes(qId);
+
+                                let bgColor = 'var(--bg-app)';
+                                let borderColor = 'var(--color-primary)';
+                                let textColor = 'var(--color-primary)';
+                                let statusText = `Question ${idx + 1}`;
+
+                                if (isAnswered) {
+                                    bgColor = 'rgba(34, 197, 94, 0.1)';
+                                    borderColor = '#22c55e';
+                                    textColor = '#22c55e';
+                                    statusText = '✓ Correct';
+                                } else if (isIncorrect) {
+                                    bgColor = 'rgba(239, 68, 68, 0.1)';
+                                    borderColor = '#ef4444';
+                                    textColor = '#ef4444';
+                                    statusText = '✗ Incorrect';
+                                }
+
+                                return (
+                                    <div
+                                        key={qId}
+                                        onClick={() => handleQuestionClick(qId)}
+                                        onDoubleClick={() => handleQuestionDoubleClick(qId)}
+                                        style={{
+                                            fontSize: '0.9rem',
+                                            padding: '1rem',
+                                            background: bgColor,
+                                            borderRadius: '8px',
+                                            borderLeft: `4px solid ${borderColor}`,
+                                            border: (isAnswered || isIncorrect) ? `1px solid ${borderColor}` : 'none',
+                                            borderLeftWidth: '4px',
+                                            boxShadow: 'var(--shadow-sm)',
+                                            position: 'relative',
+                                            cursor: 'pointer',
+                                            userSelect: 'none', // Prevent text selection on double click
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
+                                            <div style={{ fontWeight: 'bold', color: textColor, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                {statusText}
                                             </div>
-                                        )}
+                                            {q.topicName && (
+                                                <div style={{
+                                                    fontSize: '0.65rem',
+                                                    background: borderColor,
+                                                    color: 'white',
+                                                    padding: '1px 6px',
+                                                    borderRadius: '3px',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    {q.topicName}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ color: (isAnswered || isIncorrect) ? textColor : 'var(--text-main)', lineHeight: '1.5' }}>{q.text || q}</div>
                                     </div>
-                                    <div style={{ color: 'var(--text-main)', lineHeight: '1.5' }}>{q.text || q}</div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     </div>
                 )}
