@@ -1,42 +1,89 @@
 // server/models/studentModel.js
-const { db } = require('./db');
-const { v4: uuidv4 } = require('uuid');
+const { supabase } = require('../utils/supabaseClient');
 
 async function getStudents(mentorId) {
-    return db.get('students').filter({ mentorId }).value();
+    const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('mentorId', mentorId);
+
+    if (error) {
+        console.error('Error getting students:', error);
+        return [];
+    }
+    return data;
 }
 
 async function addStudent(mentorId, name, discord, major) {
+    // Check existence
     if (discord) {
-        const exists = db.get('students').find({ mentorId, discord }).value();
-        if (exists) return exists;
+        const { data: existing } = await supabase
+            .from('students')
+            .select('*')
+            .eq('mentorId', mentorId)
+            .eq('discord', discord)
+            .single();
+
+        if (existing) return existing;
     }
 
-    const student = {
-        id: uuidv4(),
-        mentorId,
-        name,
-        discord,
-        major: major || '',
-        createdAt: new Date().toISOString()
-    };
-    db.get('students').push(student).write();
-    return student;
+    const { data, error } = await supabase
+        .from('students')
+        .insert([
+            { mentorId, name, discord, major }
+        ])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error adding student:', error);
+        throw error;
+    }
+    return data;
 }
 
 async function updateStudent(id, data) {
-    const student = db.get('students').find({ id }).assign(data).write();
-    return student;
+    const { data: updated, error } = await supabase
+        .from('students')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating student:', error);
+        return null;
+    }
+    return updated;
 }
 
 async function deleteStudent(id) {
-    db.get('students').remove({ id }).write();
+    const { error } = await supabase
+        .from('students')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error deleting student:', error);
+        return false;
+    }
     return true;
 }
 
 async function bulkAddStudents(mentorId, studentsArray) {
+    // Fetch existing students for this mentor to avoid duplicates
+    const { data: existingStudents, error: fetchError } = await supabase
+        .from('students')
+        .select('discord')
+        .eq('mentorId', mentorId);
+
+    if (fetchError) {
+        console.error('Error fetching existing students for bulk add:', fetchError);
+        return [];
+    }
+
     const existingDiscordNames = new Set(
-        db.get('students').filter({ mentorId }).value().map(s => s.discord).filter(Boolean)
+        existingStudents.map(s => s.discord).filter(Boolean)
     );
 
     const newStudents = [];
@@ -51,12 +98,10 @@ async function bulkAddStudents(mentorId, studentsArray) {
         }
 
         newStudents.push({
-            id: uuidv4(),
             mentorId,
             name: s.name,
             discord: discord,
-            major: s.major || '',
-            createdAt: new Date().toISOString()
+            major: s.major || ''
         });
 
         if (discord) {
@@ -65,17 +110,31 @@ async function bulkAddStudents(mentorId, studentsArray) {
     }
 
     if (newStudents.length > 0) {
-        const currentStudents = db.get('students').value();
-        db.set('students', [...currentStudents, ...newStudents]).write();
+        const { data, error } = await supabase
+            .from('students')
+            .insert(newStudents)
+            .select();
+
+        if (error) {
+            console.error('Error bulk adding students:', error);
+            throw error;
+        }
+        return data;
     }
 
-    return newStudents;
+    return [];
 }
 
 async function deleteAllStudents(mentorId) {
-    db.get('students')
-        .remove({ mentorId })
-        .write();
+    const { error } = await supabase
+        .from('students')
+        .delete()
+        .eq('mentorId', mentorId);
+
+    if (error) {
+        console.error('Error deleting all students:', error);
+        return false;
+    }
     return true;
 }
 

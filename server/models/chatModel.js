@@ -1,61 +1,83 @@
 // server/models/chatModel.js
-const { db } = require('./db');
+const { supabase } = require('../utils/supabaseClient');
 const { v4: uuidv4 } = require('uuid');
 
-// Ensure 'chats' collection exists
-if (!db.get('chats').value()) {
-    db.defaults({ chats: [] }).write();
-}
-
 async function getChatHistory(sessionId, studentId) {
-    const chat = db.get('chats')
-        .find({ sessionId, studentId })
-        .value();
+    const { data, error } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('sessionId', sessionId)
+        .eq('studentId', studentId)
+        .single();
 
-    return chat ? chat.messages : [];
+    if (error) {
+        // It's manually acceptable if no chat exists yet
+        return [];
+    }
+    return data ? data.messages : [];
 }
 
 async function addMessage(sessionId, studentId, role, content) {
-    let chat = db.get('chats')
-        .find({ sessionId, studentId })
-        .value();
-
     const timestamp = new Date().toISOString();
     const newMessage = { role, content, timestamp };
 
-    if (!chat) {
-        // Create new chat entry if it doesn't exist
-        chat = {
-            id: uuidv4(),
-            sessionId,
-            studentId,
-            messages: [newMessage],
-            createdAt: timestamp,
-            updatedAt: timestamp
-        };
-        db.get('chats').push(chat).write();
-    } else {
-        // Append message to existing chat
-        db.get('chats')
-            .find({ sessionId, studentId })
-            .get('messages')
-            .push(newMessage)
-            .write();
+    // Check if chat exists
+    const { data: chat, error } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('sessionId', sessionId)
+        .eq('studentId', studentId)
+        .single();
 
-        // Update timestamp
-        db.get('chats')
-            .find({ sessionId, studentId })
-            .assign({ updatedAt: timestamp })
-            .write();
+    if (!chat) {
+        // Create new
+        const { error: insertError } = await supabase
+            .from('chats')
+            .insert([{
+                sessionId,
+                studentId,
+                messages: [newMessage],
+                createdAt: timestamp,
+                updatedAt: timestamp
+            }]);
+
+        if (insertError) {
+            console.error('Error creating chat:', insertError);
+            throw insertError;
+        }
+    } else {
+        // Update existing
+        // We need to fetch existing messages first (already done above in 'chat')
+        const updatedMessages = [...(chat.messages || []), newMessage];
+
+        const { error: updateError } = await supabase
+            .from('chats')
+            .update({
+                messages: updatedMessages,
+                updatedAt: timestamp
+            })
+            .eq('id', chat.id);
+
+        if (updateError) {
+            console.error('Error updating chat:', updateError);
+            throw updateError;
+        }
     }
 
     return newMessage;
 }
 
 async function clearChat(sessionId, studentId) {
-    db.get('chats')
-        .remove({ sessionId, studentId })
-        .write();
+    const { error } = await supabase
+        .from('chats')
+        .delete()
+        .eq('sessionId', sessionId)
+        .eq('studentId', studentId);
+
+    if (error) {
+        console.error('Error clearing chat:', error);
+        return false;
+    }
     return true;
 }
 

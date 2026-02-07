@@ -1,35 +1,42 @@
 // server/models/sessionModel.js
-const { db } = require('./db');
+const { supabase } = require('../utils/supabaseClient');
 const { v4: uuidv4 } = require('uuid');
 
 async function createSession(mentorId, groupName, studentsData, topicIds) {
-    // studentsData = [{ name, discord }]
+    // studentsData = [{ name, discord, major }]
     const students = studentsData.map(s => ({
         id: uuidv4(),
         name: s.name,
         discord: s.discord,
         major: s.major || '',
         notes: '',
-        grade: 0, // Default grade
-        status: 'present', // Default status
-        result: null, // AI result
-        answeredQuestions: [], // Tracking covered questions IDs
-        incorrectQuestions: [] // Tracking incorrect questions IDs
+        grade: 0,
+        status: 'present',
+        result: null,
+        answeredQuestions: [],
+        incorrectQuestions: []
     }));
 
-    // topicIds is expected to be an array
     const ids = Array.isArray(topicIds) ? topicIds : [topicIds];
 
     // Fetch snapshot of questions from all selected topic sets
-    const selectedSets = db.get('questions').filter(q => ids.includes(q.id)).value();
+    // Supabase .in() expects an array
+    const { data: selectedSets, error: qError } = await supabase
+        .from('questions')
+        .select('*')
+        .in('id', ids);
 
-    // Aggregate questions and topic names
+    if (qError) {
+        console.error('Error fetching questions for session:', qError);
+        throw qError;
+    }
+
     let allQuestions = [];
     let topicNames = [];
 
     selectedSets.forEach(set => {
         if (set.questions) {
-            // Add topic context to each question for better UI inside the session
+            // Add topic context to each question
             const contextQuestions = set.questions.map(q => ({
                 ...(typeof q === 'string' ? { text: q } : q),
                 topicName: set.topic
@@ -39,149 +46,201 @@ async function createSession(mentorId, groupName, studentsData, topicIds) {
         topicNames.push(set.topic);
     });
 
-    const session = {
-        id: uuidv4(),
+    const sessionData = {
         mentorId,
         groupName,
         topicIds: ids,
-        topicNames: topicNames, // Array of selected topic names
-        topicName: topicNames.join(', '), // Comma separated string for backward compatibility/simpler display
-        questions: allQuestions, // Combined snapshot of questions
-        status: 'active', // active, completed
-        createdAt: new Date().toISOString(),
+        topicNames: topicNames,
+        topicName: topicNames.join(', '),
+        questions: allQuestions,
+        status: 'active',
         students
     };
 
-    db.get('sessions').push(session).write();
-    return session;
+    const { data, error } = await supabase
+        .from('sessions')
+        .insert([sessionData])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating session:', error);
+        throw error;
+    }
+
+    return data;
 }
 
 async function getSessionsByMentor(mentorId) {
-    return db.get('sessions').filter({ mentorId }).value();
+    const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('mentorId', mentorId);
+
+    if (error) {
+        console.error('Error getting sessions by mentor:', error);
+        return [];
+    }
+    return data;
 }
 
 async function getSessionsForStudent(username) {
-    // Filter sessions where any student in the 'students' array matches the username
-    // Note: session.students contains objects like { name, discord, id }
-    // We should match by 'discord' username since that's our unique identifier from login
-    return db.get('sessions')
-        .filter(session => session.students.some(s => s.discord === username))
-        .value();
+    // Filter sessions where 'students' JSONB column contains an object with discord: username
+    // Use the @> contains operator
+    const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .contains('students', JSON.stringify([{ discord: username }]));
+
+    if (error) {
+        console.error('Error getting sessions for student:', error);
+        return [];
+    }
+    return data;
 }
 
 async function getSessionById(id) {
-    return db.get('sessions').find({ id }).value();
+    const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error getting session by id:', error);
+        return null;
+    }
+    return data;
+}
+
+// Helper to update a specific student in the session
+async function updateSessionStudent(sessionId, studentId, updateFn) {
+    // 1. Fetch
+    const { data: session, error: fetchError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+    if (fetchError || !session) return null;
+
+    // 2. Modify
+    const studentIndex = session.students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return null;
+
+    const updatedStudent = { ...session.students[studentIndex] };
+    updateFn(updatedStudent);
+
+    const newStudents = [...session.students];
+    newStudents[studentIndex] = updatedStudent;
+
+    // 3. Update
+    const { error: updateError } = await supabase
+        .from('sessions')
+        .update({ students: newStudents })
+        .eq('id', sessionId);
+
+    if (updateError) {
+        console.error('Error updating session student:', updateError);
+        return null;
+    }
+    return updatedStudent;
 }
 
 async function updateStudentNote(sessionId, studentId, noteContent) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
-
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
-
-    // Direct mutation works in lowdb v1 because objects are references, 
-    // but .write() must be called on the chain or DB instance to persist.
-    // Cleanest way in v1 is to use .assign() or similar, but for deep nested update:
-    student.notes = noteContent;
-    db.write(); // Persist changes
-
-    return student;
+    return updateSessionStudent(sessionId, studentId, (s) => {
+        s.notes = noteContent;
+    });
 }
 
 async function updateStudentResult(sessionId, studentId, resultSummary) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
-
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
-
-    student.result = resultSummary;
-    db.write(); // Persist
-    return student;
+    return updateSessionStudent(sessionId, studentId, (s) => {
+        s.result = resultSummary;
+    });
 }
 
 async function updateStudentQuestions(sessionId, studentId, { answered, incorrect }) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
-
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
-
-    if (answered) student.answeredQuestions = answered;
-    if (incorrect) student.incorrectQuestions = incorrect;
-
-    db.write();
-    return student;
+    return updateSessionStudent(sessionId, studentId, (s) => {
+        if (answered) s.answeredQuestions = answered;
+        if (incorrect) s.incorrectQuestions = incorrect;
+    });
 }
 
 async function completeSession(sessionId) {
-    db.get('sessions')
-        .find({ id: sessionId })
-        .assign({ status: 'completed' })
-        .write();
+    const { data, error } = await supabase
+        .from('sessions')
+        .update({ status: 'completed' })
+        .eq('id', sessionId)
+        .select()
+        .single();
 
-    // Return updated
-    return db.get('sessions').find({ id: sessionId }).value();
+    if (error) {
+        console.error('Error completing session:', error);
+        return null; // Or throw
+    }
+    return data;
 }
 
 async function deleteSession(sessionId) {
-    db.get('sessions')
-        .remove({ id: sessionId })
-        .write();
+    const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', sessionId);
+
+    if (error) {
+        console.error('Error deleting session:', error);
+        return false;
+    }
     return true;
 }
 
 async function deleteAllSessions(mentorId) {
-    db.get('sessions')
-        .remove({ mentorId })
-        .write();
+    const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('mentorId', mentorId);
+
+    if (error) {
+        console.error('Error deleting all sessions:', error);
+        return false;
+    }
     return true;
 }
 
 async function updateStudentStatus(sessionId, studentId, status) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
-
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
-
-    student.status = status; // 'present' or 'absent'
-
-    // Optional: Clear notes/result if marked absent? 
-    // For now, let's keep them but UI will disable editing.
-    // If regenerating report, we might skip absent students.
-
-    db.write();
-    return student;
+    return updateSessionStudent(sessionId, studentId, (s) => {
+        s.status = status;
+    });
 }
 
 async function updateStudentGrade(sessionId, studentId, grade) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
-
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
-
-    student.grade = grade;
-    db.write();
-    return student;
+    return updateSessionStudent(sessionId, studentId, (s) => {
+        s.grade = grade;
+    });
 }
 
-// Aggregate grades across all completed sessions per student and return sorted leaderboard
 async function getLeaderboard() {
-    const sessions = db.get('sessions').filter({ status: 'completed' }).value();
+    // Cannot do complex aggregation on JSONB inside supabase easily without stored procedures.
+    // We will fetch all completed sessions and aggregate in JS, same as before.
+    const { data: sessions, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('status', 'completed');
 
-    // Map: discordId -> { name, totalGrade, count }
+    if (error) {
+        console.error('Error getting leaderboard data:', error);
+        return [];
+    }
+
     const studentStats = {};
 
     sessions.forEach(session => {
-        if (!session.students) return;
+        if (!session.students || !Array.isArray(session.students)) return;
 
         session.students.forEach(student => {
             if (!student.discord || student.status === 'absent') return;
             const grade = student.grade || 0;
-            if (grade === 0) return; // Skip ungraded
+            if (grade === 0) return;
 
             const key = student.discord.toLowerCase();
             if (!studentStats[key]) {
@@ -199,7 +258,6 @@ async function getLeaderboard() {
         });
     });
 
-    // Convert to array and calculate averages
     const leaderboard = Object.values(studentStats)
         .map(s => ({
             name: s.name,
