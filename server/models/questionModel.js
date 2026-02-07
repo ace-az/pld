@@ -16,8 +16,46 @@ async function getQuestionSets(mentorId) {
 }
 
 async function addQuestionSet(mentorId, topic, questions) {
-    // questions should be an array of strings
-    // We store as array of objects in JSONB: [{id, text}]
+    // 1. Check if topic already exists for this mentor
+    const { data: existingSet } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('mentorId', mentorId)
+        .eq('topic', topic)
+        .single();
+
+    if (existingSet) {
+        // Topic exists: Append new unique questions
+        const existingQuestions = existingSet.questions || [];
+        const existingTexts = new Set(existingQuestions.map(q => (typeof q === 'string' ? q : q.text).trim().toLowerCase()));
+
+        const newUniqueQuestions = questions.filter(q => {
+            const text = (typeof q === 'string' ? q : q.text).trim().toLowerCase();
+            return !existingTexts.has(text);
+        });
+
+        if (newUniqueQuestions.length === 0) {
+            return existingSet; // Nothing to add
+        }
+
+        const newQuestionsWithIds = newUniqueQuestions.map(q => ({ id: uuidv4(), text: q }));
+        const updatedQuestions = [...existingQuestions, ...newQuestionsWithIds];
+
+        const { data: updatedSet, error: updateError } = await supabase
+            .from('questions')
+            .update({ questions: updatedQuestions })
+            .eq('id', existingSet.id)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error('Error updating question set (append):', updateError);
+            throw updateError;
+        }
+        return updatedSet;
+    }
+
+    // 2. New Topic: Create new
     const questionsWithIds = questions.map(q => ({ id: uuidv4(), text: q }));
 
     const { data, error } = await supabase

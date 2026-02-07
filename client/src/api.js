@@ -11,11 +11,21 @@ const getAuthHeaders = () => {
 };
 
 const handleResponse = async (response) => {
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(data.error || 'An error occurred');
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || data.error || 'An error occurred');
+        }
+        return data;
+    } else {
+        const text = await response.text();
+        console.error("API Error: Received non-JSON response from " + response.url, text);
+        if (!response.ok) {
+            throw new Error(`Server Error (${response.status}): ${response.statusText}`);
+        }
+        throw new Error("Received invalid response from server (expected JSON, got HTML/Text)");
     }
-    return data;
 };
 
 export const registerUser = async (userData) => {
