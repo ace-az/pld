@@ -8,6 +8,8 @@ router.use(authMiddleware);
 
 router.post('/', sessionController.createSession);
 router.get('/', sessionController.getMySessions);
+router.get('/joinable', sessionController.getJoinableSessions);
+router.post('/:id/join', sessionController.joinSession);
 router.get('/:id', sessionController.getSession);
 router.put('/:sessionId/students/:studentId/notes', sessionController.updateNote);
 router.put('/:sessionId/students/:studentId/result', sessionController.saveResult);

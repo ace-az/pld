@@ -11,20 +11,19 @@ const getAuthHeaders = () => {
 };
 
 const handleResponse = async (response) => {
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.indexOf("application/json") !== -1) {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         if (!response.ok) {
-            throw new Error(data.message || data.error || 'An error occurred');
+            throw new Error(data.error || 'An error occurred');
         }
         return data;
     } else {
         const text = await response.text();
-        console.error("API Error: Received non-JSON response from " + response.url, text);
         if (!response.ok) {
-            throw new Error(`Server Error (${response.status}): ${response.statusText}`);
+            throw new Error(`Server Error (${response.status}): ${text.slice(0, 100)}...`);
         }
-        throw new Error("Received invalid response from server (expected JSON, got HTML/Text)");
+        return text;
     }
 };
 
@@ -99,6 +98,21 @@ export const getSessions = async () => {
 
 export const getSession = async (id) => {
     const response = await fetch(`${API_URL}/api/sessions/${id}`, {
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+export const getJoinableSessions = async () => {
+    const response = await fetch(`${API_URL}/api/sessions/joinable`, {
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+export const joinSession = async (id) => {
+    const response = await fetch(`${API_URL}/api/sessions/${id}/join`, {
+        method: 'POST',
         headers: getAuthHeaders()
     });
     return handleResponse(response);
@@ -305,6 +319,41 @@ export const getAdminUsers = async () => {
 export const deleteUserAccount = async (id) => {
     const response = await fetch(`${API_URL}/api/admin/users/${id}`, {
         method: 'DELETE'
+    });
+    return handleResponse(response);
+};
+
+// Profile API
+export const getUserProfile = async () => {
+    const response = await fetch(`${API_URL}/api/profile`, {
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+export const updateUserProfile = async (profileData) => {
+    const response = await fetch(`${API_URL}/api/profile`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(profileData)
+    });
+    return handleResponse(response);
+};
+
+export const updateAvatar = async (avatar) => {
+    const response = await fetch(`${API_URL}/api/profile/avatar`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ avatar })
+    });
+    return handleResponse(response);
+};
+
+export const changePassword = async (passwords) => {
+    const response = await fetch(`${API_URL}/api/profile/change-password`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(passwords)
     });
     return handleResponse(response);
 };

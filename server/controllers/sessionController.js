@@ -5,13 +5,15 @@ const userModel = require('../models/userModel');
 
 exports.createSession = async (req, res) => {
     try {
-        const { groupName, students, topicIds } = req.body; // students: [{name, discord}], topicIds: [id1, id2]
+        const { groupName, students, topicIds, createdAt, scheduledTime } = req.body; // students: [{name, discord}], topicIds: [id1, id2]
 
-        if (!groupName || !students || students.length === 0 || !topicIds || (Array.isArray(topicIds) && topicIds.length === 0)) {
-            return res.status(400).json({ error: 'Missing required fields (Group Name, Students, and Topics)' });
+        // Validate required fields
+        if (!groupName || !topicIds || (Array.isArray(topicIds) && topicIds.length === 0)) {
+            return res.status(400).json({ error: 'Missing required fields (Group Name and Topics)' });
         }
 
-        const session = await sessionModel.createSession(req.user.id, groupName, students, topicIds);
+        // Students are optional for future sessions
+        const session = await sessionModel.createSession(req.user.id, groupName, students || [], topicIds, createdAt, scheduledTime);
         res.json(session);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -23,25 +25,52 @@ exports.getMySessions = async (req, res) => {
         console.log(`[getMySessions] User requesting: ${req.user.username} (${req.user.role})`);
         let sessions;
         if (req.user.role === 'student') {
-            // For students, fetch sessions where they are included via their Discord username
-            // We must fetch the latest user data to get the correct discordId, as the token might just have the portal username
             const fullUser = await userModel.findUserById(req.user.id);
-            console.log(`[getMySessions] Full user found:`, fullUser ? fullUser.username : 'null');
-
             if (!fullUser || !fullUser.discordId) {
-                console.log(`[getMySessions] No discordId for user ${req.user.username}`);
-                return res.json([]); // No discord ID linked, so no sessions
+                return res.json([]);
             }
-            console.log(`[getMySessions] Searching sessions for discordId: ${fullUser.discordId}`);
             sessions = await sessionModel.getSessionsForStudent(fullUser.discordId);
-            console.log(`[getMySessions] Found ${sessions.length} sessions`);
         } else {
-            // For mentors (or default), fetch by mentorId
             sessions = await sessionModel.getSessionsByMentor(req.user.id);
         }
         res.json(sessions);
     } catch (err) {
         console.error('[getMySessions] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getJoinableSessions = async (req, res) => {
+    try {
+        const fullUser = await userModel.findUserById(req.user.id);
+        if (!fullUser || !fullUser.discordId) {
+            return res.json([]);
+        }
+        const sessions = await sessionModel.getJoinableSessions(fullUser.discordId);
+        res.json(sessions);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.joinSession = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const fullUser = await userModel.findUserById(req.user.id);
+
+        if (!fullUser || !fullUser.discordId) {
+            return res.status(400).json({ error: 'Please link your Discord account in your profile first.' });
+        }
+
+        const studentData = {
+            name: fullUser.fullName || fullUser.username,
+            discord: fullUser.discordId,
+            major: fullUser.major || ''
+        };
+
+        const updatedSession = await sessionModel.joinSession(id, studentData);
+        res.json(updatedSession);
+    } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };

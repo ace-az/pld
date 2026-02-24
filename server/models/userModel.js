@@ -1,105 +1,70 @@
 // server/models/userModel.js
-const { supabase } = require('../utils/supabaseClient');
+const { db } = require('./db');
+const { v4: uuidv4 } = require('uuid');
 
 async function createUser(username, password, discordId, role = 'student', major = '') {
-    const { data, error } = await supabase
-        .from('users')
-        .insert([
-            { username, password, "discordId": discordId, role, major }
-        ])
-        .select()
-        .single();
-
-    if (error) {
-        console.error('Error creating user:', error);
-        throw error;
-    }
-    return data;
+    // db.read() is not needed for FileSync
+    const user = {
+        id: uuidv4(),
+        username,
+        password, // In prod, hash this! We'll do basic hashing in controller
+        discordId,
+        firstName: '',
+        lastName: '',
+        avatar: '',
+        role,
+        major,
+        createdAt: new Date().toISOString()
+    };
+    db.get('users').push(user).write();
+    return user;
 }
 
 async function findUserByUsername(username) {
-    const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', username)
-        .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "Row not found"
-        console.error('Error finding user by username:', error);
-    }
-    return data;
+    return db.get('users').find({ username }).value();
 }
 
 async function findUserById(id) {
-    const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-    if (error) console.error('Error finding user by id:', error);
-    return data;
+    return db.get('users').find({ id }).value();
 }
 
 async function findUserByDiscordId(discordId) {
     if (!discordId) return null;
-    const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('discordId', discordId) // Note: confirm column name case sensitivity in Supabase
-        .single();
-
-    if (error && error.code !== 'PGRST116') {
-        console.error('Error finding user by discordId:', error);
-    }
-    return data;
+    // Search effectively case-insensitive or exact? 
+    // Usually Discord usernames are case-sensitive but let's do strict match for now as per registration.
+    return db.get('users').find({ discordId }).value();
 }
 
 async function getAllStudentUsers() {
-    const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('role', 'student');
-
-    if (error) console.error('Error getting student users:', error);
-    return data || [];
+    return db.get('users').filter({ role: 'student' }).value();
 }
 
 async function getAllUsers() {
-    const { data, error } = await supabase
-        .from('users')
-        .select('*');
-
-    if (error) console.error('Error getting all users:', error);
-    return data || [];
+    return db.get('users').value();
 }
 
 async function deleteUser(id) {
-    const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', id);
-
-    if (error) {
-        console.error('Error deleting user:', error);
-        return false;
-    }
-    return true;
+    return db.get('users').remove({ id }).write();
 }
 
-async function updateUserPassword(username, newPassword) {
-    const { data, error } = await supabase
-        .from('users')
-        .update({ password: newPassword })
-        .eq('username', username)
-        .select()
-        .single();
+async function updateUserPasswordByUserId(userId, newPassword) {
+    return db.get('users')
+        .find({ id: userId })
+        .assign({ password: newPassword })
+        .write();
+}
 
-    if (error) {
-        console.error('Error updating password:', error);
-        throw error;
-    }
-    return data;
+async function updateUserProfile(userId, updates) {
+    const allowed = ['username', 'firstName', 'lastName', 'discordId', 'avatar', 'major'];
+    const filteredUpdates = {};
+    Object.keys(updates).forEach(key => {
+        if (allowed.includes(key)) filteredUpdates[key] = updates[key];
+    });
+
+    return db.get('users')
+        .find({ id: userId })
+        .assign(filteredUpdates)
+        .write();
 }
 
 module.exports = {
@@ -107,7 +72,8 @@ module.exports = {
     findUserByUsername,
     findUserById,
     findUserByDiscordId,
-    updateUserPassword,
+    updateUserPassword: updateUserPasswordByUserId,
+    updateUserProfile,
     getAllStudentUsers,
     getAllUsers,
     deleteUser

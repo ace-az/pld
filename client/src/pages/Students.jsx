@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents } from '../api';
-import { UserPlus, Trash2, Edit2, Check, X, Upload, ArrowLeft, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UserPlus, Trash2, Edit2, Check, X, Upload, ArrowLeft } from 'lucide-react';
 
 export default function Students() {
     const navigate = useNavigate();
@@ -19,11 +19,6 @@ export default function Students() {
     const [editDiscord, setEditDiscord] = useState('');
     const [editMajor, setEditMajor] = useState('');
     const [importing, setImporting] = useState(false);
-
-    // Search and Pagination
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
 
     useEffect(() => {
         fetchStudents();
@@ -163,42 +158,7 @@ export default function Students() {
         reader.readAsText(file);
     };
 
-    // Filter and Paginate
-    const safeStudents = Array.isArray(students) ? students : [];
-
-    const filteredStudents = safeStudents.filter(student => {
-        if (!student) return false;
-        const nameMatch = student.name ? student.name.toLowerCase().includes(searchTerm.toLowerCase()) : false;
-        const discordMatch = student.discord ? student.discord.toLowerCase().includes(searchTerm.toLowerCase()) : false;
-        const majorMatch = student.major ? student.major.toLowerCase().includes(searchTerm.toLowerCase()) : false;
-        return nameMatch || discordMatch || majorMatch;
-    });
-
-    const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentStudents = filteredStudents.slice(indexOfFirstItem, indexOfLastItem);
-
-    const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm]);
-
-    if (loading) return <div className="p-4 text-center">Loading...</div>;
-
-    if (error) {
-        return (
-            <div className="container" style={{ padding: '2rem' }}>
-                <div className="card" style={{ textAlign: 'center', borderColor: '#f44336' }}>
-                    <h3 style={{ color: '#f44336' }}>Error Loading Students</h3>
-                    <p>{error}</p>
-                    <button className="btn btn-primary" onClick={fetchStudents}>Retry</button>
-                    <button className="btn btn-outline" onClick={() => navigate('/')} style={{ marginLeft: '1rem' }}>Go Back</button>
-                </div>
-            </div>
-        );
-    }
+    if (loading) return <div>Loading...</div>;
 
     return (
         <div className="students-container">
@@ -263,30 +223,16 @@ export default function Students() {
 
             <div className="card">
                 <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ margin: 0 }}>Student List ({filteredStudents.length})</h3>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <div className="input-group" style={{ marginBottom: 0, flexDirection: 'row', alignItems: 'center' }}>
-                            <div style={{ position: 'relative' }}>
-                                <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                                <input
-                                    className="input-control"
-                                    style={{ marginBottom: 0, paddingLeft: '35px', paddingRight: '10px', width: '250px' }}
-                                    placeholder="Search students..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        {students.length > 0 && (
-                            <button
-                                onClick={handleDeleteAll}
-                                className="btn btn-outline flex-center"
-                                style={{ color: '#f44336', borderColor: '#f44336', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-                            >
-                                <Trash2 size={16} style={{ marginRight: '0.4rem' }} /> Delete All
-                            </button>
-                        )}
-                    </div>
+                    <h3 style={{ margin: 0 }}>Student List ({students.length})</h3>
+                    {students.length > 0 && (
+                        <button
+                            onClick={handleDeleteAll}
+                            className="btn btn-outline flex-center"
+                            style={{ color: '#f44336', borderColor: '#f44336', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        >
+                            <Trash2 size={16} style={{ marginRight: '0.4rem' }} /> Delete All
+                        </button>
+                    )}
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -299,7 +245,7 @@ export default function Students() {
                             </tr>
                         </thead>
                         <tbody>
-                            {currentStudents.map(student => (
+                            {students.map(student => (
                                 <tr key={student.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                     <td style={{ padding: '1rem' }}>
                                         {editingId === student.id ? (
@@ -364,58 +310,6 @@ export default function Students() {
                     {students.length === 0 && (
                         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                             No students added yet.
-                        </div>
-                    )}
-                    {students.length > 0 && filteredStudents.length === 0 && (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                            No students found matching your search.
-                        </div>
-                    )}
-
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1.5rem', paddingBottom: '1rem' }}>
-                            <button
-                                className="btn-icon"
-                                onClick={() => paginate(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                style={{
-                                    opacity: currentPage === 1 ? 0.3 : 1,
-                                    cursor: currentPage === 1 ? 'default' : 'pointer',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: '50%',
-                                    width: '32px',
-                                    height: '32px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}
-                            >
-                                <ChevronLeft size={18} />
-                            </button>
-
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                Page <strong style={{ color: 'var(--text-main)' }}>{currentPage}</strong> of <strong>{totalPages}</strong>
-                            </span>
-
-                            <button
-                                className="btn-icon"
-                                onClick={() => paginate(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                style={{
-                                    opacity: currentPage === totalPages ? 0.3 : 1,
-                                    cursor: currentPage === totalPages ? 'default' : 'pointer',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: '50%',
-                                    width: '32px',
-                                    height: '32px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}
-                            >
-                                <ChevronRight size={18} />
-                            </button>
                         </div>
                     )}
                 </div>

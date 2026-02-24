@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 const verifications = {};
 module.exports.verifications = verifications;
@@ -52,6 +52,7 @@ app.use('/api/students', require('./routes/students'));
 app.use('/api/questions', require('./routes/questions'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/profile', require('./routes/profile'));
 
 app.get('/', (req, res) => {
     res.send('PLD Management API is running');

@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import History from './pages/History';
 import SessionRun from './pages/SessionRun';
 import Students from './pages/Students';
 import Questions from './pages/Questions';
@@ -12,6 +13,8 @@ import StudentReportsPage from './pages/StudentReportsPage';
 import Leaderboard from './pages/Leaderboard';
 import AIPractice from './pages/AIPractice';
 import AdminPanel from './pages/AdminPanel';
+import Calendar from './pages/Calendar';
+import Profile from './pages/Profile';
 import { useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -57,6 +60,16 @@ export default function App() {
             <Leaderboard />
           </PrivateRoute>
         } />
+        <Route path="/history" element={
+          <MentorRoute>
+            <History />
+          </MentorRoute>
+        } />
+        <Route path="/calendar" element={
+          <PrivateRoute>
+            <Calendar />
+          </PrivateRoute>
+        } />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/practice" element={
           <PrivateRoute>
@@ -71,6 +84,11 @@ export default function App() {
         <Route path="/student-reports" element={
           <PrivateRoute>
             <StudentReportsPage />
+          </PrivateRoute>
+        } />
+        <Route path="/profile" element={
+          <PrivateRoute>
+            <Profile />
           </PrivateRoute>
         } />
       </Routes>

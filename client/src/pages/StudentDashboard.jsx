@@ -2,13 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { getSessions } from '../api';
-import { Calendar, BookOpen, Clock, ChevronRight, Award, Brain, ChevronDown, ChevronUp } from 'lucide-react';
+import { getSessions, getJoinableSessions, joinSession } from '../api';
+import { Calendar, BookOpen, Clock, ChevronRight, Award, Brain, ChevronDown, ChevronUp, CheckCircle, BookMarked } from 'lucide-react';
+import './StudentDashboard.css';
 
 export default function StudentDashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [sessions, setSessions] = useState([]);
+    const [joinableSessions, setJoinableSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState({});
 
@@ -18,13 +20,32 @@ export default function StudentDashboard() {
 
     const fetchData = async () => {
         try {
-            const data = await getSessions();
-            // Filter completed sessions for reports, active for current
-            setSessions(data || []);
+            const [data, joinableData] = await Promise.all([
+                getSessions(),
+                getJoinableSessions()
+            ]);
+
+            if (Array.isArray(data)) {
+                const sorted = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setSessions(sorted);
+            }
+            if (Array.isArray(joinableData)) {
+                setJoinableSessions(joinableData);
+            }
         } catch (err) {
             console.error('Error fetching dashboard data:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleJoin = async (id) => {
+        try {
+            await joinSession(id);
+            alert("Successfully joined the session!");
+            fetchData(); // Refresh both lists
+        } catch (err) {
+            alert(err.message || "Failed to join session");
         }
     };
 
@@ -41,6 +62,13 @@ export default function StudentDashboard() {
         setExpanded(prev => ({ ...prev, [sessionId]: !prev[sessionId] }));
     };
 
+    // Computed stats
+    const mySessions = sessions.filter(s => getMyData(s));
+    const attendedCount = mySessions.filter(s => getMyData(s)?.status === 'present').length;
+    const gradesArr = mySessions.map(s => getMyData(s)?.grade).filter(g => g && g > 0);
+    const avgGrade = gradesArr.length > 0 ? (gradesArr.reduce((a, b) => a + b, 0) / gradesArr.length).toFixed(1) : '—';
+    const topicsCovered = [...new Set(mySessions.map(s => s.topicName).filter(Boolean))];
+
     if (loading) {
         return (
             <div className="flex-center" style={{ height: '50vh', flexDirection: 'column' }}>
@@ -50,234 +78,125 @@ export default function StudentDashboard() {
         );
     }
 
-    const activeSessions = sessions.filter(s => s.status !== 'completed');
+    const activeSessions = sessions
+        .filter(s => s.status !== 'completed' && getMyData(s))
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
     return (
         <div>
-            <div className="flex-between" style={{ marginBottom: '2rem' }}>
-                <div>
-                    <h1>Student Dashboard</h1>
-                    <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                        Welcome, {user?.username}! Ready for some peer learning?
-                    </p>
+            {/* Welcome Banner */}
+            <div className="student-welcome-banner">
+                <h1>Welcome back, {user?.username}! 👋</h1>
+                <p className="student-welcome-subtitle">Ready for some peer learning? Here's your overview.</p>
+            </div>
+
+            {/* Stats Row */}
+            <div className="student-stats-row">
+                <div className="student-stat-card">
+                    <div className="stat-icon-wrap blue">
+                        <CheckCircle size={24} />
+                    </div>
+                    <div className="stat-info">
+                        <h3>{attendedCount}</h3>
+                        <p>Sessions Attended</p>
+                    </div>
+                </div>
+                <div className="student-stat-card">
+                    <div className="stat-icon-wrap green">
+                        <Award size={24} />
+                    </div>
+                    <div className="stat-info">
+                        <h3>{avgGrade}</h3>
+                        <p>Average Grade</p>
+                    </div>
+                </div>
+                <div className="student-stat-card">
+                    <div className="stat-icon-wrap purple">
+                        <BookMarked size={24} />
+                    </div>
+                    <div className="stat-info">
+                        <h3>{topicsCovered.length}</h3>
+                        <p>Topics Covered</p>
+                    </div>
                 </div>
             </div>
 
             {/* AI Practice Banner */}
-            <div className="card" style={{
-                marginBottom: '2rem',
-                background: 'linear-gradient(135deg, var(--color-primary), #6366f1)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '1.5rem 2rem',
-                border: 'none',
-                cursor: 'pointer'
-            }} onClick={() => navigate('/practice')}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: '1rem', borderRadius: '12px' }}>
-                        <Brain size={32} />
+            <div className="student-ai-banner" onClick={() => navigate('/practice')}>
+                <div className="ai-banner-content">
+                    <div className="ai-banner-icon">
+                        <Brain size={28} />
                     </div>
-                    <div>
-                        <h2 style={{ margin: 0, color: 'white' }}>AI Practice Mode</h2>
-                        <p style={{ margin: '5px 0 0 0', opacity: 0.9 }}>Test your knowledge and level up your skills with our AI tutor.</p>
+                    <div className="ai-banner-text">
+                        <h2>AI Practice Mode</h2>
+                        <p>Test your knowledge and level up your skills with our AI tutor.</p>
                     </div>
                 </div>
-                <button className="btn" style={{ background: 'white', color: 'var(--color-primary)', border: 'none' }}>
-                    Start Now
-                </button>
+                <button className="ai-banner-btn">Start Now</button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
-                {/* Active Sessions Column */}
-                <div>
-                    <h2 style={{ marginBottom: '1rem', color: 'var(--color-primary)' }}>Active PLDs</h2>
+            {/* Active & Future Sessions */}
+            <div className="student-content-grid">
+                {/* Active Sessions */}
+                <h2 className="student-section-heading">
+                    <span className="accent-dot"></span>
+                    Active PLDs
+                </h2>
 
-                    {activeSessions.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {activeSessions.map(session => (
-                                <div key={session.id} className="card" style={{ borderLeft: '4px solid var(--color-primary)' }}>
-                                    <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--color-primary)' }}>{session.groupName}</h3>
-                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                                        Topic: {session.topicName}
-                                    </p>
-                                    <Link
-                                        to={`/session/${session.id}`}
-                                        className="btn btn-primary"
-                                        style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}
-                                    >
-                                        Enter Session
-                                    </Link>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="card" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                            No active sessions found.
-                        </div>
-                    )}
-                </div>
-
-                {/* Reports Column */}
-                <div>
-                    <h2 style={{ marginBottom: '1rem', color: 'var(--color-primary)' }}>Performance Reports</h2>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
-                        {sessions.length === 0 ? (
-                            <div className="card" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                                No reports available yet.
+                {activeSessions.length > 0 ? (
+                    <div className="student-active-sessions">
+                        {activeSessions.map(session => (
+                            <div key={session.id} className="student-session-card">
+                                <h3>{session.groupName}</h3>
+                                <p className="session-topic">Topic: {session.topicName}</p>
+                                <Link to={`/session/${session.id}`} className="btn-enter-session">
+                                    Enter Session
+                                </Link>
                             </div>
-                        ) : (
-                            sessions.map(session => {
-                                const myData = getMyData(session);
-                                if (!myData) return null;
-                                const isExpanded = expanded[session.id];
-
-                                return (
-                                    <div key={session.id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'flex-start' }}>
-                                            <div style={{ flex: 1, marginRight: '1rem' }}>
-                                                <h3 style={{ margin: '0 0 0.25rem 0', color: 'var(--color-primary)' }}>{session.groupName}</h3>
-                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                    <Calendar size={12} />
-                                                    {new Date(session.createdAt).toLocaleDateString()}
-                                                </div>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                                                <span style={{
-                                                    padding: '0.25rem 0.5rem',
-                                                    borderRadius: '4px',
-                                                    background: myData.status === 'absent' ? '#d32f2f' : '#4CAF50',
-                                                    color: 'white',
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: '600',
-                                                    textTransform: 'uppercase'
-                                                }}>
-                                                    {myData.status}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                            <div style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.4rem',
-                                                fontSize: '0.8rem',
-                                                background: 'var(--bg-app)',
-                                                padding: '4px 8px',
-                                                borderRadius: '4px',
-                                                border: '1px solid var(--border-color)'
-                                            }}>
-                                                <BookOpen size={14} color="var(--color-primary)" />
-                                                <span>{session.topicName || 'General'}</span>
-                                            </div>
-
-                                            {myData.grade > 0 && (
-                                                <div style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.4rem',
-                                                    fontSize: '0.8rem',
-                                                    background: 'rgba(33, 150, 243, 0.1)',
-                                                    color: '#2196F3',
-                                                    padding: '4px 8px',
-                                                    borderRadius: '4px',
-                                                    border: '1px solid rgba(33, 150, 243, 0.3)',
-                                                    fontWeight: 'bold'
-                                                }}>
-                                                    <Award size={14} />
-                                                    <span>Grade: {myData.grade}/5</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {(myData.answeredQuestions?.length > 0 || myData.incorrectQuestions?.length > 0) && session.questions && (
-                                            <div style={{ marginBottom: '1rem', background: 'var(--bg-app)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                                <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                    Questions Review
-                                                </div>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                    {session.questions
-                                                        .filter((q, idx) => myData.answeredQuestions?.includes(q.id || idx))
-                                                        .map((q, idx) => (
-                                                            <div key={`ans-${idx}`} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                                                                <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>✓</span>
-                                                                <span style={{ color: 'var(--text-main)' }}>{q.text || q}</span>
-                                                            </div>
-                                                        ))
-                                                    }
-                                                    {session.questions
-                                                        .filter((q, idx) => myData.incorrectQuestions?.includes(q.id || idx))
-                                                        .map((q, idx) => (
-                                                            <div key={`inc-${idx}`} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                                                                <span style={{ color: '#d32f2f', fontWeight: 'bold' }}>✗</span>
-                                                                <span style={{ color: 'var(--text-secondary)' }}>{q.text || q}</span>
-                                                            </div>
-                                                        ))
-                                                    }
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {myData.result ? (
-                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                                <button
-                                                    onClick={() => toggleExpand(session.id)}
-                                                    className="btn-outline"
-                                                    style={{
-                                                        width: '100%',
-                                                        display: 'flex',
-                                                        justifyContent: 'center',
-                                                        alignItems: 'center',
-                                                        gap: '0.5rem',
-                                                        fontSize: '0.9rem',
-                                                        padding: '0.5rem',
-                                                        marginTop: 'auto'
-                                                    }}
-                                                >
-                                                    {isExpanded ? 'Hide Feedback' : 'View Feedback'}
-                                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                                </button>
-
-                                                {isExpanded && (
-                                                    <div style={{
-                                                        marginTop: '1rem',
-                                                        padding: '1rem',
-                                                        background: 'var(--bg-app)',
-                                                        borderRadius: '8px',
-                                                        fontSize: '0.9rem',
-                                                        lineHeight: '1.6',
-                                                        border: '1px solid var(--border-color)',
-                                                        whiteSpace: 'pre-wrap',
-                                                        animation: 'fadeIn 0.2s ease'
-                                                    }}>
-                                                        <strong style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-main)' }}>AI Analysis:</strong>
-                                                        <div style={{ color: 'var(--text-secondary)' }}>
-                                                            {myData.result
-                                                                .replace(/^Style \d+ - .*?:\s*/i, '')
-                                                                .replace(/^"|"$/g, '')
-                                                                .replace(/\*\*/g, '')
-                                                                .replace(/###/g, '')}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontStyle: 'italic', textAlign: 'center', marginTop: 'auto', padding: '0.5rem' }}>
-                                                No feedback available yet.
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        )}
+                        ))}
                     </div>
-                </div>
+                ) : (
+                    <div className="student-empty-state">
+                        No active sessions found.
+                    </div>
+                )}
+
+                {/* Joinable Sessions */}
+                <h2 className="student-section-heading" style={{ marginTop: '2.5rem' }}>
+                    <span className="accent-dot blue-dot"></span>
+                    Available Future Sessions
+                </h2>
+                {joinableSessions.length > 0 ? (
+                    <div className="student-joinable-list">
+                        {joinableSessions.map(session => (
+                            <div key={session.id} className="joinable-session-card">
+                                <div className="joinable-info">
+                                    <h4>{session.groupName}</h4>
+                                    <div className="joinable-meta">
+                                        <Calendar size={13} />
+                                        <span>{new Date(session.createdAt).toLocaleDateString()} at {session.scheduledTime || '10:00 AM'}</span>
+                                    </div>
+                                    <div className="joinable-topics">
+                                        {session.topicNames?.map((topic, i) => (
+                                            <span key={i} className="tiny-topic">{topic}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                                <button
+                                    className="btn-join-session"
+                                    onClick={() => handleJoin(session.id)}
+                                >
+                                    Join
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="student-empty-state">
+                        No sessions available for joining.
+                    </div>
+                )}
             </div>
         </div>
     );
 }
-
-// StudentDashboard.jsx component finished

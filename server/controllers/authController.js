@@ -51,7 +51,19 @@ exports.register = async (req, res) => {
         const user = await createUser(username, hashedPassword, discordId, role, major);
 
         const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, SECRET, { expiresIn: '7d' });
-        res.json({ token, user: { id: user.id, username: user.username, role: user.role, discordId: user.discordId } });
+        res.json({
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                discordId: user.discordId,
+                avatar: user.avatar,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                major: user.major
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -66,7 +78,19 @@ exports.login = async (req, res) => {
         }
 
         const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, SECRET, { expiresIn: '7d' });
-        res.json({ token, user: { id: user.id, username: user.username, role: user.role, discordId: user.discordId } });
+        res.json({
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                discordId: user.discordId,
+                avatar: user.avatar,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                major: user.major
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
