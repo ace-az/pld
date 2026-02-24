@@ -14,7 +14,7 @@ const AdminPanel = () => {
 
     const handleLogin = (e) => {
         e.preventDefault();
-        if (loginData.username === 'admin' && loginData.password === (import.meta.env.VITE_ADMIN_PASSWORD || 'admin213')) {
+        if (loginData.username === 'admin' && loginData.password === (import.meta.env.VITE_ADMIN_PASSWORD)) {
             setIsAuthenticated(true);
             setError('');
             fetchUsers();
