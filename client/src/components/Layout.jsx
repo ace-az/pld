@@ -28,7 +28,7 @@ export default function Layout({ children }) {
             className="logo-link"
           >
             <img src={logo} alt="Logo" className="logo-img" />
-            <span className="navbar-logo-text">JACKPOT</span>
+            <span className="navbar-logo-text">JACKPTO</span>
           </Link>
 
           <div className="navbar-right">

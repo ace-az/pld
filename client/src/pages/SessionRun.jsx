@@ -659,7 +659,9 @@ export default function SessionRun() {
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
                             {session.questions.map((q, idx) => {
-                                const qId = q.id || idx;
+                                const firstIdx = session.questions.findIndex(x => x.id === q.id);
+                                const qId = (q.id && firstIdx === idx) ? q.id : (q.id ? `${q.id}_${idx}` : idx);
+
                                 const isAnswered = currentStudent.answeredQuestions && currentStudent.answeredQuestions.includes(qId);
                                 const isIncorrect = currentStudent.incorrectQuestions && currentStudent.incorrectQuestions.includes(qId);
 
