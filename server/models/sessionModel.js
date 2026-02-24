@@ -1,5 +1,5 @@
 // server/models/sessionModel.js
-const { db } = require('./db');
+const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
 async function createSession(mentorId, groupName, studentsData = [], topicIds, customDate = null, scheduledTime = null) {
@@ -21,13 +21,13 @@ async function createSession(mentorId, groupName, studentsData = [], topicIds, c
     const ids = Array.isArray(topicIds) ? topicIds : [topicIds];
 
     // Fetch snapshot of questions from all selected topic sets
-    const selectedSets = db.get('questions').filter(q => ids.includes(q.id)).value();
+    const { data: selectedSets } = await supabase.from('questions').select('*').in('id', ids);
 
     // Aggregate questions and topic names
     let allQuestions = [];
     let topicNames = [];
 
-    selectedSets.forEach(set => {
+    (selectedSets || []).forEach(set => {
         if (set.questions) {
             // Add topic context to each question for better UI inside the session
             const contextQuestions = set.questions.map(q => ({
@@ -49,20 +49,24 @@ async function createSession(mentorId, groupName, studentsData = [], topicIds, c
         questions: allQuestions, // Combined snapshot of questions
         status: 'active', // active, completed
         createdAt: customDate || new Date().toISOString(),
-        scheduledTime, // Added field for 3 am, etc.
         students
     };
 
-    db.get('sessions').push(session).write();
-    return session;
+    const { data, error } = await supabase.from('sessions').insert([session]).select().single();
+    if (error) {
+        console.error("Error creating session:", error);
+        throw error;
+    }
+    return data;
 }
 
 async function joinSession(sessionId, studentData) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) throw new Error('Session not found');
+    const { data: session, error: getError } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (getError || !session) throw new Error('Session not found');
 
     // Check if student already joined (by discord handle)
-    const exists = session.students.find(s => s.discord.toLowerCase() === studentData.discord.toLowerCase());
+    const students = session.students || [];
+    const exists = students.find(s => s.discord && s.discord.toLowerCase() === studentData.discord.toLowerCase());
     if (exists) return session;
 
     const newStudent = {
@@ -78,141 +82,170 @@ async function joinSession(sessionId, studentData) {
         incorrectQuestions: []
     };
 
-    session.students.push(newStudent);
-    db.write();
-    return session;
+    students.push(newStudent);
+
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error joining session:", error);
+        throw error;
+    }
+    return data;
 }
 
 async function getSessionsByMentor(mentorId) {
-    return db.get('sessions').filter({ mentorId }).value();
+    const { data, error } = await supabase.from('sessions').select('*').eq('mentorId', mentorId);
+    if (error) console.error("Error getting sessions by mentor:", error);
+    return data || [];
 }
 
 async function getSessionsForStudent(username) {
-    // Filter sessions where any student in the 'students' array matches the username
-    // Note: session.students contains objects like { name, discord, id }
-    // We should match by 'discord' username since that's our unique identifier from login
-    return db.get('sessions')
-        .filter(session => session.students.some(s => s.discord && s.discord.toLowerCase() === username.toLowerCase()))
-        .value();
+    const { data: sessions, error } = await supabase.from('sessions').select('*');
+    if (error) {
+        console.error("Error getting sessions for student:", error);
+        return [];
+    }
+
+    return sessions.filter(session => (session.students || []).some(s => s.discord && s.discord.toLowerCase() === username.toLowerCase()));
 }
 
 async function getJoinableSessions(username) {
-    // Return future sessions that the student is NOT already part of
     const now = new Date();
-    return db.get('sessions')
-        .filter(session => {
-            const isFuture = new Date(session.createdAt) >= new Date(now.setHours(0, 0, 0, 0));
-            const isCompleted = session.status === 'completed';
-            const alreadyJoined = session.students.some(s => s.discord && s.discord.toLowerCase() === username.toLowerCase());
-            return isFuture && !isCompleted && !alreadyJoined;
-        })
-        .value();
+    const { data: sessions, error } = await supabase.from('sessions').select('*');
+    if (error) {
+        console.error("Error getting joinable sessions:", error);
+        return [];
+    }
+
+    return sessions.filter(session => {
+        const isFuture = new Date(session.createdAt) >= new Date(now.setHours(0, 0, 0, 0));
+        const isCompleted = session.status === 'completed';
+        const alreadyJoined = (session.students || []).some(s => s.discord && s.discord.toLowerCase() === username.toLowerCase());
+        return isFuture && !isCompleted && !alreadyJoined;
+    });
 }
 
 async function getSessionById(id) {
-    return db.get('sessions').find({ id }).value();
+    const { data, error } = await supabase.from('sessions').select('*').eq('id', id).maybeSingle();
+    if (error) console.error("Error getting session by id:", error);
+    return data;
 }
 
 async function updateStudentNote(sessionId, studentId, noteContent) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
+    const { data: session, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !session) return null;
 
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
+    const students = session.students || [];
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return null;
 
-    // Direct mutation works in lowdb v1 because objects are references, 
-    // but .write() must be called on the chain or DB instance to persist.
-    // Cleanest way in v1 is to use .assign() or similar, but for deep nested update:
-    student.notes = noteContent;
-    db.write(); // Persist changes
+    students[studentIndex].notes = noteContent;
 
-    return student;
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error updating student note:", error);
+        return null;
+    }
+    return students[studentIndex];
 }
 
 async function updateStudentResult(sessionId, studentId, resultSummary) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
+    const { data: session, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !session) return null;
 
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
+    const students = session.students || [];
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return null;
 
-    student.result = resultSummary;
-    db.write(); // Persist
-    return student;
+    students[studentIndex].result = resultSummary;
+
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error updating student result:", error);
+        return null;
+    }
+    return students[studentIndex];
 }
 
 async function updateStudentQuestions(sessionId, studentId, { answered, incorrect }) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
+    const { data: session, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !session) return null;
 
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
+    const students = session.students || [];
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return null;
 
-    if (answered) student.answeredQuestions = answered;
-    if (incorrect) student.incorrectQuestions = incorrect;
+    if (answered) students[studentIndex].answeredQuestions = answered;
+    if (incorrect) students[studentIndex].incorrectQuestions = incorrect;
 
-    db.write();
-    return student;
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error updating student questions:", error);
+        return null;
+    }
+    return students[studentIndex];
 }
 
 async function completeSession(sessionId) {
-    db.get('sessions')
-        .find({ id: sessionId })
-        .assign({ status: 'completed' })
-        .write();
-
-    // Return updated
-    return db.get('sessions').find({ id: sessionId }).value();
+    const { data, error } = await supabase.from('sessions').update({ status: 'completed' }).eq('id', sessionId).select().single();
+    if (error) console.error("Error completing session:", error);
+    return data;
 }
 
 async function deleteSession(sessionId) {
-    db.get('sessions')
-        .remove({ id: sessionId })
-        .write();
-    return true;
+    const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
+    if (error) console.error("Error deleting session:", error);
+    return !error;
 }
 
 async function deleteAllSessions(mentorId) {
-    db.get('sessions')
-        .remove({ mentorId })
-        .write();
-    return true;
+    const { error } = await supabase.from('sessions').delete().eq('mentorId', mentorId);
+    if (error) console.error("Error deleting all sessions:", error);
+    return !error;
 }
 
 async function updateStudentStatus(sessionId, studentId, status) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
+    const { data: session, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !session) return null;
 
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
+    const students = session.students || [];
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return null;
 
-    student.status = status; // 'present' or 'absent'
+    students[studentIndex].status = status;
 
-    // Optional: Clear notes/result if marked absent? 
-    // For now, let's keep them but UI will disable editing.
-    // If regenerating report, we might skip absent students.
-
-    db.write();
-    return student;
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error updating student status:", error);
+        return null;
+    }
+    return students[studentIndex];
 }
 
 async function updateStudentGrade(sessionId, studentId, grade) {
-    const session = db.get('sessions').find({ id: sessionId }).value();
-    if (!session) return null;
+    const { data: session, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !session) return null;
 
-    const student = session.students.find(s => s.id === studentId);
-    if (!student) return null;
+    const students = session.students || [];
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return null;
 
-    student.grade = grade;
-    db.write();
-    return student;
+    students[studentIndex].grade = grade;
+
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error updating student grade:", error);
+        return null;
+    }
+    return students[studentIndex];
 }
 
-// Aggregate grades across all completed sessions per student and return sorted leaderboard
 async function getLeaderboard() {
-    const sessions = db.get('sessions').filter({ status: 'completed' }).value();
+    const { data: sessions, error } = await supabase.from('sessions').select('students').eq('status', 'completed');
+    if (error) {
+        console.error("Error getting leaderboard sessions:", error);
+        return [];
+    }
 
-    // Map: discordId -> { name, totalGrade, count }
     const studentStats = {};
 
     sessions.forEach(session => {
@@ -239,7 +272,6 @@ async function getLeaderboard() {
         });
     });
 
-    // Convert to array and calculate averages
     const leaderboard = Object.values(studentStats)
         .map(s => ({
             name: s.name,

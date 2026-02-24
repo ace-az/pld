@@ -1,0 +1,119 @@
+/* Layout əsas hissəsi */
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Content sidebar-ın sağında */
+.layout-content {
+  margin-left: 78px;
+  /* matching new sidebar normal width */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sidebar hover zamanı content shift */
+.sidebar:hover~.layout-content {
+  margin-left: 250px;
+  /* matching new sidebar hover width */
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.logo-link:hover {
+  opacity: 0.8;
+}
+
+.logo-img {
+  height: 45px;
+}
+
+.navbar-logo-text {
+  color: #D32F2F;
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Profile hover text */
+.profile-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-main);
+  text-decoration: none;
+}
+
+.nav-avatar-wrapper {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.nav-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-text {
+  display: none;
+}
+
+.profile-btn:hover .profile-text {
+  display: inline;
+}
+
+/* Theme və Logout buttonları */
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-main);
+}
+
+/* Main content */
+.main-content {
+  flex: 1;
+  padding: 2rem 1rem;
+}

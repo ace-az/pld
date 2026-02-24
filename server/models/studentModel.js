@@ -1,14 +1,16 @@
 // server/models/studentModel.js
-const { db } = require('./db');
+const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
 async function getStudents(mentorId) {
-    return db.get('students').filter({ mentorId }).value();
+    const { data, error } = await supabase.from('students').select('*').eq('mentorId', mentorId);
+    if (error) console.error("Error getting students:", error);
+    return data || [];
 }
 
 async function addStudent(mentorId, name, discord, major) {
     if (discord) {
-        const exists = db.get('students').find({ mentorId, discord }).value();
+        const { data: exists } = await supabase.from('students').select('*').eq('mentorId', mentorId).eq('discord', discord).maybeSingle();
         if (exists) return exists;
     }
 
@@ -20,23 +22,34 @@ async function addStudent(mentorId, name, discord, major) {
         major: major || '',
         createdAt: new Date().toISOString()
     };
-    db.get('students').push(student).write();
-    return student;
+
+    const { data, error } = await supabase.from('students').insert([student]).select().single();
+    if (error) {
+        console.error("Error adding student:", error);
+        throw error;
+    }
+    return data;
 }
 
-async function updateStudent(id, data) {
-    const student = db.get('students').find({ id }).assign(data).write();
-    return student;
+async function updateStudent(id, updateData) {
+    const { data, error } = await supabase.from('students').update(updateData).eq('id', id).select().single();
+    if (error) {
+        console.error("Error updating student:", error);
+        throw error;
+    }
+    return data;
 }
 
 async function deleteStudent(id) {
-    db.get('students').remove({ id }).write();
-    return true;
+    const { error } = await supabase.from('students').delete().eq('id', id);
+    if (error) console.error("Error deleting student:", error);
+    return !error;
 }
 
 async function bulkAddStudents(mentorId, studentsArray) {
+    const { data: existingStudents } = await supabase.from('students').select('discord').eq('mentorId', mentorId);
     const existingDiscordNames = new Set(
-        db.get('students').filter({ mentorId }).value().map(s => s.discord).filter(Boolean)
+        (existingStudents || []).map(s => s.discord).filter(Boolean)
     );
 
     const newStudents = [];
@@ -65,18 +78,17 @@ async function bulkAddStudents(mentorId, studentsArray) {
     }
 
     if (newStudents.length > 0) {
-        const currentStudents = db.get('students').value();
-        db.set('students', [...currentStudents, ...newStudents]).write();
+        const { error } = await supabase.from('students').insert(newStudents);
+        if (error) console.error("Error bulk adding students:", error);
     }
 
     return newStudents;
 }
 
 async function deleteAllStudents(mentorId) {
-    db.get('students')
-        .remove({ mentorId })
-        .write();
-    return true;
+    const { error } = await supabase.from('students').delete().eq('mentorId', mentorId);
+    if (error) console.error("Error deleting all students:", error);
+    return !error;
 }
 
 module.exports = { getStudents, addStudent, updateStudent, deleteStudent, bulkAddStudents, deleteAllStudents };

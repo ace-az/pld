@@ -1,70 +1,86 @@
 // server/models/userModel.js
-const { db } = require('./db');
+const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
 async function createUser(username, password, discordId, role = 'student', major = '') {
-    // db.read() is not needed for FileSync
     const user = {
         id: uuidv4(),
         username,
-        password, // In prod, hash this! We'll do basic hashing in controller
+        password,
         discordId,
         firstName: '',
         lastName: '',
-        avatar: '',
+        avatar_url: '',
         role,
         major,
         createdAt: new Date().toISOString()
     };
-    db.get('users').push(user).write();
-    return user;
+
+    const { data, error } = await supabase.from('users').insert([user]).select().single();
+    if (error) {
+        console.error("Error creating user:", error);
+        throw error;
+    }
+    return data;
 }
 
 async function findUserByUsername(username) {
-    return db.get('users').find({ username }).value();
+    const { data, error } = await supabase.from('users').select('*').eq('username', username).maybeSingle();
+    if (error) console.error("Error finding user by username:", error);
+    return data;
 }
 
 async function findUserById(id) {
-    return db.get('users').find({ id }).value();
+    const { data, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+    if (error) console.error("Error finding user by id:", error);
+    return data;
 }
 
 async function findUserByDiscordId(discordId) {
     if (!discordId) return null;
-    // Search effectively case-insensitive or exact? 
-    // Usually Discord usernames are case-sensitive but let's do strict match for now as per registration.
-    return db.get('users').find({ discordId }).value();
+    const { data, error } = await supabase.from('users').select('*').eq('discordId', discordId).maybeSingle();
+    if (error) console.error("Error finding user by discord id:", error);
+    return data;
 }
 
 async function getAllStudentUsers() {
-    return db.get('users').filter({ role: 'student' }).value();
+    const { data, error } = await supabase.from('users').select('*').eq('role', 'student');
+    if (error) console.error("Error getting all student users:", error);
+    return data || [];
 }
 
 async function getAllUsers() {
-    return db.get('users').value();
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) console.error("Error getting all users:", error);
+    return data || [];
 }
 
 async function deleteUser(id) {
-    return db.get('users').remove({ id }).write();
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (error) console.error("Error deleting user:", error);
+    return !error;
 }
 
 async function updateUserPasswordByUserId(userId, newPassword) {
-    return db.get('users')
-        .find({ id: userId })
-        .assign({ password: newPassword })
-        .write();
+    const { data, error } = await supabase.from('users').update({ password: newPassword }).eq('id', userId).select().single();
+    if (error) console.error("Error updating user password:", error);
+    return data;
 }
 
 async function updateUserProfile(userId, updates) {
-    const allowed = ['username', 'firstName', 'lastName', 'discordId', 'avatar', 'major'];
+    const allowed = ['username', 'firstName', 'lastName', 'discordId', 'avatar_url', 'major'];
+    // Handle avatar mapping
+    if (updates.avatar && !updates.avatar_url) {
+        updates.avatar_url = updates.avatar;
+    }
     const filteredUpdates = {};
     Object.keys(updates).forEach(key => {
         if (allowed.includes(key)) filteredUpdates[key] = updates[key];
     });
 
-    return db.get('users')
-        .find({ id: userId })
-        .assign(filteredUpdates)
-        .write();
+    const { data, error } = await supabase.from('users').update(filteredUpdates).eq('id', userId).select().single();
+    if (error) console.error("Error updating user profile:", error);
+    return data;
 }
 
 module.exports = {

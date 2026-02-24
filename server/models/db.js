@@ -1,15 +1,22 @@
 // server/models/db.js
-const low = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
-const path = require('path');
+require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
 
-const dbPath = path.join(__dirname, '..', 'db.json');
-const adapter = new FileSync(dbPath);
-const db = low(adapter);
+// Ensure SUPABASE_URL and SUPABASE_KEY are provided
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+    console.error("Missing SUPABASE_URL or SUPABASE_KEY in environment variables.");
+    process.exit(1);
+}
 
-console.log(`Database initialized at: ${dbPath}`);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 
-// Set defaults
-db.defaults({ users: [], sessions: [], students: [], questions: [], notes: [] }).write();
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-module.exports = { db };
+console.log(`Database connected to Supabase URL: ${supabaseUrl}`);
+
+// Mock lowdb so that things don't break immediately while we refactor.
+// This is intentionally left blank since all models should use supabase directly.
+const db = {};
+
+module.exports = { supabase, db };

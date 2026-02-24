@@ -1,0 +1,386 @@
+// client/src/pages/Profile.jsx
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { getUserProfile, updateUserProfile, updateAvatar, changePassword } from '../api';
+import { User, Mail, Lock, Shield, Camera, Trash2, Save, X, Key, AlertCircle, CheckCircle2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import './Profile.css';
+
+export default function Profile() {
+    const { user, login } = useAuth();
+    const navigate = useNavigate();
+    const [profileData, setProfileData] = useState({
+        username: '',
+        firstName: '',
+        lastName: '',
+        discordId: '',
+        major: '',
+        avatar: ''
+    });
+    const [passwords, setPasswords] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [profileMsg, setProfileMsg] = useState({ type: '', text: '' });
+    const [passMsg, setPassMsg] = useState({ type: '', text: '' });
+    const [avatarMsg, setAvatarMsg] = useState({ type: '', text: '' });
+    const fileInputRef = useRef(null);
+
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    const fetchProfile = async () => {
+        try {
+            const data = await getUserProfile();
+            setProfileData(data);
+        } catch (err) {
+            showAvatarMsg('error', err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const showProfileMsg = (type, text) => {
+        setProfileMsg({ type, text });
+        setTimeout(() => setProfileMsg({ type: '', text: '' }), 5000);
+    };
+
+    const showPassMsg = (type, text) => {
+        setPassMsg({ type, text });
+        setTimeout(() => setPassMsg({ type: '', text: '' }), 5000);
+    };
+
+    const showAvatarMsg = (type, text) => {
+        setAvatarMsg({ type, text });
+        setTimeout(() => setAvatarMsg({ type: '', text: '' }), 5000);
+    };
+
+    const handleProfileUpdate = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            const res = await updateUserProfile(profileData);
+            // Update local storage user data
+            const storedToken = localStorage.getItem('token');
+            login(storedToken, res.user);
+            showProfileMsg('success', 'Profile updated successfully!');
+        } catch (err) {
+            showProfileMsg('error', err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handlePasswordChange = async (e) => {
+        e.preventDefault();
+        if (passwords.newPassword !== passwords.confirmPassword) {
+            return showPassMsg('error', 'New passwords do not match');
+        }
+        setSaving(true);
+        try {
+            await changePassword({
+                currentPassword: passwords.currentPassword,
+                newPassword: passwords.newPassword
+            });
+            setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            showPassMsg('success', 'Password changed successfully!');
+        } catch (err) {
+            showPassMsg('error', err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleAvatarChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            return showAvatarMsg('error', 'Image size should be less than 2MB');
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64 = reader.result;
+            try {
+                await updateAvatar(base64);
+                setProfileData(prev => ({ ...prev, avatar: base64 }));
+
+                // Update local storage
+                const storedToken = localStorage.getItem('token');
+                const updatedUser = { ...user, avatar: base64 };
+                login(storedToken, updatedUser);
+
+                showAvatarMsg('success', 'Profile photo updated!');
+            } catch (err) {
+                showAvatarMsg('error', err.message);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleDeleteAvatar = async () => {
+        if (!window.confirm('Delete your profile photo?')) return;
+        try {
+            await updateAvatar('');
+            setProfileData(prev => ({ ...prev, avatar: '' }));
+
+            // Update local storage
+            const storedToken = localStorage.getItem('token');
+            const updatedUser = { ...user, avatar: '' };
+            login(storedToken, updatedUser);
+
+            showAvatarMsg('success', 'Profile photo removed');
+        } catch (err) {
+            showAvatarMsg('error', err.message);
+        }
+    };
+
+    if (loading) return (
+        <div className="flex-center" style={{ height: '60vh' }}>
+            <div className="spinner"></div>
+        </div>
+    );
+
+    return (
+        <div className="profile-container">
+            <button className="btn-back" onClick={() => navigate(-1)}>
+                <ArrowLeft size={20} />
+                <span>Back</span>
+            </button>
+
+            <div className="profile-header">
+                <h1>Account Settings</h1>
+                <p>Manage your profile and account preferences</p>
+            </div>
+
+            {avatarMsg.text && (
+                <div className={`profile-alert ${avatarMsg.type}`}>
+                    {avatarMsg.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
+                    <span>{avatarMsg.text}</span>
+                </div>
+            )}
+
+            <div className="profile-grid">
+                {/* Left Side: Photo & Quick Info */}
+                <div className="profile-card sidebar-card">
+                    <div className="avatar-section">
+                        <div className="avatar-wrapper" onClick={() => fileInputRef.current.click()} style={{ cursor: 'pointer' }}>
+                            {profileData.avatar ? (
+                                <img src={profileData.avatar} alt="Profile" className="profile-avatar" />
+                            ) : (
+                                <div className="avatar-placeholder">
+                                    <User size={64} />
+                                </div>
+                            )}
+                            <button className="btn-upload">
+                                <Camera size={18} />
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleAvatarChange}
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                            />
+                        </div>
+                        {profileData.avatar && (
+                            <button className="btn-delete-avatar" onClick={handleDeleteAvatar}>
+                                <Trash2 size={14} /> Remove Photo
+                            </button>
+                        )}
+                        <h2>{profileData.firstName && profileData.lastName ? `${profileData.firstName} ${profileData.lastName}` : profileData.username}</h2>
+                        <span className="role-badge">{user?.role}</span>
+                    </div>
+
+                    <div className="profile-quick-stats">
+                        <div className="quick-stat">
+                            <Shield size={16} />
+                            <span>Verified via Discord</span>
+                        </div>
+                        <div className="quick-stat">
+                            <Mail size={16} />
+                            <span>@{profileData.discordId}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Side: Forms */}
+                <div className="profile-forms">
+                    {/* Basic Info */}
+                    <div className="profile-card">
+                        <div className="card-header">
+                            <User size={20} />
+                            <h3>Personal Information</h3>
+                        </div>
+
+                        {profileMsg.text && (
+                            <div className={`profile-alert ${profileMsg.type}`} style={{ marginBottom: '1.5rem', padding: '0.8rem 1.2rem' }}>
+                                {profileMsg.type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+                                <span style={{ fontSize: '0.9rem' }}>{profileMsg.text}</span>
+                            </div>
+                        )}
+                        <form onSubmit={handleProfileUpdate}>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>First Name</label>
+                                    <input
+                                        type="text"
+                                        value={profileData.firstName || ''}
+                                        onChange={e => setProfileData({ ...profileData, firstName: e.target.value })}
+                                        placeholder="Add first name"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Last Name</label>
+                                    <input
+                                        type="text"
+                                        value={profileData.lastName || ''}
+                                        onChange={e => setProfileData({ ...profileData, lastName: e.target.value })}
+                                        placeholder="Add last name"
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Username</label>
+                                    <input
+                                        type="text"
+                                        value={profileData.username}
+                                        onChange={e => setProfileData({ ...profileData, username: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Discord ID</label>
+                                    <input
+                                        type="text"
+                                        value={profileData.discordId}
+                                        onChange={e => setProfileData({ ...profileData, discordId: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Major / Study Path</label>
+                                <input
+                                    type="text"
+                                    value={profileData.major || ''}
+                                    onChange={e => setProfileData({ ...profileData, major: e.target.value })}
+                                    placeholder="e.g. Software Engineering"
+                                />
+                            </div>
+                            <div className="form-actions">
+                                <button type="submit" className="btn-primary" disabled={saving}>
+                                    <Save size={18} />
+                                    {saving ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* Security */}
+                    <div className="profile-card">
+                        <div className="card-header">
+                            <Key size={20} />
+                            <h3>Change Password</h3>
+                        </div>
+
+                        {passMsg.text && (
+                            <div className={`profile-alert ${passMsg.type}`} style={{ marginBottom: '1.5rem', padding: '0.8rem 1.2rem' }}>
+                                {passMsg.type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+                                <span style={{ fontSize: '0.9rem' }}>{passMsg.text}</span>
+                            </div>
+                        )}
+                        <form onSubmit={handlePasswordChange}>
+                            <div className="form-group">
+                                <label>Current Password</label>
+                                <div className="input-with-icon">
+                                    <Lock size={16} />
+                                    <input
+                                        type={showCurrentPassword ? "text" : "password"}
+                                        value={passwords.currentPassword}
+                                        onChange={e => setPasswords({ ...passwords, currentPassword: e.target.value })}
+                                        className="input-control"
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                    {passwords.currentPassword && (
+                                        <button
+                                            type="button"
+                                            className="btn-toggle-pass"
+                                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                        >
+                                            {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>New Password</label>
+                                    <div className="input-with-icon">
+                                        <Lock size={16} />
+                                        <input
+                                            type={showNewPassword ? "text" : "password"}
+                                            value={passwords.newPassword}
+                                            onChange={e => setPasswords({ ...passwords, newPassword: e.target.value })}
+                                            className="input-control"
+                                            placeholder="••••••••"
+                                            required
+                                        />
+                                        {passwords.newPassword && (
+                                            <button
+                                                type="button"
+                                                className="btn-toggle-pass"
+                                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                            >
+                                                {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Confirm Password</label>
+                                    <div className="input-with-icon">
+                                        <Lock size={16} />
+                                        <input
+                                            type={showConfirmPassword ? "text" : "password"}
+                                            value={passwords.confirmPassword}
+                                            onChange={e => setPasswords({ ...passwords, confirmPassword: e.target.value })}
+                                            className="input-control"
+                                            placeholder="••••••••"
+                                            required
+                                        />
+                                        {passwords.confirmPassword && (
+                                            <button
+                                                type="button"
+                                                className="btn-toggle-pass"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            >
+                                                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="form-actions">
+                                <button type="submit" className="btn-primary" disabled={saving}>
+                                    <Lock size={18} />
+                                    {saving ? 'Updating...' : 'Update Password'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
