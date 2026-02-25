@@ -19,18 +19,24 @@ router.post("/", async (req, res) => {
     // Send DM using the Discord bot
     try {
         // Fetch all users from the guild and find by username
-        const guilds = req.discordClient.guilds.cache;
+        const client = req.discordClient;
+        const guildId = process.env.DISCORD_GUILD_ID;
+        const guild = client.guilds.cache.get(guildId);
         let targetUser = null;
 
-        for (const guild of guilds.values()) {
-            const members = await guild.members.fetch();
-            const member = members.find(m =>
-                m.user.username.toLowerCase() === discordUsername.toLowerCase() ||
-                (m.user.tag && m.user.tag.toLowerCase() === discordUsername.toLowerCase())
-            );
-            if (member) {
-                targetUser = member.user;
-                break;
+        if (guild) {
+            try {
+                const members = await guild.members.fetch({ query: discordUsername, limit: 10 });
+                const member = members.find(m =>
+                    m.user.username.toLowerCase() === discordUsername.toLowerCase() ||
+                    (m.user.tag && m.user.tag.toLowerCase() === discordUsername.toLowerCase())
+                );
+
+                if (member) {
+                    targetUser = member.user;
+                }
+            } catch (err) {
+                console.error('Member fetch error:', err);
             }
         }
 
