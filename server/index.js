@@ -31,7 +31,14 @@ const client = new Client({
     partials: [Partials.Channel] // Required to receive DMs
 });
 
+client.on('debug', console.log);
+client.on('error', console.error);
+client.on('warn', console.warn);
+client.on('ready', () => console.log('Client has emitted the ready event!'));
+
 if (process.env.DISCORD_TOKEN) {
+    const t = process.env.DISCORD_TOKEN;
+    console.log(`[DISCORD] Connecting with token starting with ${t.substring(0, 5)}... length: ${t.length}`);
     client.login(process.env.DISCORD_TOKEN).then(() => {
         console.log(`Logged in as ${client.user.tag}!`);
     }).catch(err => {
