@@ -24,7 +24,10 @@ router.post("/", async (req, res) => {
 
         for (const guild of guilds.values()) {
             const members = await guild.members.fetch();
-            const member = members.find(m => m.user.username === discordUsername || m.user.tag === discordUsername);
+            const member = members.find(m =>
+                m.user.username.toLowerCase() === discordUsername.toLowerCase() ||
+                (m.user.tag && m.user.tag.toLowerCase() === discordUsername.toLowerCase())
+            );
             if (member) {
                 targetUser = member.user;
                 break;
