@@ -1087,13 +1087,41 @@
     }
 }
 
-@media (max-width: 640px) {
-    .dashboard-main {
+@media (max-width: 768px) {
+    .form-grid-2col {
+        grid-template-columns: 1fr;
+    }
+
+    .student-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        background: rgba(0, 0, 0, 0.02);
         padding: 1rem;
+        border-radius: 8px;
+        position: relative;
+    }
+
+    [data-theme='dark'] .student-row {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .btn-remove-student {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+
+    .student-actions {
+        grid-template-columns: 1fr;
     }
 
     .activities-cards-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-main {
+        padding: 1rem 0.5rem;
     }
 
     .ongoing-content {
@@ -1103,5 +1131,11 @@
 
     .session-stats {
         text-align: left;
+    }
+
+    .next-session-stats-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
     }
 }

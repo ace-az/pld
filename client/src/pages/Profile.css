@@ -52,11 +52,7 @@
     align-items: start;
 }
 
-@media (max-width: 900px) {
-    .profile-grid {
-        grid-template-columns: 1fr;
-    }
-}
+
 
 .profile-card {
     background: var(--bg-card);
@@ -369,5 +365,19 @@
 
     to {
         opacity: 1;
+    }
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+@media (max-width: 900px) {
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar-card {
+        position: static;
+        top: auto;
     }
 }

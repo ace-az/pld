@@ -138,6 +138,7 @@ export default function Register() {
                                 setVerificationCode('');
                             }}
                             disabled={isVerified}
+                            style={{ flex: 1 }}
                         />
                         {!isVerified && formData.discordId && (
                             <button
@@ -151,7 +152,7 @@ export default function Register() {
                             </button>
                         )}
                         {isVerified && (
-                            <span style={{ color: 'green', alignSelf: 'center', whiteSpace: 'nowrap' }}>✓ Verified</span>
+                            <span style={{ color: 'var(--color-success)', alignSelf: 'center', whiteSpace: 'nowrap', fontWeight: '600', padding: '0 0.5rem' }}>✓ Verified</span>
                         )}
                     </div>
                 </div>
@@ -165,6 +166,7 @@ export default function Register() {
                                 placeholder="Enter code from Discord DM"
                                 value={verificationCode}
                                 onChange={(e) => setVerificationCode(e.target.value)}
+                                style={{ flex: 1 }}
                             />
                             <button
                                 type="button"
@@ -179,7 +181,7 @@ export default function Register() {
                 )}
 
                 {verificationStatus && (
-                    <div style={{ color: isVerified ? 'green' : '#666', fontSize: '0.9rem', marginTop: '-0.5rem' }}>
+                    <div style={{ color: isVerified ? 'var(--color-success)' : 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '-0.5rem' }}>
                         {verificationStatus}
                     </div>
                 )}

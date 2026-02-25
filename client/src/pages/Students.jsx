@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents } from '../api';
 import { UserPlus, Trash2, Edit2, Check, X, Upload, ArrowLeft } from 'lucide-react';
+import './Students.css';
 
 export default function Students() {
     const navigate = useNavigate();
@@ -162,14 +163,14 @@ export default function Students() {
 
     return (
         <div className="students-container">
-            <div className="flex-between" style={{ marginBottom: '2rem' }}>
+            <div className="students-header">
                 <div>
-                    <button onClick={() => navigate('/')} className="btn-outline" style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', border: 'none', padding: 0 }}>
-                        <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} /> Back to Dashboard
+                    <button onClick={() => navigate('/')} className="btn-outline back-btn">
+                        <ArrowLeft size={16} className="back-img" /> Back to Dashboard
                     </button>
                     <h1>Manage Students</h1>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="import-wrapper">
                     <input
                         type="file"
                         id="csv-upload"
@@ -178,16 +179,16 @@ export default function Students() {
                         onChange={handleFileUpload}
                         disabled={importing}
                     />
-                    <label htmlFor="csv-upload" className="btn btn-outline flex-center" style={{ cursor: 'pointer', opacity: importing ? 0.5 : 1 }}>
-                        <Upload size={20} style={{ marginRight: '0.5rem' }} /> {importing ? 'Importing...' : 'Import CSV'}
+                    <label htmlFor="csv-upload" className="btn btn-outline flex-center import-btn" style={{ opacity: importing ? 0.5 : 1 }}>
+                        <Upload size={20} className="upload-img" /> {importing ? 'Importing...' : 'Import CSV'}
                     </label>
                 </div>
             </div>
 
-            <div className="card" style={{ marginBottom: '2rem' }}>
+            <div className="card add-student-card">
                 <h3>Add New Student</h3>
-                <form onSubmit={handleAddStudent} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
-                    <div className="input-group" style={{ marginBottom: 0 }}>
+                <form onSubmit={handleAddStudent} className="add-student-form">
+                    <div className="input-group no-margin">
                         <label>Full Name</label>
                         <input
                             className="input-control"
@@ -197,7 +198,7 @@ export default function Students() {
                             required
                         />
                     </div>
-                    <div className="input-group" style={{ marginBottom: 0 }}>
+                    <div className="input-group no-margin">
                         <label>Discord Account</label>
                         <input
                             className="input-control"
@@ -206,7 +207,7 @@ export default function Students() {
                             placeholder="e.g. john_doe#1234"
                         />
                     </div>
-                    <div className="input-group" style={{ marginBottom: 0 }}>
+                    <div className="input-group no-margin">
                         <label>Major</label>
                         <input
                             className="input-control"
@@ -215,39 +216,39 @@ export default function Students() {
                             placeholder="e.g. Computer Science"
                         />
                     </div>
-                    <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>
-                        <UserPlus size={20} />
+                    <button type="submit" className="btn btn-primary add-student-btn">
+                        <UserPlus size={20} className="user-icon" />
+                        <span className="add-txt">Add</span>
                     </button>
                 </form>
             </div>
 
-            <div className="card">
-                <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ margin: 0 }}>Student List ({students.length})</h3>
+            <div className="card list-student-card">
+                <div className="flex-between student-list-header">
+                    <h3 className="m-0">Student List ({students.length})</h3>
                     {students.length > 0 && (
                         <button
                             onClick={handleDeleteAll}
-                            className="btn btn-outline flex-center"
-                            style={{ color: '#f44336', borderColor: '#f44336', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                            className="btn btn-outline flex-center delete-all-btn"
                         >
-                            <Trash2 size={16} style={{ marginRight: '0.4rem' }} /> Delete All
+                            <Trash2 size={16} className="trash-img" /> <span>Delete All</span>
                         </button>
                     )}
                 </div>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div className="table-wrapper">
+                    <table className="student-table">
                         <thead>
-                            <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
-                                <th style={{ padding: '1rem' }}>Name</th>
-                                <th style={{ padding: '1rem' }}>Discord</th>
-                                <th style={{ padding: '1rem' }}>Major</th>
-                                <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
+                            <tr>
+                                <th>Name</th>
+                                <th>Discord</th>
+                                <th>Major</th>
+                                <th className="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {students.map(student => (
-                                <tr key={student.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                    <td style={{ padding: '1rem' }}>
+                                <tr key={student.id}>
+                                    <td data-label="Name">
                                         {editingId === student.id ? (
                                             <input
                                                 className="input-control"
@@ -256,7 +257,7 @@ export default function Students() {
                                             />
                                         ) : student.name}
                                     </td>
-                                    <td style={{ padding: '1rem' }}>
+                                    <td data-label="Discord">
                                         {editingId === student.id ? (
                                             <input
                                                 className="input-control"
@@ -264,12 +265,12 @@ export default function Students() {
                                                 onChange={e => setEditDiscord(e.target.value)}
                                             />
                                         ) : (
-                                            <code style={{ fontSize: '0.9rem', color: 'var(--color-primary)' }}>
+                                            <code className="discord-text">
                                                 {student.discord || 'N/A'}
                                             </code>
                                         )}
                                     </td>
-                                    <td style={{ padding: '1rem' }}>
+                                    <td data-label="Major">
                                         {editingId === student.id ? (
                                             <input
                                                 className="input-control"
@@ -277,27 +278,27 @@ export default function Students() {
                                                 onChange={e => setEditMajor(e.target.value)}
                                             />
                                         ) : (
-                                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                            <span className="major-text">
                                                 {student.major || 'N/A'}
                                             </span>
                                         )}
                                     </td>
-                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                    <td data-label="Actions" className="text-right">
                                         {editingId === student.id ? (
-                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                                <button onClick={() => handleUpdate(student.id)} className="btn-icon" style={{ color: '#4CAF50' }}>
+                                            <div className="action-buttons">
+                                                <button onClick={() => handleUpdate(student.id)} className="btn-icon color-success">
                                                     <Check size={18} />
                                                 </button>
-                                                <button onClick={cancelEdit} className="btn-icon" style={{ color: '#f44336' }}>
+                                                <button onClick={cancelEdit} className="btn-icon color-danger">
                                                     <X size={18} />
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                                <button onClick={() => startEdit(student)} className="btn-icon" style={{ color: 'var(--text-secondary)' }}>
+                                            <div className="action-buttons">
+                                                <button onClick={() => startEdit(student)} className="btn-icon color-secondary">
                                                     <Edit2 size={18} />
                                                 </button>
-                                                <button onClick={() => handleDelete(student.id)} className="btn-icon" style={{ color: '#f44336' }}>
+                                                <button onClick={() => handleDelete(student.id)} className="btn-icon color-danger">
                                                     <Trash2 size={18} />
                                                 </button>
                                             </div>
@@ -308,7 +309,7 @@ export default function Students() {
                         </tbody>
                     </table>
                     {students.length === 0 && (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        <div className="empty-students">
                             No students added yet.
                         </div>
                     )}

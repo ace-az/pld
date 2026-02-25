@@ -15,7 +15,7 @@ const menuItems = [
   { name: "Leader Board", path: "/leaderboard", icon: <Trophy size={20} /> },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -42,51 +42,62 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-top">
-        <div className="logo-container">
-          {user?.avatar ? (
-            <img src={user.avatar} alt="Avatar" className="sidebar-avatar" />
-          ) : (
-            <span style={{ color: "white", fontWeight: "900", fontSize: "1.2rem" }}>P</span>
-          )}
-        </div>
-        <span className="logo-text">{isStudent ? 'PLD Student' : 'PLD Mentor'}</span>
-      </div>
-
-      <ul className="menu">
-        {filteredMenuItems.map((item) => (
-          <li key={item.name}>
-            {item.external ? (
-              <a
-                href={item.path}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="menu-item"
-                onClick={(e) => handleExternalClick(e, item.path, item.name)}
-              >
-                <span className="icon">{item.icon}</span>
-                <span className="text">{item.name}</span>
-              </a>
+    <>
+      <div
+        className={`sidebar-overlay ${isOpen ? 'active' : ''}`}
+        onClick={onClose}
+      />
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        <div className="sidebar-top">
+          <div className="logo-container">
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Avatar" className="sidebar-avatar" />
             ) : (
-              <Link
-                to={item.path}
-                className={`menu-item ${isActive(item.path) ? 'active' : ''}`}
-              >
-                <span className="icon">{item.icon}</span>
-                <span className="text">{item.name}</span>
-              </Link>
+              <span style={{ color: "white", fontWeight: "900", fontSize: "1.2rem" }}>P</span>
             )}
-          </li>
-        ))}
-      </ul>
+          </div>
+          <span className="logo-text">{isStudent ? 'PLD Student' : 'PLD Mentor'}</span>
+        </div>
 
-      <div className="sidebar-bottom">
-        <button className="btn-logout" onClick={logout}>
-          <span className="icon"><LogOut size={20} /></span>
-          <span className="text">Logout</span>
-        </button>
-      </div>
-    </aside>
+        <ul className="menu">
+          {filteredMenuItems.map((item) => (
+            <li key={item.name}>
+              {item.external ? (
+                <a
+                  href={item.path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="menu-item"
+                  onClick={(e) => handleExternalClick(e, item.path, item.name)}
+                >
+                  <span className="icon">{item.icon}</span>
+                  <span className="text">{item.name}</span>
+                </a>
+              ) : (
+                <Link
+                  to={item.path}
+                  className={`menu-item ${isActive(item.path) ? 'active' : ''}`}
+                  onClick={() => {
+                    if (window.innerWidth <= 768) {
+                      onClose();
+                    }
+                  }}
+                >
+                  <span className="icon">{item.icon}</span>
+                  <span className="text">{item.name}</span>
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        <div className="sidebar-bottom">
+          <button className="btn-logout" onClick={logout}>
+            <span className="icon"><LogOut size={20} /></span>
+            <span className="text">Logout</span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
