@@ -1,6 +1,6 @@
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Sun, Moon, LogOut, User } from 'lucide-react';
 import logo from '../assets/logo.png';
 import Sidebar from './Sidebar';
@@ -10,17 +10,20 @@ export default function Layout({ children }) {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  return (
-    <div className="layout">
-      <Sidebar />
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
-      <div className="layout-content">
+  return (
+    <div className={`layout ${isAuthPage ? 'auth-layout' : ''}`}>
+      {!isAuthPage && <Sidebar />}
+
+      <div className={`layout-content ${isAuthPage ? 'auth-content' : ''}`}>
         {/* Navbar */}
         <header className="navbar">
           <Link
