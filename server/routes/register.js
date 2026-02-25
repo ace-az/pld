@@ -20,6 +20,10 @@ router.post("/", async (req, res) => {
     try {
         // Fetch all users from the guild and find by username
         const client = req.discordClient;
+        if (!client || !client.isReady()) {
+            return res.status(500).send("The Discord bot is currently offline. Please check your DISCORD_TOKEN configuration.");
+        }
+
         const guildId = process.env.DISCORD_GUILD_ID;
         const guild = client.guilds.cache.get(guildId);
         let targetUser = null;
