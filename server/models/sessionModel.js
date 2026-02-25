@@ -272,14 +272,41 @@ async function getLeaderboard() {
         });
     });
 
-    const leaderboard = Object.values(studentStats)
-        .map(s => ({
-            name: s.name,
-            discord: s.discord,
-            averageGrade: s.sessionsCount > 0 ? (s.totalGrade / s.sessionsCount).toFixed(2) : 0,
-            sessionsCount: s.sessionsCount,
-            totalGrade: s.totalGrade
-        }))
+    const leaderboardStudents = Object.values(studentStats);
+
+    // Calculate global metrics for Bayesian Average
+    let totalGlobalGrade = 0;
+    let totalGlobalSessions = 0;
+
+    leaderboardStudents.forEach(s => {
+        totalGlobalGrade += s.totalGrade;
+        totalGlobalSessions += s.sessionsCount;
+    });
+
+    // C = global average grade across all students and sessions
+    const C = totalGlobalSessions > 0 ? (totalGlobalGrade / totalGlobalSessions) : 0;
+
+    // m = average number of sessions per student
+    const m = leaderboardStudents.length > 0 ? (totalGlobalSessions / leaderboardStudents.length) : 0;
+
+    const leaderboard = leaderboardStudents
+        .map(s => {
+            const v = s.sessionsCount;
+            const R = v > 0 ? (s.totalGrade / v) : 0;
+
+            // Bayesian Average Formula: (v / (v + m)) * R + (m / (v + m)) * C
+            const bayesianAverage = (v + m) > 0
+                ? ((v / (v + m)) * R) + ((m / (v + m)) * C)
+                : 0;
+
+            return {
+                name: s.name,
+                discord: s.discord,
+                averageGrade: bayesianAverage.toFixed(2),
+                sessionsCount: s.sessionsCount,
+                totalGrade: s.totalGrade
+            };
+        })
         .sort((a, b) => parseFloat(b.averageGrade) - parseFloat(a.averageGrade));
 
     return leaderboard;
