@@ -43,6 +43,19 @@ client.on('ready', () => console.log('Client has emitted the ready event!'));
 if (process.env.DISCORD_TOKEN) {
     const t = process.env.DISCORD_TOKEN;
     console.log(`[DISCORD] Connecting with token starting with ${t.substring(0, 5)}... length: ${t.length}`);
+
+    console.log('[DIAGNOSTICS] Pinging Discord API natively to check for Render IP blocks...');
+    fetch('https://discord.com/api/v10/gateway/bot', {
+        headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` },
+        signal: AbortSignal.timeout(10000)
+    }).then(async res => {
+        console.log(`[DIAGNOSTICS] SUCCESS! Status: ${res.status} ${res.statusText}`);
+        const body = await res.text();
+        console.log(`[DIAGNOSTICS] Body: ${body.substring(0, 150)}`);
+    }).catch(err => {
+        console.error('[DIAGNOSTICS] FAILED TO PING DISCORD:', err.message);
+    });
+
     client.login(process.env.DISCORD_TOKEN).then(() => {
         console.log(`Logged in as ${client.user.tag}!`);
     }).catch(err => {
