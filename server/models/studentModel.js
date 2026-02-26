@@ -3,7 +3,7 @@ const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
 async function getStudents(mentorId) {
-    const { data, error } = await supabase.from('students').select('*').eq('mentorId', mentorId);
+    const { data, error } = await supabase.from('students').select('*');
     if (error) console.error("Error getting students:", error);
     return data || [];
 }

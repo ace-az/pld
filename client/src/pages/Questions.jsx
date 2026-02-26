@@ -1,8 +1,8 @@
 // client/src/pages/Questions.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getQuestionSets, addQuestionSet, deleteQuestionSet, deleteAllQuestionSets, updateQuestionSet } from '../api';
-import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw, FileText, Upload, Edit3, ArrowLeft } from 'lucide-react';
+import { getQuestionSets, addQuestionSet, deleteQuestionSet, deleteAllQuestionSets, updateQuestionSet, getMentors, shareQuestionSet, getUserProfile } from '../api';
+import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw, FileText, Upload, Edit3, ArrowLeft, Share2 } from 'lucide-react';
 import * as mammoth from 'mammoth';
 
 export default function Questions() {
@@ -11,6 +11,13 @@ export default function Questions() {
     const [questionSets, setQuestionSets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [mentors, setMentors] = useState([]);
+
+    // Share modal state
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [sharingSet, setSharingSet] = useState(null);
+    const [selectedMentors, setSelectedMentors] = useState([]);
 
     // Form state
     const [topic, setTopic] = useState('');
@@ -22,7 +29,27 @@ export default function Questions() {
 
     useEffect(() => {
         fetchQuestionSets();
+        fetchCurrentUser();
+        fetchMentorsList();
     }, []);
+
+    const fetchCurrentUser = async () => {
+        try {
+            const profile = await getUserProfile();
+            setCurrentUser(profile);
+        } catch (err) {
+            console.error("Failed to load user profile:", err);
+        }
+    };
+
+    const fetchMentorsList = async () => {
+        try {
+            const data = await getMentors();
+            setMentors(data);
+        } catch (err) {
+            console.error("Failed to load mentors:", err);
+        }
+    };
 
     const fetchQuestionSets = async () => {
         setLoading(true);
@@ -117,6 +144,31 @@ export default function Questions() {
         } catch (err) {
             console.error('Error deleting all topics:', err);
             alert("Error deleting topics");
+        }
+    };
+
+    const startShare = (set) => {
+        setSharingSet(set);
+        setSelectedMentors(set.sharedWith || []);
+        setShowShareModal(true);
+    };
+
+    const handleShareToggle = (mentorId) => {
+        if (selectedMentors.includes(mentorId)) {
+            setSelectedMentors(selectedMentors.filter(id => id !== mentorId));
+        } else {
+            setSelectedMentors([...selectedMentors, mentorId]);
+        }
+    };
+
+    const submitShare = async () => {
+        try {
+            const updated = await shareQuestionSet(sharingSet.id, selectedMentors);
+            setQuestionSets(questionSets.map(s => s.id === sharingSet.id ? updated : s));
+            setShowShareModal(false);
+            alert("Sharing preferences saved successfully!");
+        } catch (err) {
+            alert('Error sharing question set: ' + (err.message || 'Unknown error'));
         }
     };
 
@@ -299,22 +351,34 @@ export default function Questions() {
                                 <BookOpen size={20} /> {set.topic}
                             </h3>
                             <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                <button
-                                    onClick={() => startEdit(set)}
-                                    className="btn-icon"
-                                    style={{ color: 'var(--text-secondary)', padding: '5px' }}
-                                    title="Edit Set"
-                                >
-                                    <Edit3 size={18} />
-                                </button>
-                                <button
-                                    onClick={() => handleDeleteSet(set.id)}
-                                    className="btn-icon"
-                                    style={{ color: '#f44336', padding: '5px' }}
-                                    title="Delete Set"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
+                                {(!currentUser || set.mentorId === currentUser.id) && (
+                                    <>
+                                        <button
+                                            onClick={() => startShare(set)}
+                                            className="btn-icon"
+                                            style={{ color: '#2196f3', padding: '5px' }}
+                                            title="Share Set"
+                                        >
+                                            <Share2 size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => startEdit(set)}
+                                            className="btn-icon"
+                                            style={{ color: 'var(--text-secondary)', padding: '5px' }}
+                                            title="Edit Set"
+                                        >
+                                            <Edit3 size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteSet(set.id)}
+                                            className="btn-icon"
+                                            style={{ color: '#f44336', padding: '5px' }}
+                                            title="Delete Set"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <div style={{ flex: 1 }}>
@@ -339,6 +403,40 @@ export default function Questions() {
                 <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-card)', borderRadius: '12px', border: '2px dashed var(--border-color)', color: 'var(--text-secondary)' }}>
                     <HelpCircle size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
                     <p>No question sets yet. Create your first one above!</p>
+                </div>
+            )}
+
+            {showShareModal && sharingSet && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, color: 'var(--text-primary)' }}>
+                    <div style={{ backgroundColor: 'var(--bg-card)', padding: '2rem', borderRadius: '12px', width: '90%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+                        <h3 style={{ marginTop: 0 }}>Share "{sharingSet.topic}"</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Select the mentors who should have access to this question set.</p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto', marginBottom: '1.5rem', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem' }}>
+                            {mentors.filter(m => !currentUser || m.id !== currentUser.id).length === 0 ? (
+                                <p style={{ color: 'var(--text-secondary)' }}>No other mentors found.</p>
+                            ) : (
+                                mentors.filter(m => !currentUser || m.id !== currentUser.id).map(mentor => (
+                                    <label key={mentor.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '0.5rem', borderRadius: '4px', backgroundColor: 'var(--bg-main)' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedMentors.includes(mentor.id)}
+                                            onChange={() => handleShareToggle(mentor.id)}
+                                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                                        />
+                                        <span style={{ fontWeight: '500' }}>{mentor.username}</span>
+                                    </label>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="flex-between">
+                            <button onClick={() => setShowShareModal(false)} className="btn btn-outline">Cancel</button>
+                            <button onClick={submitShare} className="btn btn-primary flex-center">
+                                <Share2 size={16} style={{ marginRight: '0.5rem' }} /> Save Shares
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

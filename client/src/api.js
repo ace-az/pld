@@ -288,6 +288,22 @@ export const updateQuestionSet = async (id, setData) => {
     return handleResponse(response);
 };
 
+export const shareQuestionSet = async (id, targetMentorIds) => {
+    const response = await fetch(`${API_URL}/api/questions/${id}/share`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ targetMentorIds })
+    });
+    return handleResponse(response);
+};
+
+export const getMentors = async () => {
+    const response = await fetch(`${API_URL}/api/users/mentors`, {
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
 export const deleteQuestionSet = async (id) => {
     const response = await fetch(`${API_URL}/api/questions/${id}`, {
         method: 'DELETE',

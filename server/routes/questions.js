@@ -37,6 +37,19 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+router.put('/:id/share', async (req, res) => {
+    try {
+        const { targetMentorIds } = req.body;
+        if (!Array.isArray(targetMentorIds)) {
+            return res.status(400).json({ error: 'targetMentorIds must be an array' });
+        }
+        const set = await questionModel.shareQuestionSet(req.params.id, req.user.id, targetMentorIds);
+        res.json(set);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.delete('/all', async (req, res) => {
     try {
         await questionModel.deleteAllQuestionSets(req.user.id);

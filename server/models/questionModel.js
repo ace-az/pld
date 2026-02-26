@@ -3,7 +3,7 @@ const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
 async function getQuestionSets(mentorId) {
-    const { data, error } = await supabase.from('questions').select('*').eq('mentorId', mentorId);
+    const { data, error } = await supabase.from('questions').select('*').or(`mentorId.eq.${mentorId},sharedWith.cs.{${mentorId}}`);
     if (error) console.error("Error getting question sets:", error);
     return data || [];
 }
@@ -60,4 +60,13 @@ async function deleteAllQuestionSets(mentorId) {
     return !error;
 }
 
-module.exports = { getQuestionSets, addQuestionSet, updateQuestionSet, deleteQuestionSet, getQuestionSetById, deleteAllQuestionSets };
+async function shareQuestionSet(id, mentorId, targetMentorIds) {
+    const { data, error } = await supabase.from('questions').update({ sharedWith: targetMentorIds }).eq('id', id).eq('mentorId', mentorId).select().single();
+    if (error) {
+        console.error("Error sharing question set:", error);
+        throw error;
+    }
+    return data;
+}
+
+module.exports = { getQuestionSets, addQuestionSet, updateQuestionSet, deleteQuestionSet, getQuestionSetById, deleteAllQuestionSets, shareQuestionSet };

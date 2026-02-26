@@ -49,6 +49,12 @@ async function getAllStudentUsers() {
     return data || [];
 }
 
+async function getMentors() {
+    const { data, error } = await supabase.from('users').select('id, username').eq('role', 'mentor');
+    if (error) console.error("Error getting mentors:", error);
+    return data || [];
+}
+
 async function getAllUsers() {
     const { data, error } = await supabase.from('users').select('*');
     if (error) console.error("Error getting all users:", error);
@@ -92,5 +98,6 @@ module.exports = {
     updateUserProfile,
     getAllStudentUsers,
     getAllUsers,
-    deleteUser
+    deleteUser,
+    getMentors
 };
