@@ -169,3 +169,117 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+exports.discordCallback = async (req, res) => {
+    try {
+        const { code } = req.body;
+        if (!code) {
+            return res.status(400).json({ error: 'OAuth code missing' });
+        }
+
+        const clientId = process.env.DISCORD_CLIENT_ID;
+        const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+        const redirectUri = process.env.REDIRECT_URI;
+
+        if (!clientId || !clientSecret || !redirectUri) {
+            console.error("Missing Discord OAuth credentials in environment variables.");
+            return res.status(500).json({ error: 'Server is missing Discord OAuth configuration.' });
+        }
+
+        // 1. Exchange the code for an access token using standard fetch
+        const tokenParams = new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: redirectUri
+        });
+
+        const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+            method: 'POST',
+            body: tokenParams,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+
+        if (!tokenResponse.ok) {
+            const errorData = await tokenResponse.json();
+            console.error('Failed to exchange code:', errorData);
+            return res.status(400).json({ error: 'Failed to exchange Discord authorization code' });
+        }
+
+        const tokenData = await tokenResponse.json();
+        const accessToken = tokenData.access_token;
+
+        // 2. Fetch the user's Discord profile
+        const userResponse = await fetch('https://discord.com/api/users/@me', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        if (!userResponse.ok) {
+            return res.status(400).json({ error: 'Failed to fetch Discord user profile' });
+        }
+
+        const discordUser = await userResponse.json();
+        const discordUsername = discordUser.username; // Note: In newer Discord, tag might be just username
+
+        // 3. Check if user already exists
+        let user = await findUserByDiscordId(discordUsername);
+
+        // Auto-assign role just like standard register
+        let role = 'student'; // Default fallback
+        const client = req.discordClient;
+        if (client) {
+            const guildId = process.env.DISCORD_GUILD_ID;
+            const studentRoleId = process.env.DISCORD_STUDENT_ROLE_ID;
+            const mentorRoleId = process.env.DISCORD_MENTOR_ROLE_ID;
+
+            try {
+                const guild = client.guilds.cache.get(guildId);
+                if (guild) {
+                    const members = await guild.members.fetch({ query: discordUsername, limit: 10 });
+                    const member = members.find(m => m.user.username.toLowerCase() === discordUsername.toLowerCase());
+
+                    if (member) {
+                        if (member.roles.cache.has(mentorRoleId)) role = 'mentor';
+                        else if (member.roles.cache.has(studentRoleId)) role = 'student';
+                    }
+                }
+            } catch (discordErr) {
+                console.error("Failed to fetch discord role on OAuth login:", discordErr);
+            }
+        }
+
+        if (!user) {
+            // Register them automatically with a random password because they are using OAuth
+            const randomPassword = uuidv4();
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+            // Major can be updated later by the user
+            user = await createUser(discordUsername, hashedPassword, discordUsername, role, "Undeclared");
+        } else {
+            // Optional: Update their role dynamically every time they log in if they got promoted/demoted
+            // We'd need an `updateUserRole` in model.
+        }
+
+        // 4. Generate JWT Token
+        const jwtToken = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, SECRET, { expiresIn: '7d' });
+
+        res.json({
+            token: jwtToken,
+            user: {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                discordId: user.discordId,
+                avatar: user.avatar,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                major: user.major
+            }
+        });
+
+    } catch (err) {
+        console.error('Discord OAuth Error:', err);
+        res.status(500).json({ error: 'Discord Authentication Failed' });
+    }
+};
