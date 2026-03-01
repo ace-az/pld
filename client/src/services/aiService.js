@@ -151,6 +151,11 @@ Help the student clearly understand the mentor’s feedback, improve weak areas,
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function generateFeedback(studentName, projectName, mentorNotes) {
     if (!window.puter) {
         console.error("Puter.js not loaded");
@@ -212,7 +217,10 @@ async function saveMessageToBackend(sessionId, studentId, role, content) {
     try {
         const res = await fetch(`${API_URL}/api/chat/save`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify({ sessionId, studentId, role, content })
         });
         if (!res.ok) throw new Error('Failed to save message');
