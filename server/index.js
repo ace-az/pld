@@ -3,11 +3,13 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const dns = require('node:dns');
+const { assertJwtSecretOrThrow } = require('./utils/envValidation');
 
 // Fix for Node.js 17+ on Render silently hanging on Discord IPv6 WebSockets
 dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
+assertJwtSecretOrThrow();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

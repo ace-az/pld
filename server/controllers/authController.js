@@ -4,8 +4,7 @@ const bcrypt = require('bcryptjs');
 const { createUser, findUserByUsername, findUserByDiscordId, updateUserPassword } = require('../models/userModel');
 const { v4: uuidv4 } = require('uuid');
 const { verifications } = require('../index'); // Share memory store from index.js
-
-const SECRET = process.env.JWT_SECRET || 'secret';
+const { getJwtSecret } = require('../utils/jwtSecret');
 
 exports.register = async (req, res) => {
     try {
@@ -50,7 +49,7 @@ exports.register = async (req, res) => {
         // We pass 'role' here which is now auto-detected
         const user = await createUser(username, hashedPassword, discordId, role, major);
 
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, getJwtSecret(), { expiresIn: '7d' });
         res.json({
             token,
             user: {
@@ -77,7 +76,7 @@ exports.login = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, getJwtSecret(), { expiresIn: '7d' });
         res.json({
             token,
             user: {
@@ -262,7 +261,7 @@ exports.discordCallback = async (req, res) => {
         }
 
         // 4. Generate JWT Token
-        const jwtToken = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, SECRET, { expiresIn: '7d' });
+        const jwtToken = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, getJwtSecret(), { expiresIn: '7d' });
 
         res.json({
             token: jwtToken,
