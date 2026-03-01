@@ -329,13 +329,16 @@ export const getLeaderboard = async () => {
 
 // Admin API
 export const getAdminUsers = async () => {
-    const response = await fetch(`${API_URL}/api/admin/users`);
+    const response = await fetch(`${API_URL}/api/admin/users`, {
+        headers: getAuthHeaders()
+    });
     return handleResponse(response);
 };
 
 export const deleteUserAccount = async (id) => {
     const response = await fetch(`${API_URL}/api/admin/users/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
     });
     return handleResponse(response);
 };
