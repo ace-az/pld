@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Users, Calendar, History, HelpCircle, MessageSquare, Trophy, LogOut, LayoutDashboard, Brain, FileText, Menu } from "lucide-react";
+import { Users, Calendar, History, HelpCircle, MessageSquare, Trophy, LogOut, LayoutDashboard, Brain, FileText, Menu, Megaphone } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useConfirm } from '../context/ConfirmContext';
 import "./Sidebar.css";
@@ -10,11 +10,13 @@ const menuItems = [
   { name: "Calendar", path: "/calendar", icon: <Calendar size={20} />, mentorOnly: true },
   { name: "History", path: "/history", icon: <History size={20} /> },
   { name: "Questions", path: "/questions", icon: <HelpCircle size={20} />, mentorOnly: true },
+  { name: "Announcements", path: "/announcements", icon: <Megaphone size={20} /> },
   { name: "Performance Reports", path: "/student-reports", icon: <FileText size={20} />, studentOnly: true },
   { name: "AI Practice Mode", path: "/practice", icon: <Brain size={20} />, studentOnly: true },
   { name: "Discord", path: "https://discord.com", icon: <MessageSquare size={20} />, external: true },
   { name: "Leader Board", path: "/leaderboard", icon: <Trophy size={20} /> },
 ];
+
 
 export default function Sidebar({ isOpen, onClose }) {
   const [isExpanded, setIsExpanded] = useState(false);

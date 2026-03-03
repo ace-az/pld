@@ -2,6 +2,9 @@
 .layout {
   display: flex;
   min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 /* Content sidebar-ın sağında */
@@ -13,6 +16,10 @@
   flex-direction: column;
   min-height: 100vh;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
+  width: 0;
+  /* Forces flex child to shrink within parent instead of expanding */
+  min-width: 0;
 }
 
 .layout-content.auth-content {

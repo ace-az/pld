@@ -379,4 +379,29 @@ export const changePassword = async (passwords) => {
     return handleResponse(response);
 };
 
+export const getAnnouncements = async () => {
+    const response = await fetch(`${API_URL}/api/announcements`, {
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+export const createAnnouncement = async (data) => {
+    const response = await fetch(`${API_URL}/api/announcements`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+};
+
+export const deleteAnnouncement = async (id) => {
+    const response = await fetch(`${API_URL}/api/announcements/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
 export default API_URL;
+

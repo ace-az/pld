@@ -16,6 +16,8 @@ import AIPractice from './pages/AIPractice';
 import AdminPanel from './pages/AdminPanel';
 import Calendar from './pages/Calendar';
 import Profile from './pages/Profile';
+import Announcements from './pages/Announcements';
+
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { useAuth } from './context/AuthContext';
@@ -94,6 +96,11 @@ export default function App() {
             <Route path="/profile" element={
               <PrivateRoute>
                 <Profile />
+              </PrivateRoute>
+            } />
+            <Route path="/announcements" element={
+              <PrivateRoute>
+                <Announcements />
               </PrivateRoute>
             } />
           </Routes>

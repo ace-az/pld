@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { getSessions, getJoinableSessions, joinSession } from '../api';
-import { Calendar, BookOpen, Clock, ChevronRight, Award, Brain, ChevronDown, ChevronUp, CheckCircle, BookMarked } from 'lucide-react';
+import { getSessions, getJoinableSessions, joinSession, getAnnouncements } from '../api';
+import { Calendar, BookOpen, Clock, ChevronRight, Award, Brain, ChevronDown, ChevronUp, CheckCircle, BookMarked, Megaphone } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import './StudentDashboard.css';
 
@@ -15,6 +15,7 @@ export default function StudentDashboard() {
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState({});
     const toast = useToast();
+    const [announcements, setAnnouncements] = useState([]);
 
     useEffect(() => {
         fetchData();
@@ -22,9 +23,10 @@ export default function StudentDashboard() {
 
     const fetchData = async () => {
         try {
-            const [data, joinableData] = await Promise.all([
+            const [data, joinableData, annData] = await Promise.all([
                 getSessions(),
-                getJoinableSessions()
+                getJoinableSessions(),
+                getAnnouncements()
             ]);
 
             if (Array.isArray(data)) {
@@ -33,6 +35,9 @@ export default function StudentDashboard() {
             }
             if (Array.isArray(joinableData)) {
                 setJoinableSessions(joinableData);
+            }
+            if (Array.isArray(annData)) {
+                setAnnouncements(annData.slice(0, 3));
             }
         } catch (err) {
             console.error('Error fetching dashboard data:', err);
@@ -136,6 +141,30 @@ export default function StudentDashboard() {
                 </div>
                 <button className="ai-banner-btn">Start Now</button>
             </div>
+
+            {/* Announcements Mini Card */}
+            {announcements.length > 0 && (
+                <div style={{ marginBottom: '2rem' }}>
+                    <h2 className="student-section-heading">
+                        <span className="accent-dot" style={{ background: '#ef4444' }}></span>
+                        <Megaphone size={17} style={{ marginRight: 6 }} /> Latest Announcements
+                    </h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {announcements.map(ann => (
+                            <div key={ann.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1rem 1.25rem' }}>
+                                <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{ann.title}</div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                                    {ann.message.length > 150 ? ann.message.slice(0, 150) + '…' : ann.message}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', opacity: 0.6, marginTop: 6 }}>— {ann.mentor_name}</div>
+                            </div>
+                        ))}
+                    </div>
+                    <Link to="/announcements" style={{ fontSize: '0.85rem', color: '#ef4444', textDecoration: 'none', display: 'inline-block', marginTop: 10 }}>
+                        View all announcements →
+                    </Link>
+                </div>
+            )}
 
             {/* Active & Future Sessions */}
             <div className="student-content-grid">

@@ -1124,6 +1124,22 @@
         padding: 1rem 0.5rem;
     }
 
+    .top-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .session-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid-2col {
+        grid-template-columns: 1fr;
+    }
+
+    .student-row {
+        grid-template-columns: 1fr;
+    }
+
     .ongoing-content {
         flex-direction: column;
         text-align: center;
@@ -1137,5 +1153,15 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
+    }
+
+    .welcome-title {
+        font-size: 1.75rem;
+    }
+
+    .create-session-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
     }
 }

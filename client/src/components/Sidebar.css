@@ -245,9 +245,18 @@
     box-shadow: var(--shadow-lg);
   }
 
+  /* On mobile, always show text inline (not absolute) */
   .sidebar .text {
+    position: static;
     opacity: 1;
     pointer-events: auto;
+    width: auto;
+    overflow: visible;
+  }
+
+  /* Show avatar/logo on mobile */
+  .sidebar .logo-container {
+    display: flex;
   }
 
   .sidebar .logo-text {
@@ -256,7 +265,6 @@
 
   .sidebar-toggle-btn {
     display: none;
-    /* Hidden on mobile */
   }
 
   .sidebar-overlay {

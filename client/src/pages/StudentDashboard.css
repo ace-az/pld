@@ -566,21 +566,50 @@
         grid-template-columns: 1fr;
     }
 
-    .student-stats-row {
-        grid-template-columns: 1fr;
-    }
-
     .student-reports-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .student-welcome-banner {
+        padding: 1.25rem 1.25rem;
+    }
+
+    .student-welcome-banner h1 {
+        font-size: 1.25rem;
     }
 
     .student-ai-banner {
         flex-direction: column;
-        text-align: center;
+        align-items: flex-start;
         gap: 1rem;
+        padding: 1.25rem;
     }
 
     .ai-banner-content {
+        flex-direction: row;
+    }
+
+    .ai-banner-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .joinable-session-card {
         flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .btn-join-session {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .student-stats-row {
+        grid-template-columns: 1fr;
     }
 }
