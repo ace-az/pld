@@ -10,7 +10,8 @@ async function getStudents(mentorId) {
 
 async function addStudent(mentorId, name, discord, major) {
     if (discord) {
-        const { data: exists } = await supabase.from('students').select('*').eq('mentorId', mentorId).eq('discord', discord).maybeSingle();
+        // Check globally — discord must be unique across all mentors
+        const { data: exists } = await supabase.from('students').select('*').eq('discord', discord).maybeSingle();
         if (exists) return exists;
     }
 
@@ -47,7 +48,8 @@ async function deleteStudent(id) {
 }
 
 async function bulkAddStudents(mentorId, studentsArray) {
-    const { data: existingStudents } = await supabase.from('students').select('discord').eq('mentorId', mentorId);
+    // Check globally — discord must be unique across all mentors
+    const { data: existingStudents } = await supabase.from('students').select('discord');
     const existingDiscordNames = new Set(
         (existingStudents || []).map(s => s.discord).filter(Boolean)
     );
@@ -85,8 +87,9 @@ async function bulkAddStudents(mentorId, studentsArray) {
     return newStudents;
 }
 
-async function deleteAllStudents(mentorId) {
-    const { error } = await supabase.from('students').delete().eq('mentorId', mentorId);
+async function deleteAllStudents(ids) {
+    if (!ids || ids.length === 0) return true;
+    const { error } = await supabase.from('students').delete().in('id', ids);
     if (error) console.error("Error deleting all students:", error);
     return !error;
 }

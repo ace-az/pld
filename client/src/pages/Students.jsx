@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents } from '../api';
-import { UserPlus, Trash2, Edit2, Check, X, Upload, ArrowLeft } from 'lucide-react';
+import { UserPlus, Trash2, Edit2, Check, X, Upload, Download, ArrowLeft } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import './Students.css';
@@ -98,15 +98,17 @@ export default function Students() {
     };
 
     const handleDeleteAll = async () => {
-        const isConfirmed = await confirm("CAUTION: Are you sure you want to delete ALL students? This action is permanent and cannot be undone.");
+        const isConfirmed = await confirm(`Are you sure you want to delete all ${students.length} student(s)? This cannot be undone.`);
         if (!isConfirmed) return;
 
         try {
-            await deleteAllMasterStudents();
+            const ids = students.map(s => s.id);
+            await deleteAllMasterStudents(ids);
             setStudents([]);
+            toast.success(`Successfully deleted all students.`);
         } catch (err) {
             console.error('Error deleting all students:', err);
-            toast.error("Error deleting students");
+            toast.error('Error deleting students. Please try again.');
         }
     };
 
@@ -165,6 +167,26 @@ export default function Students() {
         reader.readAsText(file);
     };
 
+    const handleDownloadCSV = () => {
+        if (students.length === 0) {
+            toast.info('No students to download.');
+            return;
+        }
+        const header = 'Name,Discord,Major';
+        const rows = students.map(s =>
+            `${s.name || ''},${s.discord || ''},${s.major || ''}`
+        );
+        const csvContent = [header, ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `students_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast.success(`Downloaded ${students.length} student(s) as CSV.`);
+    };
+
     if (loading) return <div>Loading...</div>;
 
     return (
@@ -177,6 +199,9 @@ export default function Students() {
                     <h1>Manage Students</h1>
                 </div>
                 <div className="import-wrapper">
+                    <button onClick={handleDownloadCSV} className="btn btn-outline flex-center import-btn" disabled={students.length === 0}>
+                        <Download size={20} className="upload-img" /> Download CSV
+                    </button>
                     <input
                         type="file"
                         id="csv-upload"

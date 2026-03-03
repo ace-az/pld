@@ -255,10 +255,11 @@ export const deleteMasterStudent = async (id) => {
     return handleResponse(response);
 };
 
-export const deleteAllMasterStudents = async () => {
+export const deleteAllMasterStudents = async (ids) => {
     const response = await fetch(`${API_URL}/api/students/all`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ids })
     });
     return handleResponse(response);
 };
