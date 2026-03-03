@@ -7,6 +7,29 @@ const authMiddleware = require('../utils/authMiddleware');
 
 router.use(authMiddleware);
 
+/**
+ * Check if a discord username is present in any guild the bot is in.
+ * Returns true if found (student is in the server), false otherwise.
+ */
+async function checkDiscordMembership(discordClient, discordUsername) {
+    if (!discordUsername || !discordClient || !discordClient.isReady()) return false;
+    try {
+        const name = discordUsername.toLowerCase();
+        for (const guild of discordClient.guilds.cache.values()) {
+            const results = await guild.members.search({ query: discordUsername, limit: 10 }).catch(() => []);
+            const found = results.find(m =>
+                m.user.username.toLowerCase() === name ||
+                m.user.tag?.toLowerCase() === name ||
+                m.user.globalName?.toLowerCase() === name
+            );
+            if (found) return true;
+        }
+    } catch (e) {
+        console.error(`[Discord] Membership check failed for ${discordUsername}:`, e.message);
+    }
+    return false;
+}
+
 router.get('/', async (req, res) => {
     try {
         const students = await studentModel.getStudents(req.user.id);
@@ -16,24 +39,53 @@ router.get('/', async (req, res) => {
     }
 });
 
+// POST / — add a single student and auto-verify via Discord bot
 router.post('/', async (req, res) => {
     try {
         const { name, discord, major } = req.body;
         const student = await studentModel.addStudent(req.user.id, name, discord, major);
+
+        // Auto-verify: check Discord membership immediately
+        if (student && discord) {
+            const isInServer = await checkDiscordMembership(req.discordClient, discord);
+            if (isInServer && !student.discord_verified) {
+                const updated = await studentModel.updateStudent(student.id, { discord_verified: true });
+                return res.json(updated);
+            }
+        }
+
         res.json(student);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+// POST /bulk — bulk add students and auto-verify via Discord bot
 router.post('/bulk', async (req, res) => {
     try {
-        const { students } = req.body; // Array of { name, discord }
+        const { students } = req.body;
         if (!Array.isArray(students)) {
             return res.status(400).json({ error: 'Data must be an array of students' });
         }
         const created = await studentModel.bulkAddStudents(req.user.id, students);
-        res.json(created);
+
+        // Auto-verify: check Discord membership for each student (in parallel, max 5 at a time)
+        const results = [];
+        const batchSize = 5;
+        for (let i = 0; i < created.length; i += batchSize) {
+            const batch = created.slice(i, i + batchSize);
+            const batchResults = await Promise.all(batch.map(async (student) => {
+                if (!student.discord) return student;
+                const isInServer = await checkDiscordMembership(req.discordClient, student.discord);
+                if (isInServer) {
+                    return await studentModel.updateStudent(student.id, { discord_verified: true }).catch(() => student);
+                }
+                return student;
+            }));
+            results.push(...batchResults);
+        }
+
+        res.json(results);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

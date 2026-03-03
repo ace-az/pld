@@ -5,9 +5,13 @@ const API_URL = RAW_API_URL.replace(/\/+$/, '');
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
+    const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
+    const adminPass = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
+
     return {
         'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(isAdmin ? { 'x-admin-password': adminPass } : {})
     };
 };
 
@@ -330,14 +334,39 @@ export const getLeaderboard = async () => {
 
 // Admin API
 export const getAdminUsers = async () => {
-    const response = await fetch(`${API_URL}/api/admin/users`, {
+    const response = await fetch(`${API_URL}/api/users/admin`, {
         headers: getAuthHeaders()
     });
     return handleResponse(response);
 };
 
 export const deleteUserAccount = async (id) => {
-    const response = await fetch(`${API_URL}/api/admin/users/${id}`, {
+    const response = await fetch(`${API_URL}/api/users/admin/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+// Majors API
+export const getMajors = async () => {
+    const response = await fetch(`${API_URL}/api/majors`, {
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+export const addMajor = async (name) => {
+    const response = await fetch(`${API_URL}/api/majors`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name })
+    });
+    return handleResponse(response);
+};
+
+export const deleteMajor = async (id) => {
+    const response = await fetch(`${API_URL}/api/majors/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
     });
@@ -399,6 +428,15 @@ export const deleteAnnouncement = async (id) => {
     const response = await fetch(`${API_URL}/api/announcements/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
+export const notifyGroups = async ({ groups, topicIds }) => {
+    const response = await fetch(`${API_URL}/api/announcements/notify-groups`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ groups, topicIds })
     });
     return handleResponse(response);
 };

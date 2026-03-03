@@ -1,8 +1,8 @@
 // client/src/pages/Questions.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getQuestionSets, addQuestionSet, deleteQuestionSet, deleteAllQuestionSets, updateQuestionSet, getMentors, shareQuestionSet, getUserProfile } from '../api';
-import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw, FileText, Upload, Edit3, ArrowLeft, Share2 } from 'lucide-react';
+import { getQuestionSets, addQuestionSet, deleteQuestionSet, deleteAllQuestionSets, updateQuestionSet, getMentors, shareQuestionSet, getUserProfile, getMajors } from '../api';
+import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw, FileText, Upload, Edit3, ArrowLeft, Share2, Folder, ChevronRight } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import * as mammoth from 'mammoth';
@@ -12,9 +12,11 @@ export default function Questions() {
     const location = useLocation();
     const [questionSets, setQuestionSets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedMajorView, setSelectedMajorView] = useState(null);
     const [error, setError] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
     const [mentors, setMentors] = useState([]);
+    const [majors, setMajors] = useState([]);
 
     // Share modal state
     const [showShareModal, setShowShareModal] = useState(false);
@@ -59,16 +61,21 @@ export default function Questions() {
         setLoading(true);
         setError(null);
         try {
-            const data = await getQuestionSets();
+            const [data, majorsData] = await Promise.all([
+                getQuestionSets(),
+                getMajors()
+            ]);
+
             if (Array.isArray(data)) {
                 setQuestionSets(data);
             } else {
                 console.error('API returned non-array data:', data);
                 setQuestionSets([]);
             }
+            setMajors(majorsData);
             setLoading(false);
         } catch (err) {
-            console.error('Error fetching question sets:', err);
+            console.error('Error fetching question sets or majors:', err);
             setError(err.message || 'Failed to fetch question sets. Please check your connection.');
             setLoading(false);
         }
@@ -99,12 +106,12 @@ export default function Questions() {
 
         try {
             if (editingId) {
-                const updated = await updateQuestionSet(editingId, { topic, questions: validQs });
+                const updated = await updateQuestionSet(editingId, { topic, questions: validQs, major: selectedMajorView || 'General' });
                 setQuestionSets(questionSets.map(s => s.id === editingId ? updated : s));
                 toast.success("Question set updated successfully!");
                 cancelEdit();
             } else {
-                const newSet = await addQuestionSet({ topic, questions: validQs });
+                const newSet = await addQuestionSet({ topic, questions: validQs, major: selectedMajorView || 'General' });
                 setQuestionSets([newSet, ...questionSets]);
                 setTopic('');
                 setQuestions(['']);
@@ -204,7 +211,8 @@ export default function Questions() {
                     // Create directly in database like student importation
                     const newSet = await addQuestionSet({
                         topic: fileName,
-                        questions: cleanedQuestions
+                        questions: cleanedQuestions,
+                        major: selectedMajorView || 'General'
                     });
 
                     setQuestionSets([newSet, ...questionSets]);
@@ -242,174 +250,235 @@ export default function Questions() {
         </div>
     );
 
+    // Calculate sets per major
+    const setsByMajor = questionSets.reduce((acc, set) => {
+        const m = set.major || 'General';
+        if (!acc[m]) acc[m] = [];
+        acc[m].push(set);
+        return acc;
+    }, {});
+
+    // Only add 'General' if there are sets for it
+    const displayMajors = majors.map(m => m.name);
+    if (setsByMajor['General']?.length > 0 && !displayMajors.includes('General')) {
+        displayMajors.push('General');
+    }
+
+    const visibleSets = selectedMajorView ? questionSets.filter(s => (s.major || 'General') === selectedMajorView) : [];
+
     return (
         <div className="questions-container">
             <div className="flex-between" style={{ marginBottom: '2rem' }}>
                 <div>
                     <button
-                        onClick={() => navigate('/', fromSessionCreation ? { state: { returnToSessionCreation: true } } : undefined)}
+                        onClick={() => {
+                            if (selectedMajorView) {
+                                setSelectedMajorView(null);
+                                cancelEdit();
+                            } else {
+                                navigate('/', fromSessionCreation ? { state: { returnToSessionCreation: true } } : undefined);
+                            }
+                        }}
                         className="btn-outline"
                         style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', border: 'none', padding: 0 }}
                     >
                         <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} />
-                        {fromSessionCreation ? 'Back to Session' : 'Back to Dashboard'}
+                        {selectedMajorView ? 'Back to Majors' : (fromSessionCreation ? 'Back to Session' : 'Back to Dashboard')}
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <HelpCircle size={32} color="var(--color-primary)" />
-                        <h1>Question Bank</h1>
+                        <h1>{selectedMajorView ? `${selectedMajorView} Questions` : 'Question Bank'}</h1>
                     </div>
                 </div>
             </div>
 
-            <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid var(--color-primary)', background: editingId ? 'rgba(var(--color-primary-rgb), 0.05)' : 'var(--bg-card)' }}>
-                <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ margin: 0 }}>{editingId ? 'Edit Question Set' : 'Create New Question Set'}</h3>
-                    {editingId && (
-                        <button onClick={cancelEdit} className="btn btn-outline" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>
-                            Cancel Edit
-                        </button>
-                    )}
-                </div>
-                <form onSubmit={handleAddSet}>
-                    <div className="input-group">
-                        <label>Topic Name (e.g. Arrays, Recursion, Git)</label>
-                        <input
-                            className="input-control"
-                            value={topic}
-                            onChange={e => setTopic(e.target.value)}
-                            placeholder="Enter topic..."
-                            required
-                        />
-                    </div>
-
-                    <div className="input-group">
-                        <label>Questions</label>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {questions.map((q, idx) => (
-                                <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <input
-                                        className="input-control"
-                                        value={q}
-                                        onChange={e => handleQuestionChange(idx, e.target.value)}
-                                        placeholder={`Question ${idx + 1}`}
-                                        style={{ marginBottom: 0 }}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveQuestionRow(idx)}
-                                        className="btn-icon"
-                                        style={{ color: '#f44336' }}
-                                    >
-                                        <X size={18} />
-                                    </button>
+            {!selectedMajorView ? (
+                // --- VIEW 1: MAJOR FOLDERS ---
+                <>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Select a major to view or create question sets.</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                        {displayMajors.map(major => {
+                            const count = setsByMajor[major]?.length || 0;
+                            return (
+                                <div
+                                    key={major}
+                                    className="card"
+                                    onClick={() => setSelectedMajorView(major)}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', transition: 'all 0.2s', padding: '1.5rem' }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.75rem', borderRadius: '12px', color: 'var(--color-primary)' }}>
+                                            <Folder size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)' }}>{major}</h3>
+                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                {count} {count === 1 ? 'set' : 'sets'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={20} color="var(--text-secondary)" opacity={0.5} />
                                 </div>
-                            ))}
-                        </div>
-                        <button
-                            type="button"
-                            className="btn btn-outline"
-                            onClick={handleAddQuestionRow}
-                            style={{ marginTop: '0.75rem', width: '100%', fontSize: '0.85rem' }}
-                        >
-                            <Plus size={16} style={{ marginRight: '0.5rem' }} /> Add Another Question
-                        </button>
+                            );
+                        })}
                     </div>
-
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', height: '45px' }}>
-                        {editingId ? 'Update Question Set' : 'Save Question Set'}
-                    </button>
-
-                    <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                        <input
-                            type="file"
-                            id="word-upload"
-                            accept=".docx"
-                            style={{ display: 'none' }}
-                            onChange={handleWordUpload}
-                        />
-                        <label htmlFor="word-upload" className="btn btn-outline flex-center" style={{ width: '100%', cursor: 'pointer', gap: '0.5rem' }}>
-                            <FileText size={18} /> Import from Word (.docx)
-                        </label>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.5rem' }}>
-                            Format: Numbered list (1. Question, 2. Question...)
-                        </p>
-                    </div>
-                </form>
-            </div>
-
-            <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                <h2 style={{ margin: 0 }}>Available Topics</h2>
-                {questionSets.length > 0 && (
-                    <button
-                        onClick={handleDeleteAll}
-                        className="btn btn-outline flex-center"
-                        style={{ color: '#f44336', borderColor: '#f44336', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-                    >
-                        <Trash2 size={16} style={{ marginRight: '0.4rem' }} /> Delete All Topics
-                    </button>
-                )}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
-                {questionSets.map(set => (
-                    <div key={set.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                        <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'flex-start' }}>
-                            <h3 style={{ margin: 0, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', flex: 1 }}>
-                                <BookOpen size={20} /> {set.topic}
-                            </h3>
-                            <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                {(!currentUser || set.mentorId === currentUser.id) && (
-                                    <>
-                                        <button
-                                            onClick={() => startShare(set)}
-                                            className="btn-icon"
-                                            style={{ color: '#2196f3', padding: '5px' }}
-                                            title="Share Set"
-                                        >
-                                            <Share2 size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => startEdit(set)}
-                                            className="btn-icon"
-                                            style={{ color: 'var(--text-secondary)', padding: '5px' }}
-                                            title="Edit Set"
-                                        >
-                                            <Edit3 size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteSet(set.id)}
-                                            className="btn-icon"
-                                            style={{ color: '#f44336', padding: '5px' }}
-                                            title="Delete Set"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            {set.questions && Array.isArray(set.questions) ? (
-                                <ul style={{ paddingLeft: '1.2rem', margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                                    {set.questions.map((q, idx) => (
-                                        <li key={q.id || idx} style={{ marginBottom: '0.5rem' }}>{q.text || q}</li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>No questions in this set.</p>
+                </>
+            ) : (
+                // --- VIEW 2: QUESTION SETS FOR SELECTED MAJOR ---
+                <>
+                    <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid var(--color-primary)', background: editingId ? 'rgba(var(--color-primary-rgb), 0.05)' : 'var(--bg-card)' }}>
+                        <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                            <h3 style={{ margin: 0 }}>{editingId ? 'Edit Question Set' : 'Create New Question Set'}</h3>
+                            {editingId && (
+                                <button onClick={cancelEdit} className="btn btn-outline" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>
+                                    Cancel Edit
+                                </button>
                             )}
                         </div>
-                        <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{set.questions?.length || 0} questions</span>
-                            <span>{set.createdAt ? new Date(set.createdAt).toLocaleDateString() : ''}</span>
-                        </div>
+                        <form onSubmit={handleAddSet}>
+                            <div className="input-group">
+                                <label>Topic Name (e.g. Arrays, Recursion, Git)</label>
+                                <input
+                                    className="input-control"
+                                    value={topic}
+                                    onChange={e => setTopic(e.target.value)}
+                                    placeholder="Enter topic..."
+                                    required
+                                />
+                            </div>
+
+                            <div className="input-group">
+                                <label>Questions</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {questions.map((q, idx) => (
+                                        <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <input
+                                                className="input-control"
+                                                value={q}
+                                                onChange={e => handleQuestionChange(idx, e.target.value)}
+                                                placeholder={`Question ${idx + 1}`}
+                                                style={{ marginBottom: 0 }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveQuestionRow(idx)}
+                                                className="btn-icon"
+                                                style={{ color: '#f44336' }}
+                                            >
+                                                <X size={18} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={handleAddQuestionRow}
+                                    style={{ marginTop: '0.75rem', width: '100%', fontSize: '0.85rem' }}
+                                >
+                                    <Plus size={16} style={{ marginRight: '0.5rem' }} /> Add Another Question
+                                </button>
+                            </div>
+
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', height: '45px' }}>
+                                {editingId ? 'Update Question Set' : 'Save Question Set'}
+                            </button>
+
+                            <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                                <input
+                                    type="file"
+                                    id="word-upload"
+                                    accept=".docx"
+                                    style={{ display: 'none' }}
+                                    onChange={handleWordUpload}
+                                />
+                                <label htmlFor="word-upload" className="btn btn-outline flex-center" style={{ width: '100%', cursor: 'pointer', gap: '0.5rem' }}>
+                                    <FileText size={18} /> Import from Word (.docx)
+                                </label>
+                                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.5rem' }}>
+                                    Format: Numbered list (1. Question, 2. Question...)
+                                </p>
+                            </div>
+                        </form>
                     </div>
-                ))}
-            </div>
-            {questionSets.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-card)', borderRadius: '12px', border: '2px dashed var(--border-color)', color: 'var(--text-secondary)' }}>
-                    <HelpCircle size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                    <p>No question sets yet. Create your first one above!</p>
-                </div>
+
+                    <div className="flex-between" style={{ marginBottom: '1rem' }}>
+                        <h2 style={{ margin: 0 }}>Available Topics</h2>
+                        {questionSets.length > 0 && (
+                            <button
+                                onClick={handleDeleteAll}
+                                className="btn btn-outline flex-center"
+                                style={{ color: '#f44336', borderColor: '#f44336', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                            >
+                                <Trash2 size={16} style={{ marginRight: '0.4rem' }} /> Delete All Topics
+                            </button>
+                        )}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+                        {visibleSets.map(set => (
+                            <div key={set.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'flex-start' }}>
+                                    <h3 style={{ margin: 0, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', flex: 1 }}>
+                                        <BookOpen size={20} /> {set.topic}
+                                    </h3>
+                                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        {(!currentUser || set.mentorId === currentUser.id) && (
+                                            <>
+                                                <button
+                                                    onClick={() => startShare(set)}
+                                                    className="btn-icon"
+                                                    style={{ color: '#2196f3', padding: '5px' }}
+                                                    title="Share Set"
+                                                >
+                                                    <Share2 size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => startEdit(set)}
+                                                    className="btn-icon"
+                                                    style={{ color: 'var(--text-secondary)', padding: '5px' }}
+                                                    title="Edit Set"
+                                                >
+                                                    <Edit3 size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteSet(set.id)}
+                                                    className="btn-icon"
+                                                    style={{ color: '#f44336', padding: '5px' }}
+                                                    title="Delete Set"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    {set.questions && Array.isArray(set.questions) ? (
+                                        <ul style={{ paddingLeft: '1.2rem', margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                                            {set.questions.map((q, idx) => (
+                                                <li key={q.id || idx} style={{ marginBottom: '0.5rem' }}>{q.text || q}</li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>No questions in this set.</p>
+                                    )}
+                                </div>
+                                <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>{set.questions?.length || 0} questions</span>
+                                    <span>{set.createdAt ? new Date(set.createdAt).toLocaleDateString() : ''}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {visibleSets.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-card)', borderRadius: '12px', border: '2px dashed var(--border-color)', color: 'var(--text-secondary)' }}>
+                            <HelpCircle size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                            <p>No question sets for {selectedMajorView} yet. Create your first one above!</p>
+                        </div>
+                    )}
+                </>
             )}
 
             {showShareModal && sharingSet && (

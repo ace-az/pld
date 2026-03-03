@@ -17,11 +17,11 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        const { topic, questions } = req.body;
+        const { topic, questions, major } = req.body;
         if (!topic || !questions || !Array.isArray(questions)) {
             return res.status(400).json({ error: 'Topic and questions array are required' });
         }
-        const set = await questionModel.addQuestionSet(req.user.id, topic, questions);
+        const set = await questionModel.addQuestionSet(req.user.id, topic, questions, major);
         res.json(set);
     } catch (err) {
         res.status(500).json({ error: err.message });

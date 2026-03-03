@@ -2,11 +2,11 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { registerUser, sendVerificationCode, verifyDiscordCode } from '../api';
+import { registerUser, sendVerificationCode, verifyDiscordCode, getMajors } from '../api';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function Register() {
-    const [formData, setFormData] = useState({ username: '', password: '', discordId: '' });
+    const [formData, setFormData] = useState({ username: '', password: '', discordId: '', major: '' });
     const [showPassword, setShowPassword] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -16,6 +16,19 @@ export default function Register() {
     const [codeSent, setCodeSent] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [majors, setMajors] = useState([]);
+
+    useEffect(() => {
+        const fetchMajors = async () => {
+            try {
+                const data = await getMajors();
+                setMajors(data);
+            } catch (err) {
+                console.error("Failed to load majors", err);
+            }
+        };
+        fetchMajors();
+    }, []);
 
     const handleSendCode = async () => {
         if (!formData.discordId) {
@@ -185,6 +198,22 @@ export default function Register() {
                         {verificationStatus}
                     </div>
                 )}
+
+                <div className="input-group">
+                    <label>Major</label>
+                    <select
+                        className="input-control"
+                        value={formData.major}
+                        onChange={(e) => setFormData({ ...formData, major: e.target.value })}
+                        required
+                        style={{ cursor: 'pointer' }}
+                    >
+                        <option value="">Select your major…</option>
+                        {majors.map(m => (
+                            <option key={m.id} value={m.name}>{m.name}</option>
+                        ))}
+                    </select>
+                </div>
 
                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Register</button>
                 <div style={{ marginTop: '1rem', textAlign: 'center' }}>

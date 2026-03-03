@@ -2,10 +2,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Plus, Users, ArrowRight, Trash2, Calendar, MoreHorizontal, FileText, X, Upload, Clock, HelpCircle } from 'lucide-react';
+import { Plus, Users, ArrowRight, Trash2, Calendar, MoreHorizontal, FileText, X, Upload, Clock, HelpCircle, Shuffle } from 'lucide-react';
 import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets, deleteAllSessions } from '../api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import RandomSessionModal from '../components/RandomSessionModal';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -20,6 +21,7 @@ export default function Dashboard() {
     const [masterStudents, setMasterStudents] = useState([]);
     const [questionSets, setQuestionSets] = useState([]);
     const [showCreate, setShowCreate] = useState(false);
+    const [showRandom, setShowRandom] = useState(false);
 
     // New Session Form State
     const [groupName, setGroupName] = useState('');
@@ -451,13 +453,23 @@ export default function Dashboard() {
                             <span className="welcome-label">Dashboard</span>
                             <h1 className="welcome-title">Welcome</h1>
                             <p className="welcome-subtitle">{user?.username || 'Mentor'}</p>
-                            <button
-                                className="btn-new-pld-welcome"
-                                onClick={() => setShowCreate(true)}
-                            >
-                                <Plus size={18} />
-                                New PLD Session
-                            </button>
+                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                <button
+                                    className="btn-new-pld-welcome"
+                                    onClick={() => setShowCreate(true)}
+                                >
+                                    <Plus size={18} />
+                                    New PLD Session
+                                </button>
+                                <button
+                                    className="btn-new-pld-welcome"
+                                    style={{ background: 'rgba(99,102,241,0.35)' }}
+                                    onClick={() => setShowRandom(true)}
+                                >
+                                    <Shuffle size={18} />
+                                    Create Random
+                                </button>
+                            </div>
                         </div>
 
                         {/* Performance Overview Card */}
@@ -678,6 +690,11 @@ export default function Dashboard() {
                     </div>
                 </>
             )}
+            {/* Random Session Modal */}
+            {showRandom && (
+                <RandomSessionModal onClose={() => setShowRandom(false)} />
+            )}
+
 
         </div>
     );

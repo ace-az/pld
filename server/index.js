@@ -87,6 +87,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/announcements', require('./routes/announcements'));
+app.use('/api/majors', require('./routes/majors'));
 
 
 app.get('/', (req, res) => {

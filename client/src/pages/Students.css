@@ -223,3 +223,39 @@
         padding-top: 1rem;
     }
 }
+
+/* ── Discord Verified toggle ── */
+.btn-verify {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    border: 1.5px solid;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: transparent;
+}
+
+.btn-verify.verified {
+    border-color: #10b981;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.btn-verify.verified:hover {
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.btn-verify.unverified {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-verify.unverified:hover {
+    border-color: #10b981;
+    color: #10b981;
+}

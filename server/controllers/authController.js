@@ -49,6 +49,20 @@ exports.register = async (req, res) => {
         // We pass 'role' here which is now auto-detected
         const user = await createUser(username, hashedPassword, discordId, role, major);
 
+        // Auto-verify: mark the student as discord_verified in the students table
+        // (in case mentor already added them — they proved they exist by registering)
+        if (discordId && role === 'student') {
+            try {
+                const { supabase } = require('../models/db');
+                await supabase
+                    .from('students')
+                    .update({ discord_verified: true })
+                    .ilike('discord', discordId);
+            } catch (e) {
+                console.warn('[Register] Could not auto-verify student record:', e.message);
+            }
+        }
+
         const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, getJwtSecret(), { expiresIn: '7d' });
         res.json({
             token,
@@ -258,6 +272,19 @@ exports.discordCallback = async (req, res) => {
         } else {
             // Optional: Update their role dynamically every time they log in if they got promoted/demoted
             // We'd need an `updateUserRole` in model.
+        }
+
+        // Auto-verify in students table: they logged in via Discord → they're in the server
+        if (role === 'student' && discordUsername) {
+            try {
+                const { supabase } = require('../models/db');
+                await supabase
+                    .from('students')
+                    .update({ discord_verified: true })
+                    .ilike('discord', discordUsername);
+            } catch (e) {
+                console.warn('[OAuth] Could not auto-verify student record:', e.message);
+            }
         }
 
         // 4. Generate JWT Token

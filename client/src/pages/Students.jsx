@@ -1,8 +1,8 @@
 // client/src/pages/Students.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents } from '../api';
-import { UserPlus, Trash2, Edit2, Check, X, Upload, Download, ArrowLeft } from 'lucide-react';
+import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents, getMajors } from '../api';
+import { UserPlus, Trash2, Edit2, Check, X, Upload, Download, ArrowLeft, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import './Students.css';
@@ -10,6 +10,7 @@ import './Students.css';
 export default function Students() {
     const navigate = useNavigate();
     const [students, setStudents] = useState([]);
+    const [majors, setMajors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -31,11 +32,15 @@ export default function Students() {
 
     const fetchStudents = async () => {
         try {
-            const data = await getMasterStudents();
-            setStudents(data);
+            const [studentsData, majorsData] = await Promise.all([
+                getMasterStudents(),
+                getMajors()
+            ]);
+            setStudents(studentsData);
+            setMajors(majorsData);
             setLoading(false);
         } catch (err) {
-            setError('Failed to fetch students');
+            setError('Failed to fetch data');
             setLoading(false);
         }
     };
@@ -94,6 +99,15 @@ export default function Students() {
             cancelEdit();
         } catch (err) {
             toast.error('Error updating student');
+        }
+    };
+
+    const handleToggleVerified = async (student) => {
+        try {
+            const updated = await updateMasterStudent(student.id, { discord_verified: !student.discord_verified });
+            setStudents(students.map(s => s.id === student.id ? updated : s));
+        } catch (err) {
+            toast.error('Error updating verified status');
         }
     };
 
@@ -240,12 +254,15 @@ export default function Students() {
                     </div>
                     <div className="input-group no-margin">
                         <label>Major</label>
-                        <input
+                        <select
                             className="input-control"
                             value={major}
                             onChange={e => setMajor(e.target.value)}
-                            placeholder="e.g. Computer Science"
-                        />
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <option value="">Select major…</option>
+                            {majors.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
+                        </select>
                     </div>
                     <button type="submit" className="btn btn-primary add-student-btn">
                         <UserPlus size={20} className="user-icon" />
@@ -273,6 +290,7 @@ export default function Students() {
                                 <th>Name</th>
                                 <th>Discord</th>
                                 <th>Major</th>
+                                <th>Verified</th>
                                 <th className="text-right">Actions</th>
                             </tr>
                         </thead>
@@ -313,6 +331,17 @@ export default function Students() {
                                                 {student.major || 'N/A'}
                                             </span>
                                         )}
+                                    </td>
+                                    <td data-label="Verified">
+                                        <button
+                                            className={`btn-verify ${student.discord_verified ? 'verified' : 'unverified'}`}
+                                            onClick={() => handleToggleVerified(student)}
+                                            title={student.discord_verified ? 'Verified — click to unverify' : 'Not verified — click to verify'}
+                                        >
+                                            {student.discord_verified
+                                                ? <><ShieldCheck size={15} /> Verified</>
+                                                : <><ShieldOff size={15} /> Unverified</>}
+                                        </button>
                                     </td>
                                     <td data-label="Actions" className="text-right">
                                         {editingId === student.id ? (

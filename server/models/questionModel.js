@@ -8,12 +8,13 @@ async function getQuestionSets(mentorId) {
     return data || [];
 }
 
-async function addQuestionSet(mentorId, topic, questions) {
+async function addQuestionSet(mentorId, topic, questions, major) {
     // questions should be an array of strings
     const questionSet = {
         id: uuidv4(),
         mentorId,
         topic,
+        major: major || 'General',
         questions: questions.map(q => ({ id: uuidv4(), text: q })),
         createdAt: new Date().toISOString()
     };
@@ -27,9 +28,10 @@ async function addQuestionSet(mentorId, topic, questions) {
 }
 
 async function updateQuestionSet(id, updateData) {
-    // updateData might contain topic and/or questions (array of strings)
+    // updateData might contain topic, major and/or questions (array of strings)
     const payload = {};
     if (updateData.topic) payload.topic = updateData.topic;
+    if (updateData.major !== undefined) payload.major = updateData.major || 'General';
     if (updateData.questions) {
         payload.questions = updateData.questions.map(q => ({ id: uuidv4(), text: q }));
     }

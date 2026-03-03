@@ -7,6 +7,7 @@ import { generateFeedback } from '../services/aiService';
 import { getSession, saveStudentNotes, saveStudentResult, saveStudentGrade, saveStudentQuestions, endSession, sendToDiscord, sendAllToDiscord, toggleStudentStatus } from '../api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import './SessionRun.css';
 
 export default function SessionRun() {
     const { id } = useParams();
@@ -430,7 +431,7 @@ export default function SessionRun() {
 
     return (
         <div>
-            <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
+            <div className="session-header-row">
                 <div>
                     <button onClick={() => navigate('/')} className="btn-outline" style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', border: 'none', padding: 0 }}>
                         <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} /> Back to Dashboard
@@ -463,7 +464,7 @@ export default function SessionRun() {
                         )}
                     </div>
                 </div>
-                <div className="flex-center" style={{ gap: '1rem' }}>
+                <div className="session-header-buttons">
                     {session.questions && session.questions.length > 0 && (
                         <button
                             onClick={() => setShowQuestions(!showQuestions)}
@@ -509,7 +510,7 @@ export default function SessionRun() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: (session.questions && session.questions.length > 0 && showQuestions) ? '1fr 320px' : '1fr', gap: '2rem', transition: 'all 0.3s ease' }}>
+            <div className={`session-grid ${session.questions && session.questions.length > 0 && showQuestions ? 'has-sidebar' : ''}`}>
                 <div className="card" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column' }}>
                     <div className="flex-between" style={{ marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
                         <button onClick={handlePrev} disabled={currentIndex === 0} className="btn-icon" style={{ padding: '10px', opacity: currentIndex === 0 ? 0.3 : 1 }}>
@@ -527,8 +528,8 @@ export default function SessionRun() {
                         </button>
                     </div>
 
-                    <div style={{ flex: 1, display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                        <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="session-inner-grid">
+                        <div className="session-col">
                             <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
                                 <label style={{ fontWeight: '600' }}>Mentor Notes</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -627,7 +628,7 @@ export default function SessionRun() {
                         </div>
 
                         {/* Result View */}
-                        <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column' }}>
+                        <div className="session-col">
                             <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
                                 <label style={{ fontWeight: '600' }}>AI Evaluation Result</label>
                                 {results[currentStudent.id] && (
