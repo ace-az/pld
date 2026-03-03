@@ -19,8 +19,8 @@
   margin-left: 0;
 }
 
-/* Sidebar hover zamanı content shift */
-.sidebar:hover~.layout-content {
+/* Sidebar toggle zamanı content shift */
+.sidebar.expanded~.layout-content {
   margin-left: 250px;
   /* matching new sidebar hover width */
 }
@@ -143,7 +143,7 @@
     margin-left: 0;
   }
 
-  .sidebar:hover~.layout-content {
+  .sidebar.expanded~.layout-content {
     margin-left: 0;
   }
 

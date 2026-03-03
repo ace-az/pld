@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Users, Calendar, History, HelpCircle, MessageSquare, Trophy, LogOut, LayoutDashboard, Brain, FileText } from "lucide-react";
+import { Users, Calendar, History, HelpCircle, MessageSquare, Trophy, LogOut, LayoutDashboard, Brain, FileText, Menu } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import "./Sidebar.css";
 
@@ -16,6 +16,7 @@ const menuItems = [
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -47,13 +48,24 @@ export default function Sidebar({ isOpen, onClose }) {
         className={`sidebar-overlay ${isOpen ? 'active' : ''}`}
         onClick={onClose}
       />
-      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${isOpen ? 'open' : ''} ${isExpanded ? 'expanded' : ''}`}>
         <div className="sidebar-top">
+          <button
+            className="sidebar-toggle-btn"
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-label="Toggle Sidebar"
+          >
+            <Menu size={20} />
+          </button>
           <div className="logo-container">
             {user?.avatar ? (
               <img src={user.avatar} alt="Avatar" className="sidebar-avatar" />
             ) : (
-              <span style={{ color: "white", fontWeight: "900", fontSize: "1.2rem" }}>P</span>
+              <img
+                src={`https://ui-avatars.com/api/?name=${user?.username || 'PLD'}&background=ef4444&color=fff&rounded=true&bold=true`}
+                alt="Avatar"
+                className="sidebar-avatar"
+              />
             )}
           </div>
           <span className="logo-text">{isStudent ? 'PLD Student' : 'PLD Mentor'}</span>

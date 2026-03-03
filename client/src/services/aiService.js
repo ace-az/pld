@@ -202,7 +202,7 @@ export async function chatWithTutor(sessionId, studentId, message, mentorReport,
         prompt += `\n\nStudent Message: ${message}`;
         await saveMessageToBackend(sessionId, studentId, 'user', message);
 
-        const response = await window.puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
+        const response = await window.puter.ai.chat(prompt, { model: 'gpt-4o' });
         const aiText = response.message.content;
 
         await saveMessageToBackend(sessionId, studentId, 'model', aiText);
