@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents } from '../api';
 import { UserPlus, Trash2, Edit2, Check, X, Upload, ArrowLeft } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import './Students.css';
 
 export default function Students() {
@@ -20,6 +22,8 @@ export default function Students() {
     const [editDiscord, setEditDiscord] = useState('');
     const [editMajor, setEditMajor] = useState('');
     const [importing, setImporting] = useState(false);
+    const toast = useToast();
+    const { confirm } = useConfirm();
 
     useEffect(() => {
         fetchStudents();
@@ -41,7 +45,7 @@ export default function Students() {
         try {
             const studentExists = students.some(s => s.discord && s.discord.toLowerCase() === discord.trim().toLowerCase());
             if (studentExists) {
-                alert('A student with this Discord account already exists.');
+                toast.error('A student with this Discord account already exists.');
                 return;
             }
 
@@ -54,17 +58,18 @@ export default function Students() {
             setDiscord('');
             setMajor('');
         } catch (err) {
-            alert('Error adding student');
+            toast.error('Error adding student');
         }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this student?')) return;
+        const isConfirmed = await confirm('Are you sure you want to delete this student?');
+        if (!isConfirmed) return;
         try {
             await deleteMasterStudent(id);
             setStudents(students.filter(s => s.id !== id));
         } catch (err) {
-            alert('Error deleting student');
+            toast.error('Error deleting student');
         }
     };
 
@@ -88,19 +93,20 @@ export default function Students() {
             setStudents(students.map(s => s.id === id ? updated : s));
             cancelEdit();
         } catch (err) {
-            alert('Error updating student');
+            toast.error('Error updating student');
         }
     };
 
     const handleDeleteAll = async () => {
-        if (!window.confirm("CAUTION: Are you sure you want to delete ALL students? This action is permanent and cannot be undone.")) return;
+        const isConfirmed = await confirm("CAUTION: Are you sure you want to delete ALL students? This action is permanent and cannot be undone.");
+        if (!isConfirmed) return;
 
         try {
             await deleteAllMasterStudents();
             setStudents([]);
         } catch (err) {
             console.error('Error deleting all students:', err);
-            alert("Error deleting students");
+            toast.error("Error deleting students");
         }
     };
 
@@ -144,13 +150,13 @@ export default function Students() {
                 if (newStudents.length > 0) {
                     const created = await bulkAddMasterStudents(newStudents);
                     setStudents(prev => [...prev, ...created]);
-                    alert(`Successfully imported ${created.length} students!`);
+                    toast.success(`Successfully imported ${created.length} students!`);
                 } else {
-                    alert('No new student data found (duplicates are hidden).');
+                    toast.info('No new student data found (duplicates are hidden).');
                 }
             } catch (err) {
                 console.error('Import error:', err);
-                alert('Failed to parse or import CSV file.');
+                toast.error('Failed to parse or import CSV file.');
             } finally {
                 setImporting(false);
                 e.target.value = ''; // Reset input

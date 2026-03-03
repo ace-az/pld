@@ -4,10 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Plus, Users, ArrowRight, Trash2, Calendar, MoreHorizontal, FileText, X, Upload, Clock, HelpCircle } from 'lucide-react';
 import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets, deleteAllSessions } from '../api';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import './Dashboard.css';
 
 export default function Dashboard() {
     const { user } = useAuth();
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -79,7 +83,7 @@ export default function Dashboard() {
             if (Array.isArray(setsData)) setQuestionSets(setsData);
         } catch (err) {
             console.error('Fetch master data failed:', err);
-            alert("Failed to load students or question sets. Please refresh.");
+            toast.error("Failed to load students or question sets. Please refresh.");
         }
     };
 
@@ -144,12 +148,12 @@ export default function Dashboard() {
         const isFuture = scheduledDate > todayStr;
 
         if (!groupName || !topicIds.length) {
-            return alert("Select Group Name and at least one topic first");
+            return toast.error("Select Group Name and at least one topic first");
         }
 
         const validStudents = students.filter(s => s.name.trim() && s.discord.trim());
         if (!isFuture && !validStudents.length) {
-            return alert("Add at least one student for today's session");
+            return toast.error("Add at least one student for today's session");
         }
 
         try {
@@ -173,11 +177,11 @@ export default function Dashboard() {
             if (!isFuture) {
                 navigate(`/session/${newSession.id}`);
             } else {
-                alert("Future session scheduled successfully!");
+                toast.success("Future session scheduled successfully!");
             }
         } catch (err) {
             console.error('Create session failed:', err);
-            alert(err.message || "Failed to create session");
+            toast.error(err.message || "Failed to create session");
         }
     };
 
@@ -206,28 +210,30 @@ export default function Dashboard() {
                 }
                 if (newStudents.length) {
                     setStudents(newStudents);
-                    alert(`Loaded ${newStudents.length} students`);
-                } else alert('No valid data found');
-            } catch (err) { alert('CSV parse error'); }
+                    toast.success(`Loaded ${newStudents.length} students`);
+                } else toast.error('No valid data found');
+            } catch (err) { toast.error('CSV parse error'); }
             finally { e.target.value = ''; }
         };
         reader.readAsText(file);
     };
 
     const handleDeleteSession = async id => {
-        if (!window.confirm("Delete this session?")) return;
+        const isConfirmed = await confirm("Delete this session?");
+        if (!isConfirmed) return;
         try {
             await deleteSession(id);
             setSessions(sessions.filter(s => s.id !== id));
-        } catch (err) { alert("Error deleting session"); }
+        } catch (err) { toast.error("Error deleting session"); }
     };
 
     const handleDeleteAllSessions = async () => {
-        if (!window.confirm("Delete all sessions?")) return;
+        const isConfirmed = await confirm("Delete all sessions?");
+        if (!isConfirmed) return;
         try {
             await deleteAllSessions();
             setSessions([]);
-        } catch (err) { alert("Error deleting sessions"); }
+        } catch (err) { toast.error("Error deleting sessions"); }
     };
 
     // Topic selection handler

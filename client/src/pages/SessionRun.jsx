@@ -5,10 +5,14 @@ import { ArrowLeft, ArrowRight, Save, Send, Download, Lightbulb, HelpCircle, Boo
 import jsPDF from 'jspdf';
 import { generateFeedback } from '../services/aiService';
 import { getSession, saveStudentNotes, saveStudentResult, saveStudentGrade, saveStudentQuestions, endSession, sendToDiscord, sendAllToDiscord, toggleStudentStatus } from '../api';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function SessionRun() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const [session, setSession] = useState(null);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [note, setNote] = useState('');
@@ -130,7 +134,7 @@ export default function SessionRun() {
             setResults(initialResults);
         } catch (err) {
             console.error('Error fetching session:', err);
-            alert("Error loading session. Please try again.");
+            toast.error("Error loading session. Please try again.");
             navigate('/');
         }
     };
@@ -183,7 +187,7 @@ export default function SessionRun() {
             // Visual feedback could be added here (toast)
         } catch (err) {
             console.error('Failed to save grade', err);
-            alert("Failed to save grade");
+            toast.error("Failed to save grade");
         }
     };
 
@@ -201,7 +205,8 @@ export default function SessionRun() {
 
     const handleGenerateReports = async () => {
         if (!session?.students) return;
-        if (!window.confirm("Generate AI reports for all students?")) return;
+        const isConfirmed = await confirm("Generate AI reports for all students?");
+        if (!isConfirmed) return;
 
         setGenerating(true);
         const newResults = { ...results };
@@ -224,29 +229,33 @@ export default function SessionRun() {
             // Removed auto-end session
             // await endSession(session.id); 
             fetchSession(); // Refresh status
-            alert("Reports generated!");
+            toast.success("Reports generated!");
         } catch (err) {
             console.error('Error generating feedback:', err);
-            alert("Failed to generate some reports. Please try again.");
+            toast.error("Failed to generate some reports. Please try again.");
         } finally {
             setGenerating(false);
         }
     };
 
     const handleFinishSession = async () => {
-        if (!window.confirm("Are you sure you want to finish this session? This will mark it as completed.")) return;
+        const isConfirmed = await confirm("Are you sure you want to finish this session? This will mark it as completed.");
+        if (!isConfirmed) return;
         try {
             await endSession(session.id);
             navigate('/');
         } catch (err) {
             console.error('Error finishing session:', err);
-            alert("Failed to finish session");
+            toast.error("Failed to finish session");
         }
     };
 
     const handleToggleAbsence = async (studentId, currentStatus) => {
         const newStatus = currentStatus === 'absent' ? 'present' : 'absent';
-        if (newStatus === 'absent' && !window.confirm("Mark this student as absent? A PTO notification will be queued to send when you click 'Send All to Discord'.")) return;
+        if (newStatus === 'absent') {
+            const isConfirmed = await confirm("Mark this student as absent? A PTO notification will be queued to send when you click 'Send All to Discord'.");
+            if (!isConfirmed) return;
+        }
 
         try {
             await toggleStudentStatus(session.id, studentId, newStatus);
@@ -259,7 +268,7 @@ export default function SessionRun() {
             });
         } catch (err) {
             console.error('Error toggling status:', err);
-            alert("Failed to update status");
+            toast.error("Failed to update status");
         }
     };
 
@@ -318,12 +327,13 @@ export default function SessionRun() {
         } catch (err) {
             console.error(err);
             setSentStatus(prev => ({ ...prev, [studentId]: false }));
-            alert("Failed to send message: " + (err.message || "Unknown error"));
+            toast.error("Failed to send message: " + (err.message || "Unknown error"));
         }
     };
 
     const handleSendAllToDiscord = async () => {
-        if (!window.confirm("Are you sure you want to send feedback to ALL students via Discord?")) return;
+        const isConfirmed = await confirm("Are you sure you want to send feedback to ALL students via Discord?");
+        if (!isConfirmed) return;
 
         setGenerating(true);
         try {
@@ -347,11 +357,11 @@ export default function SessionRun() {
                     }
                 });
                 setSentStatus(newStatuses);
-                alert(`Batch processing complete.\n\n✅ Reports Sent: ${sentCount}\nzzz Absent Notifications: ${absentCount}\n❌ Errors: ${errorCount}`);
+                toast.success(`Batch processing complete.\n\n✅ Reports Sent: ${sentCount}\nzzz Absent Notifications: ${absentCount}\n❌ Errors: ${errorCount}`);
             }
         } catch (err) {
             console.error(err);
-            alert("Failed to execute batch send.");
+            toast.error("Failed to execute batch send.");
         } finally {
             setGenerating(false);
         }

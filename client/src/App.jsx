@@ -16,6 +16,8 @@ import AIPractice from './pages/AIPractice';
 import AdminPanel from './pages/AdminPanel';
 import Calendar from './pages/Calendar';
 import Profile from './pages/Profile';
+import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import { useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -32,68 +34,72 @@ function MentorRoute({ children }) {
 
 export default function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/" element={
-          <MentorRoute>
-            <Dashboard />
-          </MentorRoute>
-        } />
-        <Route path="/session/:id" element={
-          <PrivateRoute>
-            <SessionRun />
-          </PrivateRoute>
-        } />
-        <Route path="/students" element={
-          <MentorRoute>
-            <Students />
-          </MentorRoute>
-        } />
-        <Route path="/questions" element={
-          <MentorRoute>
-            <Questions />
-          </MentorRoute>
-        } />
-        <Route path="/leaderboard" element={
-          <PrivateRoute>
-            <Leaderboard />
-          </PrivateRoute>
-        } />
-        <Route path="/history" element={
-          <MentorRoute>
-            <History />
-          </MentorRoute>
-        } />
-        <Route path="/calendar" element={
-          <PrivateRoute>
-            <Calendar />
-          </PrivateRoute>
-        } />
-        <Route path="/admin" element={<AdminPanel />} />
-        <Route path="/practice" element={
-          <PrivateRoute>
-            <AIPractice />
-          </PrivateRoute>
-        } />
-        <Route path="/student-dashboard" element={
-          <PrivateRoute>
-            <StudentDashboard />
-          </PrivateRoute>
-        } />
-        <Route path="/student-reports" element={
-          <PrivateRoute>
-            <StudentReportsPage />
-          </PrivateRoute>
-        } />
-        <Route path="/profile" element={
-          <PrivateRoute>
-            <Profile />
-          </PrivateRoute>
-        } />
-      </Routes>
-    </Layout>
+    <ToastProvider>
+      <ConfirmProvider>
+        <Layout>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/" element={
+              <MentorRoute>
+                <Dashboard />
+              </MentorRoute>
+            } />
+            <Route path="/session/:id" element={
+              <PrivateRoute>
+                <SessionRun />
+              </PrivateRoute>
+            } />
+            <Route path="/students" element={
+              <MentorRoute>
+                <Students />
+              </MentorRoute>
+            } />
+            <Route path="/questions" element={
+              <MentorRoute>
+                <Questions />
+              </MentorRoute>
+            } />
+            <Route path="/leaderboard" element={
+              <PrivateRoute>
+                <Leaderboard />
+              </PrivateRoute>
+            } />
+            <Route path="/history" element={
+              <MentorRoute>
+                <History />
+              </MentorRoute>
+            } />
+            <Route path="/calendar" element={
+              <PrivateRoute>
+                <Calendar />
+              </PrivateRoute>
+            } />
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/practice" element={
+              <PrivateRoute>
+                <AIPractice />
+              </PrivateRoute>
+            } />
+            <Route path="/student-dashboard" element={
+              <PrivateRoute>
+                <StudentDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/student-reports" element={
+              <PrivateRoute>
+                <StudentReportsPage />
+              </PrivateRoute>
+            } />
+            <Route path="/profile" element={
+              <PrivateRoute>
+                <Profile />
+              </PrivateRoute>
+            } />
+          </Routes>
+        </Layout>
+      </ConfirmProvider>
+    </ToastProvider>
   );
 }
 

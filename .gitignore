@@ -43,3 +43,4 @@ Thumbs.db
 # Optional: Ignore build directories if you build at root (usually inside client/server though)
 dist/
 build/
+.vercel

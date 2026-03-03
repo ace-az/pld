@@ -9,7 +9,6 @@
   flex-direction: column;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
   z-index: 1000;
-  overflow: hidden;
   box-shadow: var(--sidebar-shadow);
   border-right: 1px solid var(--sidebar-border);
 }
@@ -26,6 +25,7 @@
   gap: 12px;
   margin-bottom: 20px;
   border-bottom: 1px solid var(--sidebar-border);
+  overflow: hidden;
 }
 
 .sidebar-toggle-btn {
@@ -144,15 +144,38 @@
 }
 
 .text {
-  opacity: 0;
   font-size: 0.95rem;
-  transition: opacity 0.2s;
   pointer-events: none;
+  white-space: nowrap;
+  position: absolute;
+  opacity: 0;
 }
 
 .sidebar.expanded .text {
   opacity: 1;
+  position: static;
+  width: auto;
+  overflow: visible;
   pointer-events: auto;
+}
+
+/* Tooltip on hover when sidebar is collapsed */
+.sidebar:not(.expanded) .menu-item:hover .text,
+.sidebar:not(.expanded) .btn-logout:hover .text {
+  opacity: 1;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text-primary);
+  padding: 6px 14px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--sidebar-border);
+  font-size: 0.88rem;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 2000;
 }
 
 /* Active indicator tab */

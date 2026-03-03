@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAdminUsers, deleteUserAccount } from '../api';
 import { Shield, Trash2, User, Key, LogOut, ArrowLeft } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 const AdminPanel = () => {
     const navigate = useNavigate();
@@ -11,6 +13,8 @@ const AdminPanel = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const toast = useToast();
+    const { confirm } = useConfirm();
 
     const handleLogin = (e) => {
         e.preventDefault();
@@ -38,14 +42,15 @@ const AdminPanel = () => {
     };
 
     const handleDeleteUser = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this account? This action cannot be undone.')) return;
+        const isConfirmed = await confirm('Are you sure you want to delete this account? This action cannot be undone.');
+        if (!isConfirmed) return;
 
         try {
             await deleteUserAccount(id);
             setUsers(users.filter(u => u.id !== id));
         } catch (err) {
             console.error('Delete error:', err);
-            alert('Error deleting user: ' + err.message);
+            toast.error('Error deleting user: ' + err.message);
         }
     };
 

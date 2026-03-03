@@ -43,17 +43,18 @@ exports.updateProfile = async (req, res) => {
 exports.updateAvatar = async (req, res) => {
     try {
         const { avatar } = req.body;
-        console.log(`[ProfileController] Update avatar request for user: ${req.user.id}. Data length: ${avatar ? avatar.length : 0}`);
+        const avatarValue = avatar || null;
+        console.log(`[ProfileController] Update avatar request for user: ${req.user.id}. Data length: ${avatarValue ? avatarValue.length : 0}`);
 
         if (!req.user || !req.user.id) {
             console.error('[ProfileController] No user ID in request');
             return res.status(401).json({ error: 'User ID missing' });
         }
 
-        await updateUserProfile(req.user.id, { avatar });
+        await updateUserProfile(req.user.id, { avatar_url: avatarValue });
         console.log('[ProfileController] updateUserProfile completed');
 
-        res.json({ message: avatar ? 'Avatar updated successfully' : 'Avatar removed successfully' });
+        res.json({ message: avatarValue ? 'Avatar updated successfully' : 'Avatar removed successfully' });
     } catch (err) {
         console.error('[ProfileController] Update avatar error:', err);
         res.status(500).json({ error: err.message });

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Users, Calendar, History, HelpCircle, MessageSquare, Trophy, LogOut, LayoutDashboard, Brain, FileText, Menu } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useConfirm } from '../context/ConfirmContext';
 import "./Sidebar.css";
 
 const menuItems = [
@@ -19,6 +20,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { confirm } = useConfirm();
 
   const isStudent = user?.role === 'student';
 
@@ -33,11 +35,12 @@ export default function Sidebar({ isOpen, onClose }) {
     return location.pathname.startsWith(path);
   };
 
-  const handleExternalClick = (e, path, name) => {
+  const handleExternalClick = async (e, path, name) => {
     if (name === "Discord") {
-      const confirmLeave = window.confirm("Do you want to go to Discord?");
-      if (!confirmLeave) {
-        e.preventDefault();
+      e.preventDefault();
+      const confirmLeave = await confirm("Do you want to go to Discord?");
+      if (confirmLeave) {
+        window.open(path, "_blank");
       }
     }
   };

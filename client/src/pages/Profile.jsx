@@ -4,10 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getUserProfile, updateUserProfile, updateAvatar, changePassword } from '../api';
 import { User, Mail, Lock, Shield, Camera, Trash2, Save, X, Key, AlertCircle, CheckCircle2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { useConfirm } from '../context/ConfirmContext';
 import './Profile.css';
 
 export default function Profile() {
     const { user, login } = useAuth();
+    const { confirm } = useConfirm();
     const navigate = useNavigate();
     const [profileData, setProfileData] = useState({
         username: '',
@@ -39,7 +41,11 @@ export default function Profile() {
     const fetchProfile = async () => {
         try {
             const data = await getUserProfile();
-            setProfileData(data);
+            // Map avatar_url from DB to avatar used by the UI
+            setProfileData({
+                ...data,
+                avatar: data.avatar_url || data.avatar || ''
+            });
         } catch (err) {
             showAvatarMsg('error', err.message);
         } finally {
@@ -67,9 +73,13 @@ export default function Profile() {
         setSaving(true);
         try {
             const res = await updateUserProfile(profileData);
-            // Update local storage user data
+            // Update local storage user data, preserving avatar mapping
             const storedToken = localStorage.getItem('token');
-            login(storedToken, res.user);
+            const updatedUser = {
+                ...res.user,
+                avatar: res.user.avatar_url || res.user.avatar || ''
+            };
+            login(storedToken, updatedUser);
             showProfileMsg('success', 'Profile updated successfully!');
         } catch (err) {
             showProfileMsg('error', err.message);
@@ -127,10 +137,11 @@ export default function Profile() {
     };
 
     const handleDeleteAvatar = async () => {
-        if (!window.confirm('Delete your profile photo?')) return;
+        const isConfirmed = await confirm('Are you sure you want to delete your profile photo?');
+        if (!isConfirmed) return;
         try {
-            await updateAvatar('');
-            setProfileData(prev => ({ ...prev, avatar: '' }));
+            await updateAvatar(null);
+            setProfileData(prev => ({ ...prev, avatar: '', avatar_url: '' }));
 
             // Update local storage
             const storedToken = localStorage.getItem('token');

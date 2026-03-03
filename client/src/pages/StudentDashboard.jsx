@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { getSessions, getJoinableSessions, joinSession } from '../api';
 import { Calendar, BookOpen, Clock, ChevronRight, Award, Brain, ChevronDown, ChevronUp, CheckCircle, BookMarked } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 import './StudentDashboard.css';
 
 export default function StudentDashboard() {
@@ -13,6 +14,7 @@ export default function StudentDashboard() {
     const [joinableSessions, setJoinableSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState({});
+    const toast = useToast();
 
     useEffect(() => {
         fetchData();
@@ -42,10 +44,10 @@ export default function StudentDashboard() {
     const handleJoin = async (id) => {
         try {
             await joinSession(id);
-            alert("Successfully joined the session!");
+            toast.success("Successfully joined the session!");
             fetchData(); // Refresh both lists
         } catch (err) {
-            alert(err.message || "Failed to join session");
+            toast.error(err.message || "Failed to join session");
         }
     };
 

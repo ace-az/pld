@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Users, Calendar, ArrowRight, Trash2 } from 'lucide-react';
 import { getSessions, deleteSession } from '../api';
+import { useConfirm } from '../context/ConfirmContext';
 import './History.css';
 
 export default function History() {
@@ -10,6 +11,7 @@ export default function History() {
     const [filter, setFilter] = useState('all'); // all, completed, active
     const [visibleCount, setVisibleCount] = useState(7);
     const navigate = useNavigate();
+    const { confirm } = useConfirm();
 
     useEffect(() => {
         fetchSessions();
@@ -23,7 +25,8 @@ export default function History() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this session?')) return;
+        const isConfirmed = await confirm('Are you sure you want to delete this session?');
+        if (!isConfirmed) return;
         try {
             await deleteSession(id);
             fetchSessions();

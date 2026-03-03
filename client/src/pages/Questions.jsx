@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getQuestionSets, addQuestionSet, deleteQuestionSet, deleteAllQuestionSets, updateQuestionSet, getMentors, shareQuestionSet, getUserProfile } from '../api';
 import { HelpCircle, Trash2, Plus, X, BookOpen, AlertCircle, RefreshCw, FileText, Upload, Edit3, ArrowLeft, Share2 } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import * as mammoth from 'mammoth';
 
 export default function Questions() {
@@ -23,6 +25,8 @@ export default function Questions() {
     const [topic, setTopic] = useState('');
     const [questions, setQuestions] = useState(['']); // Array of question strings
     const [editingId, setEditingId] = useState(null);
+    const toast = useToast();
+    const { confirm } = useConfirm();
 
     // Check if we came from session creation
     const fromSessionCreation = location.state?.from === 'session-creation';
@@ -89,7 +93,7 @@ export default function Questions() {
         e.preventDefault();
         const validQs = questions.filter(q => q && q.trim());
         if (!topic.trim() || validQs.length === 0) {
-            alert("Please provide a topic and at least one question.");
+            toast.error("Please provide a topic and at least one question.");
             return;
         }
 
@@ -97,7 +101,7 @@ export default function Questions() {
             if (editingId) {
                 const updated = await updateQuestionSet(editingId, { topic, questions: validQs });
                 setQuestionSets(questionSets.map(s => s.id === editingId ? updated : s));
-                alert("Question set updated successfully!");
+                toast.success("Question set updated successfully!");
                 cancelEdit();
             } else {
                 const newSet = await addQuestionSet({ topic, questions: validQs });
@@ -107,7 +111,7 @@ export default function Questions() {
             }
         } catch (err) {
             console.error('Error saving question set:', err);
-            alert('Error saving question set: ' + (err.message || 'Unknown error'));
+            toast.error('Error saving question set: ' + (err.message || 'Unknown error'));
         }
     };
 
@@ -125,25 +129,27 @@ export default function Questions() {
     };
 
     const handleDeleteSet = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this topic and all its questions?')) return;
+        const isConfirmed = await confirm('Are you sure you want to delete this topic and all its questions?');
+        if (!isConfirmed) return;
         try {
             await deleteQuestionSet(id);
             setQuestionSets(questionSets.filter(s => s.id !== id));
         } catch (err) {
             console.error('Error deleting set:', err);
-            alert('Error deleting question set');
+            toast.error('Error deleting question set');
         }
     };
 
     const handleDeleteAll = async () => {
-        if (!window.confirm("CAUTION: Are you sure you want to delete ALL question topics? This action is permanent and cannot be undone.")) return;
+        const isConfirmed = await confirm("CAUTION: Are you sure you want to delete ALL question topics? This action is permanent and cannot be undone.");
+        if (!isConfirmed) return;
 
         try {
             await deleteAllQuestionSets();
             setQuestionSets([]);
         } catch (err) {
             console.error('Error deleting all topics:', err);
-            alert("Error deleting topics");
+            toast.error("Error deleting topics");
         }
     };
 
@@ -166,9 +172,9 @@ export default function Questions() {
             const updated = await shareQuestionSet(sharingSet.id, selectedMentors);
             setQuestionSets(questionSets.map(s => s.id === sharingSet.id ? updated : s));
             setShowShareModal(false);
-            alert("Sharing preferences saved successfully!");
+            toast.success("Sharing preferences saved successfully!");
         } catch (err) {
-            alert('Error sharing question set: ' + (err.message || 'Unknown error'));
+            toast.error('Error sharing question set: ' + (err.message || 'Unknown error'));
         }
     };
 
@@ -202,13 +208,13 @@ export default function Questions() {
                     });
 
                     setQuestionSets([newSet, ...questionSets]);
-                    alert(`Successfully imported "${fileName}" with ${cleanedQuestions.length} questions!`);
+                    toast.success(`Successfully imported "${fileName}" with ${cleanedQuestions.length} questions!`);
                 } else {
-                    alert('Could not find any numbered questions in the file.\n\nRequired format: 1. Question, 2. Question, etc.');
+                    toast.error('Could not find any numbered questions in the file.\n\nRequired format: 1. Question, 2. Question, etc.');
                 }
             } catch (err) {
                 console.error('Word parse error:', err);
-                alert('Error importing Word file: ' + err.message);
+                toast.error('Error importing Word file: ' + err.message);
             } finally {
                 e.target.value = ''; // Reset input
             }

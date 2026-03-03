@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generatePracticeQuestions, evaluatePracticeAnswer } from '../services/aiService';
 import { Brain, Send, ChevronRight, CheckCircle2, XCircle, Info, RefreshCcw, Trophy } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 const AIPractice = () => {
     const navigate = useNavigate();
@@ -19,10 +20,11 @@ const AIPractice = () => {
     const [results, setResults] = useState([]); // Array of { question, answer, evaluation }
     const [loading, setLoading] = useState(false);
     const [evaluating, setEvaluating] = useState(false);
+    const toast = useToast();
 
     const handleStart = async (e) => {
         e.preventDefault();
-        if (!config.topic) return alert("Please enter a topic!");
+        if (!config.topic) return toast.error("Please enter a topic!");
 
         setStep('loading');
         setLoading(true);
@@ -31,7 +33,7 @@ const AIPractice = () => {
             setQuestions(qs);
             setStep('active');
         } else {
-            alert("Failed to generate questions. Please try again.");
+            toast.error("Failed to generate questions. Please try again.");
             setStep('config');
         }
         setLoading(false);
@@ -63,7 +65,7 @@ const AIPractice = () => {
                 setStep('results');
             }
         } else {
-            alert("Error evaluating answer. Please try again.");
+            toast.error("Error evaluating answer. Please try again.");
         }
         setEvaluating(false);
     };
