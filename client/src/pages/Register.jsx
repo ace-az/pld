@@ -2,11 +2,11 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { registerUser, sendVerificationCode, verifyDiscordCode, getMajors } from '../api';
+import { registerUser, sendVerificationCode, verifyDiscordCode } from '../api';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function Register() {
-    const [formData, setFormData] = useState({ username: '', password: '', discordId: '', major: '' });
+    const [formData, setFormData] = useState({ firstName: '', lastName: '', username: '', password: '', discordId: '' });
     const [showPassword, setShowPassword] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -16,19 +16,6 @@ export default function Register() {
     const [codeSent, setCodeSent] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [majors, setMajors] = useState([]);
-
-    useEffect(() => {
-        const fetchMajors = async () => {
-            try {
-                const data = await getMajors();
-                setMajors(data);
-            } catch (err) {
-                console.error("Failed to load majors", err);
-            }
-        };
-        fetchMajors();
-    }, []);
 
     const handleSendCode = async () => {
         if (!formData.discordId) {
@@ -74,6 +61,11 @@ export default function Register() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (/\s/.test(formData.username)) {
+            setError('Username cannot contain spaces');
+            return;
+        }
+
         if (!isVerified && formData.discordId) {
             setError('Please verify your Discord account first');
             return;
@@ -99,6 +91,26 @@ export default function Register() {
             <form onSubmit={handleSubmit} className="card" style={{ width: '400px' }}>
                 <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--color-primary)' }}>Register</h2>
                 {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
+
+                <div className="input-group">
+                    <label>First Name</label>
+                    <input
+                        className="input-control"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        required
+                    />
+                </div>
+
+                <div className="input-group">
+                    <label>Last Name</label>
+                    <input
+                        className="input-control"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        required
+                    />
+                </div>
 
                 <div className="input-group">
                     <label>Username</label>
@@ -199,23 +211,7 @@ export default function Register() {
                     </div>
                 )}
 
-                <div className="input-group">
-                    <label>Major</label>
-                    <select
-                        className="input-control"
-                        value={formData.major}
-                        onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                        required
-                        style={{ cursor: 'pointer' }}
-                    >
-                        <option value="">Select your major…</option>
-                        {majors.map(m => (
-                            <option key={m.id} value={m.name}>{m.name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Register</button>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Register</button>
                 <div style={{ marginTop: '1rem', textAlign: 'center' }}>
                     <Link to="/login" style={{ color: 'var(--color-primary)' }}>Have an account? Login</Link>
                 </div>

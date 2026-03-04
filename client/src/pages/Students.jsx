@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMasterStudents, addMasterStudent, updateMasterStudent, deleteMasterStudent, bulkAddMasterStudents, deleteAllMasterStudents, getMajors } from '../api';
-import { UserPlus, Trash2, Edit2, Check, X, Upload, Download, ArrowLeft, ShieldCheck, ShieldOff } from 'lucide-react';
+import { UserPlus, Trash2, Edit2, Check, X, Upload, Download, ArrowLeft, ShieldCheck, ShieldOff, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import './Students.css';
@@ -13,6 +13,11 @@ export default function Students() {
     const [majors, setMajors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Search and Pagination state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     // Form state
     const [name, setName] = useState('');
@@ -201,6 +206,30 @@ export default function Students() {
         toast.success(`Downloaded ${students.length} student(s) as CSV.`);
     };
 
+    // Filter and paginate students
+    const filteredStudents = students.filter(student => {
+        const query = searchQuery.toLowerCase();
+        return (
+            (student.name && student.name.toLowerCase().includes(query)) ||
+            (student.discord && student.discord.toLowerCase().includes(query)) ||
+            (student.major && student.major.toLowerCase().includes(query))
+        );
+    });
+
+    const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+
+    // Ensure current page is valid after filtering
+    useEffect(() => {
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(totalPages);
+        } else if (currentPage === 0 && totalPages > 0) {
+            setCurrentPage(1);
+        }
+    }, [filteredStudents.length, currentPage, totalPages]);
+
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedStudents = filteredStudents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
     if (loading) return <div>Loading...</div>;
 
     return (
@@ -273,7 +302,21 @@ export default function Students() {
 
             <div className="card list-student-card">
                 <div className="flex-between student-list-header">
-                    <h3 className="m-0">Student List ({students.length})</h3>
+                    <h3 className="m-0">Student List ({filteredStudents.length})</h3>
+                    <div className="search-container" style={{ position: 'relative', flex: '1', maxWidth: '300px', marginLeft: '2rem', marginRight: 'auto' }}>
+                        <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888' }} />
+                        <input
+                            type="text"
+                            placeholder="Search name, discord, or major..."
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setCurrentPage(1); // Reset to page 1 on search
+                            }}
+                            className="input-control"
+                            style={{ paddingLeft: '2.5rem', margin: 0 }}
+                        />
+                    </div>
                     {students.length > 0 && (
                         <button
                             onClick={handleDeleteAll}
@@ -295,7 +338,7 @@ export default function Students() {
                             </tr>
                         </thead>
                         <tbody>
-                            {students.map(student => (
+                            {paginatedStudents.map(student => (
                                 <tr key={student.id}>
                                     <td data-label="Name">
                                         {editingId === student.id ? (
@@ -368,9 +411,34 @@ export default function Students() {
                             ))}
                         </tbody>
                     </table>
-                    {students.length === 0 && (
+                    {filteredStudents.length === 0 && (
                         <div className="empty-students">
-                            No students added yet.
+                            {searchQuery ? "No students match your search." : "No students added yet."}
+                        </div>
+                    )}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="pagination-container flex-between" style={{ marginTop: '1.5rem', padding: '0 1rem' }}>
+                            <button
+                                className="btn btn-outline flex-center"
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                style={{ padding: '0.4rem 0.8rem' }}
+                            >
+                                <ChevronLeft size={16} style={{ marginRight: '0.2rem' }} /> Previous
+                            </button>
+                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                className="btn btn-outline flex-center"
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                style={{ padding: '0.4rem 0.8rem' }}
+                            >
+                                Next <ChevronRight size={16} style={{ marginLeft: '0.2rem' }} />
+                            </button>
                         </div>
                     )}
                 </div>

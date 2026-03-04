@@ -17,22 +17,41 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        const { username, firstName, lastName, discordId, major } = req.body;
+        const { username, firstName, lastName, discordId, major, avatar_url } = req.body;
 
-        // Simple validation
-        if (!username || !discordId) {
-            return res.status(400).json({ error: 'Username and Discord ID are required' });
+        // Simple validation, allow partial updates but prevent empty required fields
+        if (username !== undefined && !username.trim()) {
+            return res.status(400).json({ error: 'Username cannot be empty if provided' });
+        }
+        if (discordId !== undefined && !discordId.trim()) {
+            return res.status(400).json({ error: 'Discord ID cannot be empty if provided' });
         }
 
-        await updateUserProfile(req.user.id, {
-            username,
-            firstName,
-            lastName,
-            discordId,
-            major
-        });
+        const updates = {};
+        if (username !== undefined) updates.username = username;
+        if (firstName !== undefined) updates.firstName = firstName;
+        if (lastName !== undefined) updates.lastName = lastName;
+        if (discordId !== undefined) updates.discordId = discordId;
+        if (major !== undefined) updates.major = major;
+        if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+
+        await updateUserProfile(req.user.id, updates);
 
         const updatedUser = await findUserById(req.user.id);
+
+        // Sync major to the students roster so mentors see the updated major
+        if (updatedUser && updatedUser.role === 'student' && updatedUser.discordId && major !== undefined) {
+            try {
+                const { supabase } = require('../models/db');
+                await supabase
+                    .from('students')
+                    .update({ major })
+                    .ilike('discord', updatedUser.discordId);
+            } catch (e) {
+                console.warn('[ProfileController] Could not sync major to students roster:', e.message);
+            }
+        }
+
         const { password, ...safeUser } = updatedUser;
         res.json({ message: 'Profile updated successfully', user: safeUser });
     } catch (err) {

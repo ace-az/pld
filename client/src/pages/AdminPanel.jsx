@@ -38,6 +38,12 @@ const AdminPanel = () => {
         fetchMajors();
     };
 
+    useEffect(() => {
+        if (isAuthenticated) {
+            fetchData();
+        }
+    }, [isAuthenticated]);
+
     const fetchUsers = async () => {
         setLoadingUsers(true);
         try {

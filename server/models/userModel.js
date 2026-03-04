@@ -2,14 +2,14 @@
 const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
-async function createUser(username, password, discordId, role = 'student', major = '') {
+async function createUser(username, password, discordId, role = 'student', major = '', firstName = '', lastName = '') {
     const user = {
         id: uuidv4(),
         username,
         password,
         discordId,
-        firstName: '',
-        lastName: '',
+        firstName,
+        lastName,
         avatar_url: '',
         role,
         major,

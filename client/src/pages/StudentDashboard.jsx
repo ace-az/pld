@@ -18,8 +18,12 @@ export default function StudentDashboard() {
     const [announcements, setAnnouncements] = useState([]);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (user && user.role === 'student' && (!user.major || user.major === 'Undeclared')) {
+            navigate('/declare-major');
+        } else {
+            fetchData();
+        }
+    }, [user, navigate]);
 
     const fetchData = async () => {
         try {

@@ -10,6 +10,7 @@ import SessionRun from './pages/SessionRun';
 import Students from './pages/Students';
 import Questions from './pages/Questions';
 import StudentDashboard from './pages/StudentDashboard';
+import DeclareMajor from './pages/DeclareMajor';
 import StudentReportsPage from './pages/StudentReportsPage';
 import Leaderboard from './pages/Leaderboard';
 import AIPractice from './pages/AIPractice';
@@ -86,6 +87,11 @@ export default function App() {
             <Route path="/student-dashboard" element={
               <PrivateRoute>
                 <StudentDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/declare-major" element={
+              <PrivateRoute>
+                <DeclareMajor />
               </PrivateRoute>
             } />
             <Route path="/student-reports" element={

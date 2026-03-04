@@ -8,8 +8,12 @@ const { getJwtSecret } = require('../utils/jwtSecret');
 
 exports.register = async (req, res) => {
     try {
-        const { username, password, discordId, major } = req.body; // user registers with own user/pass + discord username
-        if (!username || !password || !discordId) return res.status(400).json({ error: 'Missing fields (Username, Password, or Discord ID)' });
+        const { username, password, discordId, firstName, lastName } = req.body; // user registers with own user/pass + discord username
+        if (!username || !password || !discordId || !firstName || !lastName) return res.status(400).json({ error: 'Missing required configuration fields' });
+
+        if (/\s/.test(username)) {
+            return res.status(400).json({ error: 'Username cannot contain spaces' });
+        }
 
         const existing = await findUserByUsername(username);
         if (existing) return res.status(400).json({ error: 'Username taken' });
@@ -47,19 +51,42 @@ exports.register = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         // We pass 'role' here which is now auto-detected
-        const user = await createUser(username, hashedPassword, discordId, role, major);
+        const user = await createUser(username, hashedPassword, discordId, role, 'Undeclared', firstName, lastName);
 
         // Auto-verify: mark the student as discord_verified in the students table
-        // (in case mentor already added them — they proved they exist by registering)
+        // Or if they don't exist yet, insert them so mentors can see them.
         if (discordId && role === 'student') {
             try {
                 const { supabase } = require('../models/db');
-                await supabase
+
+                // First check if they already exist in the roster
+                const { data: existingStudent } = await supabase
                     .from('students')
-                    .update({ discord_verified: true })
-                    .ilike('discord', discordId);
+                    .select('id')
+                    .ilike('discord', discordId)
+                    .maybeSingle();
+
+                if (existingStudent) {
+                    await supabase
+                        .from('students')
+                        .update({ discord_verified: true, name: `${firstName} ${lastName}` })
+                        .eq('id', existingStudent.id);
+                } else {
+                    // Insert them into the roster so they appear in "Manage Students"
+                    // We assume mentorId can be null for self-registered students until claimed
+                    const { v4: uuidv4 } = require('uuid');
+                    await supabase.from('students').insert([{
+                        id: uuidv4(),
+                        mentorId: null,
+                        name: `${firstName} ${lastName}`,
+                        discord: discordId,
+                        major: 'Undeclared',
+                        discord_verified: true,
+                        createdAt: new Date().toISOString()
+                    }]);
+                }
             } catch (e) {
-                console.warn('[Register] Could not auto-verify student record:', e.message);
+                console.warn('[Register] Could not auto-verify or insert student record:', e.message);
             }
         }
 
@@ -278,12 +305,33 @@ exports.discordCallback = async (req, res) => {
         if (role === 'student' && discordUsername) {
             try {
                 const { supabase } = require('../models/db');
-                await supabase
+
+                const { data: existingStudent } = await supabase
                     .from('students')
-                    .update({ discord_verified: true })
-                    .ilike('discord', discordUsername);
+                    .select('id')
+                    .ilike('discord', discordUsername)
+                    .maybeSingle();
+
+                if (existingStudent) {
+                    await supabase
+                        .from('students')
+                        .update({ discord_verified: true })
+                        .eq('id', existingStudent.id);
+                } else {
+                    // Insert them into the roster so they appear in "Manage Students"
+                    const { v4: uuidv4 } = require('uuid');
+                    await supabase.from('students').insert([{
+                        id: uuidv4(),
+                        mentorId: null,
+                        name: discordUsername,
+                        discord: discordUsername,
+                        major: 'Undeclared',
+                        discord_verified: true,
+                        createdAt: new Date().toISOString()
+                    }]);
+                }
             } catch (e) {
-                console.warn('[OAuth] Could not auto-verify student record:', e.message);
+                console.warn('[OAuth] Could not auto-verify or insert student record:', e.message);
             }
         }
 

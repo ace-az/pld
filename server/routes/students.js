@@ -33,7 +33,23 @@ async function checkDiscordMembership(discordClient, discordUsername) {
 router.get('/', async (req, res) => {
     try {
         const students = await studentModel.getStudents(req.user.id);
+
+        // Send response immediately so the page doesn't hang
         res.json(students);
+
+        // Auto-verify anyone who is still unverified but has joined the Discord server in the background
+        students.forEach(async (student) => {
+            if (student.discord && !student.discord_verified) {
+                try {
+                    const isInServer = await checkDiscordMembership(req.discordClient, student.discord);
+                    if (isInServer) {
+                        await studentModel.updateStudent(student.id, { discord_verified: true });
+                    }
+                } catch (e) {
+                    console.error("Auto-verify background update error:", e);
+                }
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
