@@ -176,6 +176,7 @@
 
   .main-content {
     padding: 1.5rem 0.75rem;
+    padding-top: calc(1.5rem + 65px);
   }
 }
 
