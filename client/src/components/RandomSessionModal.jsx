@@ -277,6 +277,19 @@ export default function RandomSessionModal({ onClose }) {
     const scrollContainerRef = useRef(null);
     const scrollAnimFrame = useRef(null);
 
+    useEffect(() => {
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        const originalBodyOverflow = document.body.style.overflow;
+        
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+        
+        return () => {
+            document.documentElement.style.overflow = originalHtmlOverflow;
+            document.body.style.overflow = originalBodyOverflow;
+        };
+    }, []);
+
     useEffect(() => { fetchInitialData(); }, []);
 
     // Non-passive touchmove to allow preventDefault on iOS
