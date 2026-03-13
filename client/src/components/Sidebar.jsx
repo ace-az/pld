@@ -8,7 +8,7 @@ import "./Sidebar.css";
 const menuItems = [
   { name: "Students", path: "/students", icon: <Users size={20} />, mentorOnly: true },
   { name: "Calendar", path: "/calendar", icon: <Calendar size={20} />, mentorOnly: true },
-  { name: "History", path: "/history", icon: <History size={20} /> },
+  { name: "History", path: "/history", icon: <History size={20} />, mentorOnly: true },
   { name: "Questions", path: "/questions", icon: <HelpCircle size={20} />, mentorOnly: true },
   { name: "Announcements", path: "/announcements", icon: <Megaphone size={20} /> },
   { name: "Performance Reports", path: "/student-reports", icon: <FileText size={20} />, studentOnly: true },
