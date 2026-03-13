@@ -236,8 +236,8 @@ export default function Students() {
         <div className="students-container">
             <div className="students-header">
                 <div>
-                    <button onClick={() => navigate('/')} className="btn-outline back-btn">
-                        <ArrowLeft size={16} className="back-img" /> Back to Dashboard
+                    <button onClick={() => navigate('/')} className="btn-back-premium">
+                        <ArrowLeft size={18} /> Back to Dashboard
                     </button>
                     <h1>Manage Students</h1>
                 </div>
@@ -304,7 +304,7 @@ export default function Students() {
                 <div className="flex-between student-list-header">
                     <h3 className="m-0">Student List ({filteredStudents.length})</h3>
                     <div className="search-container" style={{ position: 'relative', flex: '1', maxWidth: '300px', marginLeft: '2rem', marginRight: 'auto' }}>
-                        <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888' }} />
+                        <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                         <input
                             type="text"
                             placeholder="Search name, discord, or major..."

@@ -9,25 +9,6 @@
     margin-bottom: 2rem;
 }
 
-.back-btn {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.5rem;
-    border: none;
-    padding: 0;
-    color: var(--text-secondary);
-    background: transparent;
-    cursor: pointer;
-}
-
-.back-btn:hover {
-    color: var(--text-main);
-}
-
-.back-img {
-    margin-right: 0.5rem;
-}
-
 .import-wrapper {
     display: flex;
     gap: 0.5rem;
@@ -267,7 +248,7 @@
 
 .search-container .input-control {
     border-radius: 20px;
-    background: var(--surface-color);
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
 }
 
@@ -279,8 +260,8 @@
     margin-top: 1.5rem;
     padding: 1rem;
     border-top: 1px solid var(--border-color);
-    background: var(--surface-color);
-    border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+    background: var(--bg-card);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .pagination-container .btn {

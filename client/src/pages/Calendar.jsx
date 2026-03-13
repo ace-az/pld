@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Users, ArrowRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Users, ArrowRight, Plus, ArrowLeft } from 'lucide-react';
 import { getSessions } from '../api';
 import './Calendar.css';
 
@@ -105,6 +105,9 @@ export default function Calendar() {
 
     return (
         <div className="calendar-page">
+            <button className="btn-back-premium" onClick={() => navigate('/')}>
+                <ArrowLeft size={18} /> Back to Dashboard
+            </button>
             <div className="calendar-header-main">
                 <div className="header-left">
                     <CalendarIcon size={28} className="header-icon" />

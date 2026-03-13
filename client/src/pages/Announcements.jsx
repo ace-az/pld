@@ -106,8 +106,8 @@ export default function Announcements() {
     return (
         <div className="announcements-container">
             <div className="announcements-header">
-                <button onClick={() => navigate(isMentor ? '/' : '/student-dashboard')} className="btn-outline back-btn" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', marginRight: 8 }}>
-                    <ArrowLeft size={16} /> Back
+                <button onClick={() => navigate(isMentor ? '/' : '/student-dashboard')} className="btn-back-premium">
+                    <ArrowLeft size={18} /> Back to Dashboard
                 </button>
                 <Megaphone size={24} style={{ color: '#ef4444' }} />
                 <h1>Announcements</h1>
@@ -206,7 +206,7 @@ export default function Announcements() {
                             {isMentor && openRecipients === ann.id && ann.announcement_recipients?.length > 0 && (
                                 <div style={{ marginBottom: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                     {ann.announcement_recipients.map((r, i) => (
-                                        <span key={i} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 20, padding: '2px 10px', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                                        <span key={i} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 20, padding: '2px 10px', fontSize: '0.78rem', color: 'var(--text-main)' }}>
                                             {r.student_name || r.student_discord}
                                         </span>
                                     ))}

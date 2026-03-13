@@ -185,6 +185,40 @@ h3 {
   background-color: var(--color-primary-light);
 }
 
+/* Back Button - Premium Style */
+.btn-back-premium {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  width: fit-content;
+  margin-bottom: 2rem;
+  text-decoration: none;
+}
+
+.btn-back-premium:hover {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  transform: translateX(-4px);
+}
+
+.btn-back-premium svg {
+  transition: transform var(--transition-smooth);
+}
+
+.btn-back-premium:hover svg {
+  transform: translateX(-2px);
+}
+
 .btn-icon {
   padding: 0.5rem;
   border-radius: var(--radius-sm);

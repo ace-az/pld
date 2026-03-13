@@ -195,9 +195,9 @@ export default function Profile() {
 
     return (
         <div className="profile-container">
-            <button className="btn-back" onClick={() => navigate(-1)}>
+            <button className="btn-back-premium" onClick={() => navigate(-1)}>
                 <ArrowLeft size={20} />
-                <span>Back</span>
+                <span>Back to Dashboard</span>
             </button>
 
             <div className="profile-header">

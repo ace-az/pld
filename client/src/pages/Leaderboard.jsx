@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { getLeaderboard, getMajors } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { Trophy, Award, Users, TrendingUp, GraduationCap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Trophy, Award, Users, TrendingUp, GraduationCap, ArrowLeft } from 'lucide-react';
 import './Leaderboard.css';
 
 const Leaderboard = () => {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const [leaderboard, setLeaderboard] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -91,6 +93,9 @@ const Leaderboard = () => {
 
     return (
         <div className="leaderboard-container">
+            <button className="btn-back-premium" onClick={() => navigate(-1)}>
+                <ArrowLeft size={18} /> Back to Dashboard
+            </button>
             {/* Header */}
             <div className="leaderboard-header-card">
                 <div className="leaderboard-header-title">

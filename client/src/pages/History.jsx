@@ -1,7 +1,7 @@
 // client/src/pages/History.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Users, Calendar, ArrowRight, Trash2 } from 'lucide-react';
+import { FileText, Users, Calendar, ArrowRight, Trash2, ArrowLeft } from 'lucide-react';
 import { getSessions, deleteSession } from '../api';
 import { useConfirm } from '../context/ConfirmContext';
 import './History.css';
@@ -52,6 +52,13 @@ export default function History() {
 
     return (
         <div className="history-page">
+            <button 
+                className="btn-back-premium" 
+                onClick={() => navigate('/')}
+            >
+                <ArrowLeft size={18} />
+                Back to Dashboard
+            </button>
             <div className="history-header">
                 <h1>PLD History</h1>
                 <p>View all your past and ongoing PLD sessions</p>

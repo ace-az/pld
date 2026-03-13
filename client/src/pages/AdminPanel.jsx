@@ -300,10 +300,9 @@ const AdminPanel = () => {
 
             <button
                 onClick={() => navigate(-1)}
-                className="btn-outline flex-center"
-                style={{ marginTop: '2rem', border: 'none', gap: '0.5rem' }}
+                className="btn-back-premium"
             >
-                <ArrowLeft size={18} /> Go Back
+                <ArrowLeft size={18} /> Back to Dashboard
             </button>
         </div >
     );

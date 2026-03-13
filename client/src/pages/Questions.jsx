@@ -279,10 +279,9 @@ export default function Questions() {
                                 navigate('/', fromSessionCreation ? { state: { returnToSessionCreation: true } } : undefined);
                             }
                         }}
-                        className="btn-outline"
-                        style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', border: 'none', padding: 0 }}
+                        className="btn-back-premium"
                     >
-                        <ArrowLeft size={16} style={{ marginRight: '0.5rem' }} />
+                        <ArrowLeft size={18} />
                         {selectedMajorView ? 'Back to Majors' : (fromSessionCreation ? 'Back to Session' : 'Back to Dashboard')}
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

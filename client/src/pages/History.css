@@ -1,4 +1,8 @@
 /* History Page Styles */
+.history-container {
+    padding-bottom: 2rem;
+}
+
 .history-page {
     padding: 1rem;
 }

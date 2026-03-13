@@ -286,7 +286,7 @@ export default function StudentDashboard() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {announcements.map(ann => (
                             <div key={ann.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '1rem 1.25rem' }}>
-                                <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{ann.title}</div>
+                                <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: 4 }}>{ann.title}</div>
                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
                                     {ann.message.length > 150 ? ann.message.slice(0, 150) + '…' : ann.message}
                                 </div>
