@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Send, Download, Lightbulb, HelpCircle, BookOpen, PhoneOff, CheckCircle, XCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { generateFeedback } from '../services/aiService';
-import { getSession, saveStudentNotes, saveStudentResult, saveStudentGrade, saveStudentQuestions, endSession, sendToDiscord, sendAllToDiscord, toggleStudentStatus } from '../api';
+import { getSession, saveStudentNotes, saveStudentResult, saveStudentGrade, saveStudentQuestions, endSession, sendToDiscord, sendAllToDiscord, toggleStudentStatus, removeSessionStudent } from '../api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import './SessionRun.css';
@@ -270,6 +270,32 @@ export default function SessionRun() {
         } catch (err) {
             console.error('Error toggling status:', err);
             toast.error("Failed to update status");
+        }
+    };
+
+    const handleRemoveStudent = async (studentId, studentName) => {
+        const isConfirmed = await confirm(`Are you completely sure you want to permanently remove ${studentName} from this session? This action cannot be undone.`);
+        if (!isConfirmed) return;
+
+        try {
+            await removeSessionStudent(session.id, studentId);
+            setSession(prev => {
+                const newStudents = prev.students.filter(s => s.id !== studentId);
+                // If this was the last student, maybe redirect to dashboard
+                if (newStudents.length === 0) {
+                    toast.success("Last student removed. Session empty.");
+                    navigate('/');
+                }
+                return { ...prev, students: newStudents };
+            });
+            // Adjust currentIndex if necessary
+            if (currentIndex >= session.students.length - 1 && currentIndex > 0) {
+                setCurrentIndex(prev => prev - 1);
+            }
+            toast.success(`${studentName} removed from session.`);
+        } catch (err) {
+            console.error('Error removing student:', err);
+            toast.error(err.message || "Failed to remove student");
         }
     };
 
@@ -547,12 +573,25 @@ export default function SessionRun() {
                                     )}
                                     {saving && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}><Save size={12} style={{ marginRight: 4 }} /> Saving...</span>}
                                     <button
+                                        onClick={() => handleRemoveStudent(currentStudent.id, currentStudent.name)}
+                                        className="btn btn-outline"
+                                        style={{
+                                            fontSize: '0.75rem',
+                                            padding: '2px 8px',
+                                            color: '#d32f2f',
+                                            borderColor: '#d32f2f',
+                                            marginLeft: '1rem'
+                                        }}
+                                        title="Drop student from session completely"
+                                    >
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><XCircle size={12} /> Remove</span>
+                                    </button>
+                                    <button
                                         onClick={() => handleToggleAbsence(currentStudent.id, currentStudent.status || 'present')}
                                         className="btn btn-outline"
                                         style={{
                                             fontSize: '0.75rem',
                                             padding: '2px 8px',
-                                            marginLeft: '1rem',
                                             color: currentStudent.status === 'absent' ? '#d32f2f' : 'var(--text-secondary)',
                                             borderColor: currentStudent.status === 'absent' ? '#d32f2f' : 'var(--border-color)'
                                         }}
@@ -659,9 +698,21 @@ export default function SessionRun() {
                     </div>
                 </div>
 
-                {/* Question Sidebar */}
                 {session.questions && session.questions.length > 0 && showQuestions && (
-                    <div className="card" style={{ height: 'fit-content', position: 'sticky', top: '2rem', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid var(--color-primary)', padding: '1.25rem' }}>
+                    <div style={{ 
+                        height: 'fit-content', 
+                        position: 'sticky', 
+                        top: '2rem', 
+                        animation: 'fadeIn 0.3s ease', 
+                        background: 'var(--bg-card)',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: 'var(--shadow-md)',
+                        padding: '1.25rem',
+                        borderTop: '1px solid var(--border-color)',
+                        borderRight: '1px solid var(--border-color)',
+                        borderBottom: '1px solid var(--border-color)',
+                        borderLeft: '4px solid var(--color-primary)'
+                    }}>
                         <div style={{ borderBottom: '1px solid var(--border-color)', marginBottom: '1.25rem', paddingBottom: '0.5rem' }}>
                             <h3 style={{ margin: 0, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <BookOpen size={20} /> <span>Session Questions</span>
@@ -703,9 +754,18 @@ export default function SessionRun() {
                                             padding: '1rem',
                                             background: bgColor,
                                             borderRadius: '8px',
-                                            borderLeft: `4px solid ${borderColor}`,
-                                            border: (isAnswered || isIncorrect) ? `1px solid ${borderColor}` : 'none',
+                                            borderTopWidth: (isAnswered || isIncorrect) ? '1px' : '0px',
+                                            borderTopStyle: 'solid',
+                                            borderTopColor: borderColor,
+                                            borderRightWidth: (isAnswered || isIncorrect) ? '1px' : '0px',
+                                            borderRightStyle: 'solid',
+                                            borderRightColor: borderColor,
+                                            borderBottomWidth: (isAnswered || isIncorrect) ? '1px' : '0px',
+                                            borderBottomStyle: 'solid',
+                                            borderBottomColor: borderColor,
                                             borderLeftWidth: '4px',
+                                            borderLeftStyle: 'solid',
+                                            borderLeftColor: borderColor,
                                             boxShadow: 'var(--shadow-sm)',
                                             position: 'relative',
                                             cursor: 'pointer',

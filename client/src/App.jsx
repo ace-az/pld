@@ -32,6 +32,7 @@ function MentorRoute({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" />;
   if (user.role === 'student') return <Navigate to="/student-dashboard" />;
+  if (!user.major || user.major === 'Undeclared') return <Navigate to="/declare-major" />;
   return children;
 }
 

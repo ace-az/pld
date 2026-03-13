@@ -12,6 +12,7 @@ router.get('/', sessionController.getMySessions);
 router.get('/joinable', sessionController.getJoinableSessions);
 router.post('/:id/join', sessionController.joinSession);
 router.get('/:id', sessionController.getSession);
+router.delete('/:sessionId/students/:studentId', sessionController.removeStudent);
 router.put('/:sessionId/students/:studentId/notes', requireSessionMentorOwner, sessionController.updateNote);
 router.put('/:sessionId/students/:studentId/result', requireSessionMentorOwner, sessionController.saveResult);
 router.put('/:sessionId/students/:studentId/grade', requireSessionMentorOwner, sessionController.updateGrade);

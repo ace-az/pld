@@ -2,18 +2,21 @@
 const sessionModel = require('../models/sessionModel');
 
 const userModel = require('../models/userModel');
+const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 
 exports.createSession = async (req, res) => {
     try {
-        const { groupName, students, topicIds, createdAt, scheduledTime } = req.body; // students: [{name, discord}], topicIds: [id1, id2]
+        const { groupName, students, topicIds, createdAt, scheduledTime, major } = req.body; // students: [{name, discord}], topicIds: [id1, id2]
 
         // Validate required fields
         if (!groupName || !topicIds || (Array.isArray(topicIds) && topicIds.length === 0)) {
             return res.status(400).json({ error: 'Missing required fields (Group Name and Topics)' });
         }
 
+        const sessionMajor = major || 'General';
+
         // Students are optional for future sessions
-        const session = await sessionModel.createSession(req.user.id, groupName, students || [], topicIds, createdAt, scheduledTime);
+        const session = await sessionModel.createSession(req.user.id, groupName, students || [], topicIds, createdAt, scheduledTime, createdAt, sessionMajor);
         res.json(session);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -31,7 +34,12 @@ exports.getMySessions = async (req, res) => {
             }
             sessions = await sessionModel.getSessionsForStudent(fullUser.discordId);
         } else {
-            sessions = await sessionModel.getSessionsByMentor(req.user.id);
+            const fullUser = await userModel.findUserById(req.user.id);
+            // Split the comma-separated majors, trim whitespace, filter out empty strings
+            const rawMajors = fullUser?.major || 'Undeclared';
+            const mentorMajors = rawMajors.split(',').map(m => m.trim()).filter(Boolean);
+
+            sessions = await sessionModel.getSessionsByMentor(req.user.id, mentorMajors);
         }
         res.json(sessions);
     } catch (err) {
@@ -162,6 +170,19 @@ exports.deleteSession = async (req, res) => {
     }
 };
 
+exports.removeStudent = async (req, res) => {
+    try {
+        const { sessionId, studentId } = req.params;
+        const updatedSession = await sessionModel.removeStudentFromSession(sessionId, studentId);
+        if (!updatedSession) {
+            return res.status(404).json({ error: 'Session or Student not found' });
+        }
+        res.json(updatedSession);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 exports.deleteAllSessions = async (req, res) => {
     try {
         await sessionModel.deleteAllSessions(req.user.id);
@@ -191,7 +212,11 @@ async function sendDiscordDM(discordClient, username, message) {
         for (const [guildId, guild] of guilds) {
             try {
                 const members = await guild.members.fetch({ query: username, limit: 1 });
-                const member = members.find(m => m.user.username.toLowerCase() === username.toLowerCase() || m.user.tag.toLowerCase() === username.toLowerCase());
+                const member = members.find(m => 
+                    m.user.username.toLowerCase() === username.toLowerCase() || 
+                    (m.user.tag && m.user.tag.toLowerCase() === username.toLowerCase()) ||
+                    (m.user.globalName && m.user.globalName.toLowerCase() === username.toLowerCase())
+                );
                 if (member) {
                     targetUser = member.user;
                     break;
@@ -207,7 +232,18 @@ async function sendDiscordDM(discordClient, username, message) {
         }
 
         console.log(`Found user: ${targetUser.tag}, sending DM...`);
-        await targetUser.send(message);
+        
+        const messagePayload = {};
+        if (typeof message === 'object') {
+            if (message.embeds) messagePayload.embeds = message.embeds;
+            if (message.files) messagePayload.files = message.files;
+            if (message.content) messagePayload.content = message.content;
+        } else {
+            messagePayload.content = message;
+        }
+
+        console.log(`[Discord] Sending payload with ${messagePayload.files?.length || 0} files and ${messagePayload.embeds?.length || 0} embeds`);
+        await targetUser.send(messagePayload);
         console.log(`DM sent successfully to ${targetUser.tag}`);
         return { success: true, message: `Sent to ${username}` };
 
@@ -234,10 +270,54 @@ exports.sendFeedback = async (req, res) => {
         if (!student.result) return res.status(400).json({ error: 'No feedback generated to send' });
         if (!student.discord) return res.status(400).json({ error: 'No Discord username provided' });
 
-        const gradeText = student.grade ? `**Total Grade: ${student.grade}/5**\n\n` : '';
-        const messageContent = gradeText + student.result;
+        const senderId = req.user.id === 'admin' ? (session.mentorId || session.mentor_id) : req.user.id;
+        console.log(`[Discord] Looking up avatar for sender ${senderId} (current: ${req.user.id})`);
+        const senderInfo = await userModel.findUserById(senderId);
+        
+        let authorIcon = 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const files = [];
 
-        const result = await sendDiscordDM(req.discordClient, student.discord, messageContent);
+        if (senderInfo?.avatar_url) {
+            if (senderInfo.avatar_url.startsWith('data:image')) {
+                console.log(`[Discord] Avatar is base64 for user ${senderInfo.username || req.user.username}`);
+                const parts = senderInfo.avatar_url.split(',');
+                if (parts.length > 1) {
+                    const base64Data = parts[1];
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    console.log(`[Discord] Created buffer of size: ${buffer.length} bytes`);
+                    const attachment = new AttachmentBuilder(buffer, { name: 'avatar.png' });
+                    files.push(attachment);
+                    authorIcon = 'attachment://avatar.png';
+                    console.log('[Discord] Attachment created and authorIcon set to attachment://avatar.png');
+                } else {
+                    console.log('[Discord] Invalid base64 format in avatar_url');
+                }
+            } else if (senderInfo.avatar_url.startsWith('http')) {
+                console.log('[Discord] Avatar is external URL');
+                authorIcon = senderInfo.avatar_url;
+            }
+        } else {
+            console.log('[Discord] No avatar_url found for sender');
+        }
+
+        const embed = new EmbedBuilder()
+            .setColor('#2ecc71') // Emerald Green
+            .setTitle('📝 PLD Performance Report')
+            .setAuthor({
+                name: req.user.username || 'Admin',
+                iconURL: authorIcon
+            })
+            .setDescription(student.result)
+            .setTimestamp();
+
+        if (student.grade) {
+            embed.addFields({ name: 'Grade', value: `**${student.grade}/5**`, inline: true });
+        }
+
+        const result = await sendDiscordDM(req.discordClient, student.discord, { 
+            embeds: [embed],
+            files: files.length > 0 ? files : undefined
+        });
 
         if (!result.success) {
             return res.status(500).json({ error: result.error });
@@ -275,15 +355,47 @@ exports.sendAllFeedback = async (req, res) => {
         const results = [];
         console.log(`[Batch Send] Starting batch for session ${sessionId}`);
 
+        const senderId = req.user.id === 'admin' ? (session.mentorId || session.mentor_id) : req.user.id;
+        const senderInfo = await userModel.findUserById(senderId);
+        let authorIcon = 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const files = [];
+
+        if (senderInfo?.avatar_url) {
+            if (senderInfo.avatar_url.startsWith('data:image')) {
+                const parts = senderInfo.avatar_url.split(',');
+                if (parts.length > 1) {
+                    const base64Data = parts[1];
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    const attachment = new AttachmentBuilder(buffer, { name: 'avatar.png' });
+                    files.push(attachment);
+                    authorIcon = 'attachment://avatar.png';
+                }
+            } else if (senderInfo.avatar_url.startsWith('http')) {
+                authorIcon = senderInfo.avatar_url;
+            }
+        }
+
         for (const student of session.students) {
             console.log(`[Batch Send] Processing student: ${student.name}, Status: ${student.status}`);
 
             // Check for Absent Status
-            // Normalize status check just in case
             if (student.status === 'absent') {
                 if (student.discord) {
-                    const message = `Hello ${student.name},\n\nYou have been marked as absent for the PLD session "${session.groupName || 'today'}".\nPlease note that you must use your 1 PTO for this absence.\n\nBest regards,\nPLD Manager`;
-                    const result = await sendDiscordDM(req.discordClient, student.discord, message);
+                    const absentEmbed = new EmbedBuilder()
+                        .setColor('#e67e22') // Carrot Orange
+                        .setTitle('⚠️ Absence Notification')
+                        .setAuthor({
+                            name: req.user.username || 'Admin',
+                            iconURL: authorIcon
+                        })
+                        .setDescription(`Hello ${student.name},\n\nYou have been marked as absent for the PLD session **"${session.groupName || 'today'}"**.\nPlease note that you must use your 1 PTO for this absence.`)
+                        .setFooter({ text: 'PLD Manager' })
+                        .setTimestamp();
+
+                    const result = await sendDiscordDM(req.discordClient, student.discord, { 
+                        embeds: [absentEmbed],
+                        files: files.length > 0 ? files : undefined
+                    });
                     results.push({
                         student: student.name,
                         discord: student.discord,
@@ -304,9 +416,24 @@ exports.sendAllFeedback = async (req, res) => {
 
             // Normal Feedback Logic for Present Students
             if (student.result && student.discord) {
-                const gradeText = student.grade ? `**Total Grade: ${student.grade}/5**\n\n` : '';
-                const messageContent = gradeText + student.result;
-                const result = await sendDiscordDM(req.discordClient, student.discord, messageContent);
+                const feedbackEmbed = new EmbedBuilder()
+                    .setColor('#2ecc71') // Emerald Green
+                    .setTitle('📝 PLD Performance Report')
+                    .setAuthor({
+                        name: req.user.username || 'Admin',
+                        iconURL: authorIcon
+                    })
+                    .setDescription(student.result)
+                    .setTimestamp();
+
+                if (student.grade) {
+                    feedbackEmbed.addFields({ name: 'Grade', value: `**${student.grade}/5**`, inline: true });
+                }
+
+                const result = await sendDiscordDM(req.discordClient, student.discord, { 
+                    embeds: [feedbackEmbed],
+                    files: files.length > 0 ? files : undefined
+                });
                 results.push({
                     student: student.name,
                     discord: student.discord,
@@ -327,13 +454,15 @@ exports.sendAllFeedback = async (req, res) => {
         res.json({ summary: results });
 
     } catch (err) {
+        console.error('[Batch Send] Error:', err);
         res.status(500).json({ error: err.message });
     }
 };
 
 exports.getLeaderboard = async (req, res) => {
     try {
-        const leaderboard = await sessionModel.getLeaderboard();
+        const major = req.query.major || null;
+        const leaderboard = await sessionModel.getLeaderboard(major);
         res.json(leaderboard);
     } catch (err) {
         res.status(500).json({ error: err.message });

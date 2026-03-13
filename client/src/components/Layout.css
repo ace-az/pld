@@ -40,9 +40,11 @@
   padding: 1rem;
   border-bottom: 1px solid var(--border-color);
   background-color: var(--bg-card);
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 10;
+  left: 78px;
+  right: 0;
+  z-index: 100;
 }
 
 .logo-link {
@@ -142,6 +144,7 @@
 .main-content {
   flex: 1;
   padding: 2rem 1rem;
+  padding-top: calc(2rem + 65px);
 }
 
 /* Mobile Responsiveness */
@@ -160,6 +163,7 @@
 
   .navbar {
     padding: 0.75rem 1rem;
+    left: 0;
   }
 
   .navbar-logo-text {

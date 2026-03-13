@@ -92,23 +92,40 @@
     border-color: var(--color-primary);
 }
 
-.rnd-group-title {
+.rnd-group-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.rnd-group-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.rnd-group-title-text {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-weight: 700;
     color: var(--color-primary);
     font-size: 0.95rem;
-    margin-bottom: 0.75rem;
+}
+
+.rnd-group-header-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .rnd-count {
-    margin-left: auto;
     background: rgba(211, 47, 47, 0.12);
     color: var(--color-primary);
     font-size: 0.75rem;
     font-weight: 700;
-    padding: 1px 8px;
+    padding: 2px 8px;
     border-radius: 20px;
 }
 
@@ -166,6 +183,38 @@
     font-size: 0.75rem;
     color: var(--text-secondary);
     opacity: 0.7;
+}
+
+.rnd-member-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow: hidden;
+    flex: 1;
+}
+
+.rnd-member-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, color 0.2s;
+}
+
+.rnd-member:hover .rnd-member-remove {
+    opacity: 0.6;
+}
+
+.rnd-member-remove:hover {
+    opacity: 1 !important;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
 }
 
 .rnd-actions {
@@ -255,7 +304,34 @@
     }
 }
 
+.rnd-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
 /* ── Topic picker (step 1) ── */
+.rnd-topics-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.rnd-topics-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.rnd-header-icon {
+    display: flex;
+    color: var(--color-primary);
+}
+
 .rnd-topics {
     overflow-y: auto;
     padding: 0.75rem 1.5rem 1rem;
@@ -311,6 +387,72 @@
     border: 1px solid var(--border-color);
 }
 
+/* ── Time Slot Picker ── */
+.rnd-timeslot-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.rnd-slot-btn {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.rnd-slot-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--text-main);
+}
+
+.rnd-slot-btn.active {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+/* ── Primary Button ── */
+.rnd-btn-primary {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, var(--color-primary), #e53935);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+}
+
+.rnd-btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(211, 47, 47, 0.4);
+}
+
+.rnd-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    box-shadow: none;
+    border: 1px solid var(--border-color);
+}
+
 /* Back button in header */
 .rnd-back-btn {
     background: var(--bg-input);
@@ -337,8 +479,162 @@
     background: rgba(99, 102, 241, 0.18);
     color: #818cf8;
     border: 1px solid rgba(99, 102, 241, 0.3);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 120px;
+    text-align: right;
+}
+
+/* Time input on each group card */
+.rnd-time-input {
+    margin-left: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 0.82rem;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 105px;
+    flex-shrink: 0;
+}
+
+.rnd-time-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.15);
+}
+
+/* ── Smart Options Section ── */
+.rnd-smart-options {
+    padding: 0 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.rnd-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-input);
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.rnd-toggle-row:hover {
+    border-color: var(--color-primary);
+}
+
+.rnd-toggle-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+}
+
+.rnd-toggle-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.rnd-toggle-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+.rnd-toggle-switch {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    position: relative;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+}
+
+.rnd-toggle-switch.active {
+    background: linear-gradient(135deg, var(--color-primary), #e53935);
+    border-color: transparent;
+}
+
+.rnd-toggle-knob {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    transform: translateY(-50%);
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.rnd-toggle-switch.active .rnd-toggle-knob {
+    left: calc(100% - 20px);
+}
+
+.rnd-algo-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    background: rgba(99, 102, 241, 0.06);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+.rnd-algo-info svg {
+    color: #818cf8;
+    flex-shrink: 0;
+}
+
+/* ── Score Badges ── */
+.rnd-member-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.rnd-score-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+}
+
+.rnd-score-badge.high {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.rnd-score-badge.mid {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.rnd-score-badge.low {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* ── Pairing stat in subtitle ── */
+.rnd-pairing-stat {
+    color: #818cf8;
+    font-weight: 500;
 }

@@ -22,9 +22,11 @@ export default function Dashboard() {
     const [questionSets, setQuestionSets] = useState([]);
     const [showCreate, setShowCreate] = useState(false);
     const [showRandom, setShowRandom] = useState(false);
+    const [majors, setMajors] = useState([]);
 
     // New Session Form State
     const [groupName, setGroupName] = useState('');
+    const [sessionMajor, setSessionMajor] = useState('');
     const [topicIds, setTopicIds] = useState([]);
     const [students, setStudents] = useState([{ name: '', discord: '', major: '' }]);
     const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
@@ -37,6 +39,7 @@ export default function Dashboard() {
     useEffect(() => {
         fetchSessions();
         if (showCreate) fetchMasterData();
+        fetchMajors();
     }, [showCreate]);
 
     useEffect(() => {
@@ -47,6 +50,7 @@ export default function Dashboard() {
                 try {
                     const formData = JSON.parse(saved);
                     setGroupName(formData.groupName || '');
+                    setSessionMajor(formData.sessionMajor || '');
                     setTopicIds(formData.topicIds || []);
                     setStudents(formData.students || [{ name: '', discord: '', major: '' }]);
                     if (formData.scheduledDate) setScheduledDate(formData.scheduledDate);
@@ -60,6 +64,7 @@ export default function Dashboard() {
             // Reset everything when navigating home without state
             setShowCreate(false);
             setGroupName('');
+            setSessionMajor('');
             setTopicIds([]);
             setStudents([{ name: '', discord: '', major: '' }]);
             setScheduledDate(todayStr);
@@ -86,6 +91,16 @@ export default function Dashboard() {
         } catch (err) {
             console.error('Fetch master data failed:', err);
             toast.error("Failed to load students or question sets. Please refresh.");
+        }
+    };
+
+    const fetchMajors = async () => {
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/majors`);
+            const data = await res.json();
+            if (Array.isArray(data)) setMajors(data);
+        } catch (err) {
+            console.error('Fetch majors error:', err);
         }
     };
 
@@ -149,8 +164,8 @@ export default function Dashboard() {
         e.preventDefault();
         const isFuture = scheduledDate > todayStr;
 
-        if (!groupName || !topicIds.length) {
-            return toast.error("Select Group Name and at least one topic first");
+        if (!groupName || !topicIds.length || !sessionMajor) {
+            return toast.error("Select Group Name, Session Major, and at least one topic first");
         }
 
         const validStudents = students.filter(s => s.name.trim() && s.discord.trim());
@@ -159,9 +174,10 @@ export default function Dashboard() {
         }
 
         try {
-            console.log('Creating session:', { groupName, topicIds, scheduledDate, scheduledTime });
+            console.log('Creating session:', { groupName, sessionMajor, topicIds, scheduledDate, scheduledTime });
             const newSession = await createSession({
                 groupName,
+                major: sessionMajor,
                 students: validStudents,
                 topicIds,
                 createdAt: scheduledDate,
@@ -171,6 +187,7 @@ export default function Dashboard() {
             setSessions([newSession, ...sessions]);
             setShowCreate(false);
             setGroupName('');
+            setSessionMajor('');
             setTopicIds([]);
             setStudents([{ name: '', discord: '', major: '' }]);
             setScheduledDate(todayStr);
@@ -290,7 +307,7 @@ export default function Dashboard() {
                         <button
                             type="button"
                             onClick={() => {
-                                localStorage.setItem('sessionFormData', JSON.stringify({ groupName, topicIds, students, scheduledDate }));
+                                localStorage.setItem('sessionFormData', JSON.stringify({ groupName, sessionMajor, topicIds, students, scheduledDate }));
                                 navigate('/questions', { state: { from: 'session-creation' } });
                             }}
                             className="btn-manage-questions"
@@ -301,16 +318,32 @@ export default function Dashboard() {
                     </div>
 
                     <form onSubmit={handleCreateSession}>
-                        {/* Group Name */}
-                        <div className="form-group">
-                            <label>Group Name</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="e.g. Alpha Squad - Week 5"
-                                value={groupName}
-                                onChange={(e) => setGroupName(e.target.value)}
-                            />
+                        {/* Group Name & Major */}
+                        <div className="form-grid-2col">
+                            <div className="form-group">
+                                <label>Group Name</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="e.g. Alpha Squad - Week 5"
+                                    value={groupName}
+                                    onChange={(e) => setGroupName(e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Session Major</label>
+                                <select
+                                    className="form-input"
+                                    value={sessionMajor}
+                                    onChange={(e) => setSessionMajor(e.target.value)}
+                                >
+                                    <option value="" disabled>Select Major</option>
+                                    <option value="General">General / Foundational</option>
+                                    {majors.map(m => (
+                                        <option key={m.id} value={m.name}>{m.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         {/* Scheduled Date & Time */}
@@ -651,7 +684,7 @@ export default function Dashboard() {
                                                 <h4 className="next-group-name">{nextSession.groupName}</h4>
                                                 <div className="next-time-row">
                                                     <Clock size={14} className="time-ico" />
-                                                    <span>{nextSession.scheduledTime || '10:00 AM'}</span>
+                                                    <span>{nextSession.scheduled_date ? new Date(nextSession.scheduled_date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '10:00 AM'}</span>
                                                 </div>
                                             </div>
                                         </div>

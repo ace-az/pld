@@ -3,9 +3,21 @@ const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
 async function getStudents(mentorId) {
-    const { data, error } = await supabase.from('students').select('*');
-    if (error) console.error("Error getting students:", error);
-    return data || [];
+    const [studentsResult, mentorsResult] = await Promise.all([
+        supabase.from('students').select('*'),
+        supabase.from('users').select('discordId').eq('role', 'mentor')
+    ]);
+    if (studentsResult.error) console.error("Error getting students:", studentsResult.error);
+    if (mentorsResult.error) console.error("Error getting mentors for filter:", mentorsResult.error);
+
+    const mentorDiscords = new Set(
+        (mentorsResult.data || []).map(m => m.discordId?.toLowerCase().trim()).filter(Boolean)
+    );
+
+    // Exclude any student entry whose discord matches a mentor account
+    return (studentsResult.data || []).filter(s =>
+        !s.discord || !mentorDiscords.has(s.discord.toLowerCase().trim())
+    );
 }
 
 async function addStudent(mentorId, name, discord, major) {

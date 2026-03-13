@@ -333,6 +333,7 @@ export default function Students() {
                                 <th>Name</th>
                                 <th>Discord</th>
                                 <th>Major</th>
+                                <th>PLD Preference</th>
                                 <th>Verified</th>
                                 <th className="text-right">Actions</th>
                             </tr>
@@ -373,6 +374,15 @@ export default function Students() {
                                             <span className="major-text">
                                                 {student.major || 'N/A'}
                                             </span>
+                                        )}
+                                    </td>
+                                    <td data-label="PLD Preference">
+                                        {student.pld_day && student.pld_time ? (
+                                            <span style={{ fontSize: '0.9rem', color: 'var(--color-primary)', background: 'var(--bg-app)', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                                {student.pld_day.slice(0, 3)} {student.pld_time}
+                                            </span>
+                                        ) : (
+                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Not Set</span>
                                         )}
                                     </td>
                                     <td data-label="Verified">

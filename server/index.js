@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const dns = require('node:dns');
 const { assertJwtSecretOrThrow } = require('./utils/envValidation');
+const { startCronJob } = require('./cron');
 
 // Fix for Node.js 17+ on Render silently hanging on Discord IPv6 WebSockets
 dns.setDefaultResultOrder('ipv4first');
@@ -93,6 +94,9 @@ app.use('/api/majors', require('./routes/majors'));
 app.get('/', (req, res) => {
     res.send('PLD Management API is running');
 });
+
+// Start the background notification processor
+startCronJob(client);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

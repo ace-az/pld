@@ -17,7 +17,7 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        const { username, firstName, lastName, discordId, major, avatar_url } = req.body;
+        const { username, firstName, lastName, discordId, major, pldDay, pldTime } = req.body;
 
         // Simple validation, allow partial updates but prevent empty required fields
         if (username !== undefined && !username.trim()) {
@@ -33,22 +33,31 @@ exports.updateProfile = async (req, res) => {
         if (lastName !== undefined) updates.lastName = lastName;
         if (discordId !== undefined) updates.discordId = discordId;
         if (major !== undefined) updates.major = major;
-        if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+        if (pldDay !== undefined) updates.pld_day = pldDay;
+        if (pldTime !== undefined) updates.pld_time = pldTime;
 
         await updateUserProfile(req.user.id, updates);
 
         const updatedUser = await findUserById(req.user.id);
 
-        // Sync major to the students roster so mentors see the updated major
-        if (updatedUser && updatedUser.role === 'student' && updatedUser.discordId && major !== undefined) {
+        // Sync info to the students roster so mentors see the updated data
+        if (updatedUser && updatedUser.role === 'student' && updatedUser.discordId) {
             try {
                 const { supabase } = require('../models/db');
-                await supabase
-                    .from('students')
-                    .update({ major })
-                    .ilike('discord', updatedUser.discordId);
+
+                const studentUpdates = {};
+                if (major !== undefined) studentUpdates.major = major;
+                if (pldDay !== undefined) studentUpdates.pld_day = pldDay;
+                if (pldTime !== undefined) studentUpdates.pld_time = pldTime;
+
+                if (Object.keys(studentUpdates).length > 0) {
+                    await supabase
+                        .from('students')
+                        .update(studentUpdates)
+                        .ilike('discord', updatedUser.discordId);
+                }
             } catch (e) {
-                console.warn('[ProfileController] Could not sync major to students roster:', e.message);
+                console.warn('[ProfileController] Could not sync data to students roster:', e.message);
             }
         }
 

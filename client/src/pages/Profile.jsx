@@ -19,6 +19,8 @@ export default function Profile() {
         major: '',
         avatar: ''
     });
+    const [majorsList, setMajorsList] = useState([]);
+    const [selectedMajors, setSelectedMajors] = useState([]);
     const [passwords, setPasswords] = useState({
         currentPassword: '',
         newPassword: '',
@@ -36,7 +38,18 @@ export default function Profile() {
 
     useEffect(() => {
         fetchProfile();
+        fetchMajors();
     }, []);
+
+    const fetchMajors = async () => {
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/majors`);
+            const data = await res.json();
+            if (Array.isArray(data)) setMajorsList(data);
+        } catch (err) {
+            console.error('Failed to fetch majors:', err);
+        }
+    };
 
     const fetchProfile = async () => {
         try {
@@ -46,6 +59,9 @@ export default function Profile() {
                 ...data,
                 avatar: data.avatar_url || data.avatar || ''
             });
+            if (data.major) {
+                setSelectedMajors(data.major.split(',').map(m => m.trim()).filter(Boolean));
+            }
         } catch (err) {
             showAvatarMsg('error', err.message);
         } finally {
@@ -72,7 +88,12 @@ export default function Profile() {
         e.preventDefault();
         setSaving(true);
         try {
-            const res = await updateUserProfile(profileData);
+            const dataToSave = { ...profileData };
+            if (user?.role === 'mentor') {
+                dataToSave.major = selectedMajors.join(', ');
+            }
+
+            const res = await updateUserProfile(dataToSave);
             // Update local storage user data, preserving avatar mapping
             const storedToken = localStorage.getItem('token');
             const updatedUser = {
@@ -121,11 +142,11 @@ export default function Profile() {
             const base64 = reader.result;
             try {
                 await updateAvatar(base64);
-                setProfileData(prev => ({ ...prev, avatar: base64 }));
+                setProfileData(prev => ({ ...prev, avatar: base64, avatar_url: base64 }));
 
                 // Update local storage
                 const storedToken = localStorage.getItem('token');
-                const updatedUser = { ...user, avatar: base64 };
+                const updatedUser = { ...user, avatar: base64, avatar_url: base64 };
                 login(storedToken, updatedUser);
 
                 showAvatarMsg('success', 'Profile photo updated!');
@@ -145,13 +166,25 @@ export default function Profile() {
 
             // Update local storage
             const storedToken = localStorage.getItem('token');
-            const updatedUser = { ...user, avatar: '' };
+            const updatedUser = { ...user, avatar: '', avatar_url: '' };
             login(storedToken, updatedUser);
 
             showAvatarMsg('success', 'Profile photo removed');
         } catch (err) {
             showAvatarMsg('error', err.message);
         }
+    };
+
+    const handleMajorSelect = (e) => {
+        const majorStr = e.target.value;
+        if (majorStr && !selectedMajors.includes(majorStr)) {
+            setSelectedMajors([...selectedMajors, majorStr]);
+        }
+        e.target.value = '';
+    };
+
+    const removeMajor = (majorStr) => {
+        setSelectedMajors(selectedMajors.filter(m => m !== majorStr));
     };
 
     if (loading) return (
@@ -281,12 +314,39 @@ export default function Profile() {
                             </div>
                             <div className="form-group">
                                 <label>Major / Study Path</label>
-                                <input
-                                    type="text"
-                                    value={profileData.major || ''}
-                                    onChange={e => setProfileData({ ...profileData, major: e.target.value })}
-                                    placeholder="e.g. Software Engineering"
-                                />
+                                {user?.role === 'mentor' ? (
+                                    <>
+                                        <select
+                                            className="form-input form-select"
+                                            onChange={handleMajorSelect}
+                                            defaultValue=""
+                                            style={{ marginBottom: '10px' }}
+                                        >
+                                            <option value="" disabled>Select a major to add...</option>
+                                            {majorsList.map(major => (
+                                                <option key={major.id} value={major.name} disabled={selectedMajors.includes(major.name)}>
+                                                    {major.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {selectedMajors.length > 0 && (
+                                            <div className="selected-topics" style={{ marginTop: '10px' }}>
+                                                {selectedMajors.map(major => (
+                                                    <span key={major} className="topic-tag">
+                                                        {major}
+                                                        <button type="button" onClick={() => removeMajor(major)}>
+                                                            <X size={12} />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="form-input" style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-app)', cursor: 'not-allowed', opacity: 0.8 }}>
+                                        {profileData.major || 'Not set'}
+                                    </div>
+                                )}
                             </div>
                             <div className="form-actions">
                                 <button type="submit" className="btn-primary" disabled={saving}>

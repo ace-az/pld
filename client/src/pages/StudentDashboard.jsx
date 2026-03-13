@@ -13,15 +13,24 @@ export default function StudentDashboard() {
     const [sessions, setSessions] = useState([]);
     const [joinableSessions, setJoinableSessions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [savingPrefs, setSavingPrefs] = useState(false);
     const [expanded, setExpanded] = useState({});
     const toast = useToast();
     const [announcements, setAnnouncements] = useState([]);
 
+    // PLD Preferences State
+    const [pldDay, setPldDay] = useState(user?.pld_day || '');
+    const [pldTime, setPldTime] = useState(user?.pld_time || '');
+
     useEffect(() => {
-        if (user && user.role === 'student' && (!user.major || user.major === 'Undeclared')) {
-            navigate('/declare-major');
-        } else {
-            fetchData();
+        if (user && user.role === 'student') {
+            if (!user.major || user.major === 'Undeclared') {
+                navigate('/declare-major');
+            } else {
+                setPldDay(user.pld_day || '');
+                setPldTime(user.pld_time || '');
+                fetchData();
+            }
         }
     }, [user, navigate]);
 
@@ -60,6 +69,30 @@ export default function StudentDashboard() {
         }
     };
 
+    const handleSavePreferences = async () => {
+        setSavingPrefs(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ pldDay, pldTime })
+            });
+            if (!res.ok) throw new Error('Failed to save preferences');
+            toast.success("PLD Availability preferences saved!");
+
+            // Note: Since AuthContext provides 'user', a full page reload or context refresh 
+            // is usually ideal, but for now state holds it correctly.
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setSavingPrefs(false);
+        }
+    };
+
     const getMyData = (session) => {
         if (!user || !session.students) return null;
         const searchKey = user.discordId || user.username;
@@ -80,6 +113,31 @@ export default function StudentDashboard() {
     const avgGrade = gradesArr.length > 0 ? (gradesArr.reduce((a, b) => a + b, 0) / gradesArr.length).toFixed(1) : '—';
     const topicsCovered = [...new Set(mySessions.map(s => s.topicName).filter(Boolean))];
 
+    // Helper: Check if a time slot has elapsed (plus 1 hour) in the current week.
+    // Assuming week starts on Sunday (0).
+    const isSlotExpiredForThisWeek = (dayStr, timeStr) => {
+        const days = { "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6 };
+        const targetDay = days[dayStr];
+        const now = new Date();
+        const currentDay = now.getDay();
+
+        // If today is Mon or Tue, it's a new week for Wed/Thu sessions, so nothing is expired
+        if (currentDay < 3) return false;
+
+        let targetDate = new Date();
+        let [hours, minutes] = timeStr.split(':').map(Number);
+        targetDate.setHours(hours, minutes, 0, 0);
+
+        let dayDiff = targetDay - currentDay;
+        targetDate.setDate(targetDate.getDate() + dayDiff);
+
+        // Add 1 hour to the scheduled time
+        targetDate.setHours(targetDate.getHours() + 1);
+
+        // If the calculated target date for THIS week is in the past, it's expired
+        return now > targetDate;
+    };
+
     if (loading) {
         return (
             <div className="flex-center" style={{ height: '50vh', flexDirection: 'column' }}>
@@ -90,7 +148,18 @@ export default function StudentDashboard() {
     }
 
     const activeSessions = sessions
-        .filter(s => s.status !== 'completed' && getMyData(s))
+        .filter(s => {
+            if (s.status === 'completed' || !getMyData(s)) return false;
+            // Hide sessions that are older than 1 hour past their scheduled start time
+            if (s.scheduled_date) {
+                const scheduledTime = new Date(s.scheduled_date).getTime();
+                const now = new Date().getTime();
+                if (now - scheduledTime > 3600000) { // 3600000 ms = 1 hour
+                    return false;
+                }
+            }
+            return true;
+        })
         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
     return (
@@ -144,6 +213,67 @@ export default function StudentDashboard() {
                     </div>
                 </div>
                 <button className="ai-banner-btn">Start Now</button>
+            </div>
+
+            {/* PLD Availability Preferences */}
+            <div className="student-prefs-card">
+                <div className="prefs-header">
+                    <div className="prefs-icon">
+                        <Clock size={24} />
+                    </div>
+                    <div>
+                        <h3>Set Your PLD Availability</h3>
+                        <p>Select when you are available for Peer Learning Days. Groups will be created based on these preferences.</p>
+                    </div>
+                </div>
+
+                <div className="prefs-controls">
+                    <div className="prefs-select-wrapper">
+                        <label>Preferred Session Block</label>
+                        <select
+                            className="student-prefs-select"
+                            value={pldDay && pldTime ? `${pldDay}|${pldTime}` : ''}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (val) {
+                                    const [day, time] = val.split('|');
+                                    setPldDay(day);
+                                    setPldTime(time);
+                                } else {
+                                    setPldDay('');
+                                    setPldTime('');
+                                }
+                            }}
+                        >
+                            <option value="">-- Select Available Time --</option>
+                            <option value="Wednesday|10:00" disabled={isSlotExpiredForThisWeek('Wednesday', '10:00')}>
+                                Wednesday at 10:00 {isSlotExpiredForThisWeek('Wednesday', '10:00') ? '(Ended)' : ''}
+                            </option>
+                            <option value="Wednesday|15:30" disabled={isSlotExpiredForThisWeek('Wednesday', '15:30')}>
+                                Wednesday at 15:30 {isSlotExpiredForThisWeek('Wednesday', '15:30') ? '(Ended)' : ''}
+                            </option>
+                            <option value="Thursday|10:00" disabled={isSlotExpiredForThisWeek('Thursday', '10:00')}>
+                                Thursday at 10:00 {isSlotExpiredForThisWeek('Thursday', '10:00') ? '(Ended)' : ''}
+                            </option>
+                            <option value="Thursday|15:30" disabled={isSlotExpiredForThisWeek('Thursday', '15:30')}>
+                                Thursday at 15:30 {isSlotExpiredForThisWeek('Thursday', '15:30') ? '(Ended)' : ''}
+                            </option>
+                        </select>
+                    </div>
+                    <button
+                        className="student-prefs-btn"
+                        onClick={handleSavePreferences}
+                        disabled={savingPrefs || !pldDay || !pldTime}
+                    >
+                        {savingPrefs ? 'Saving...' : 'Save Preferences'}
+                    </button>
+                </div>
+                {user?.pld_day && user?.pld_time && (
+                    <div className="prefs-active-badge">
+                        <CheckCircle size={15} />
+                        <span>Current Preference: <strong>{user.pld_day}s at {user.pld_time}</strong></span>
+                    </div>
+                )}
             </div>
 
             {/* Announcements Mini Card */}
@@ -209,7 +339,7 @@ export default function StudentDashboard() {
                                     <h4>{session.groupName}</h4>
                                     <div className="joinable-meta">
                                         <Calendar size={13} />
-                                        <span>{new Date(session.createdAt).toLocaleDateString()} at {session.scheduledTime || '10:00 AM'}</span>
+                                        <span>{new Date(session.createdAt).toLocaleDateString()} at {session.scheduled_date ? new Date(session.scheduled_date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '10:00 AM'}</span>
                                     </div>
                                     <div className="joinable-topics">
                                         {session.topicNames?.map((topic, i) => (

@@ -31,6 +31,7 @@ async function findUserByUsername(username) {
 }
 
 async function findUserById(id) {
+    if (!id || id === 'admin') return null;
     const { data, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
     if (error) console.error("Error finding user by id:", error);
     return data;

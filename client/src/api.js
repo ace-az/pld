@@ -140,6 +140,14 @@ export const deleteSession = async (id) => {
     return handleResponse(response);
 };
 
+export const removeSessionStudent = async (sessionId, studentId) => {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+};
+
 export const deleteAllSessions = async () => {
     const response = await fetch(`${API_URL}/api/sessions/all`, {
         method: 'DELETE',
@@ -325,8 +333,11 @@ export const deleteAllQuestionSets = async () => {
     return handleResponse(response);
 };
 
-export const getLeaderboard = async () => {
-    const response = await fetch(`${API_URL}/api/sessions/stats/leaderboard`, {
+export const getLeaderboard = async (major = null) => {
+    const url = major
+        ? `${API_URL}/api/sessions/stats/leaderboard?major=${encodeURIComponent(major)}`
+        : `${API_URL}/api/sessions/stats/leaderboard`;
+    const response = await fetch(url, {
         headers: getAuthHeaders()
     });
     return handleResponse(response);
@@ -432,11 +443,11 @@ export const deleteAnnouncement = async (id) => {
     return handleResponse(response);
 };
 
-export const notifyGroups = async ({ groups, topicIds }) => {
+export const notifyGroups = async ({ groups, topicIds, groupTimes, scheduledDates }) => {
     const response = await fetch(`${API_URL}/api/announcements/notify-groups`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ groups, topicIds })
+        body: JSON.stringify({ groups, topicIds, groupTimes, scheduledDates })
     });
     return handleResponse(response);
 };

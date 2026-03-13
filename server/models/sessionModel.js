@@ -2,7 +2,7 @@
 const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
-async function createSession(mentorId, groupName, studentsData = [], topicIds, customDate = null, scheduledTime = null) {
+async function createSession(mentorId, groupName, studentsData = [], topicIds, customDate = null, scheduledTime = null, scheduledDate = null, sessionMajor = 'General') {
     // studentsData = [{ name, discord }]
     const students = (studentsData || []).map(s => ({
         id: uuidv4(),
@@ -39,6 +39,24 @@ async function createSession(mentorId, groupName, studentsData = [], topicIds, c
         topicNames.push(set.topic);
     });
 
+    // Build the scheduled_date by combining date + time
+    let finalScheduledDate = null;
+    if (scheduledDate) {
+        finalScheduledDate = scheduledDate; // Already an ISO string from random groups
+    } else if (customDate && scheduledTime) {
+        // Manual creation: combine date string + time string  
+        const dateObj = new Date(customDate);
+        const [hours, minutes] = scheduledTime.split(':').map(Number);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+            dateObj.setHours(hours, minutes, 0, 0);
+        }
+        finalScheduledDate = dateObj.toISOString();
+    } else if (customDate) {
+        finalScheduledDate = new Date(customDate).toISOString();
+    } else {
+        finalScheduledDate = new Date().toISOString();
+    }
+
     const session = {
         id: uuidv4(),
         mentorId,
@@ -46,9 +64,12 @@ async function createSession(mentorId, groupName, studentsData = [], topicIds, c
         topicIds: ids,
         topicNames: topicNames, // Array of selected topic names
         topicName: topicNames.join(', '), // Comma separated string for backward compatibility/simpler display
+        major: sessionMajor, // Store the explicitly passed major
         questions: allQuestions, // Combined snapshot of questions
         status: 'active', // active, completed
         createdAt: customDate || new Date().toISOString(),
+        scheduled_date: finalScheduledDate,
+        notified: false,
         students
     };
 
@@ -92,10 +113,27 @@ async function joinSession(sessionId, studentData) {
     return data;
 }
 
-async function getSessionsByMentor(mentorId) {
-    const { data, error } = await supabase.from('sessions').select('*').eq('mentorId', mentorId);
-    if (error) console.error("Error getting sessions by mentor:", error);
-    return data || [];
+async function getSessionsByMentor(mentorId, mentorMajors) {
+    if (!mentorMajors || mentorMajors.length === 0) {
+        // Fallback for mentors without assigned majors
+        const { data, error } = await supabase.from('sessions').select('*').eq('mentorId', mentorId);
+        if (error) console.error("Error getting sessions by mentor:", error);
+        return data || [];
+    }
+
+    // Two queries are safer for Supabase OR logic when using .in()
+    const { data: mine, error: err1 } = await supabase.from('sessions').select('*').eq('mentorId', mentorId);
+    if (err1) console.error("Error getting sessions by mentor (mine):", err1);
+
+    const { data: shared, error: err2 } = await supabase.from('sessions').select('*').in('major', mentorMajors);
+    if (err2) console.error("Error getting sessions by mentor (shared majors):", err2);
+
+    // Merge and deduplicate
+    const allSessions = [...(mine || []), ...(shared || [])];
+    const uniqueSessionsMap = new Map();
+    allSessions.forEach(s => uniqueSessionsMap.set(s.id, s));
+
+    return Array.from(uniqueSessionsMap.values());
 }
 
 async function getSessionsForStudent(username) {
@@ -108,7 +146,7 @@ async function getSessionsForStudent(username) {
     return sessions.filter(session => (session.students || []).some(s => s.discord && s.discord.toLowerCase() === username.toLowerCase()));
 }
 
-async function getJoinableSessions(username) {
+async function getJoinableSessions(username, studentMajor) {
     const now = new Date();
     const { data: sessions, error } = await supabase.from('sessions').select('*');
     if (error) {
@@ -120,7 +158,14 @@ async function getJoinableSessions(username) {
         const isFuture = new Date(session.createdAt) >= new Date(now.setHours(0, 0, 0, 0));
         const isCompleted = session.status === 'completed';
         const alreadyJoined = (session.students || []).some(s => s.discord && s.discord.toLowerCase() === username.toLowerCase());
-        return isFuture && !isCompleted && !alreadyJoined;
+
+        let majorMatches = true;
+        if (studentMajor && studentMajor !== 'Undeclared') {
+            // Allow joining if session major is general/unspecified, or matches student's major
+            majorMatches = !session.major || session.major === 'General' || session.major === studentMajor;
+        }
+
+        return isFuture && !isCompleted && !alreadyJoined && majorMatches;
     });
 }
 
@@ -239,8 +284,53 @@ async function updateStudentGrade(sessionId, studentId, grade) {
     return students[studentIndex];
 }
 
-async function getLeaderboard() {
-    const { data: sessions, error } = await supabase.from('sessions').select('students').eq('status', 'completed');
+async function removeStudentFromSession(sessionId, studentId) {
+    const { data: session, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !session) return null;
+
+    const students = session.students || [];
+    const newStudents = students.filter(s => s.id !== studentId);
+
+    // If no students left, maybe we shouldn't delete the session, but just leave it empty.
+    const { data, error } = await supabase.from('sessions').update({ students: newStudents }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error removing student from session:", error);
+        return null;
+    }
+    return data;
+}
+
+async function getSessionsToNotify(thresholdISOString) {
+    // Find sessions that are scheduled between now and the threshold (now + 5 min)
+    // This prevents notifying sessions whose time has long passed
+    const nowISO = new Date().toISOString();
+    const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('status', 'active')
+        .eq('notified', false)
+        .gte('scheduled_date', nowISO)          // scheduled_date >= now (hasn't started yet)
+        .lte('scheduled_date', thresholdISOString);  // scheduled_date <= now + 5 min
+    if (error) {
+        console.error("Error fetching sessions to notify:", error);
+        return [];
+    }
+    return data || [];
+}
+
+async function markSessionNotified(sessionId) {
+    const { data, error } = await supabase
+        .from('sessions')
+        .update({ notified: true })
+        .eq('id', sessionId);
+    if (error) {
+        console.error("Error marking session notified:", error);
+    }
+    return data;
+}
+
+async function getLeaderboard(major = null) {
+    const { data: sessions, error } = await supabase.from('sessions').select('students, major').eq('status', 'completed');
     if (error) {
         console.error("Error getting leaderboard sessions:", error);
         return [];
@@ -251,16 +341,23 @@ async function getLeaderboard() {
     sessions.forEach(session => {
         if (!session.students) return;
 
+        // If major filter is provided, only include sessions matching that major
+        if (major && session.major && session.major.toLowerCase() !== major.toLowerCase()) return;
+
         session.students.forEach(student => {
             if (!student.discord || student.status === 'absent') return;
             const grade = student.grade || 0;
             if (grade === 0) return; // Skip ungraded
+
+            // If major filter provided, also filter by student's own major
+            if (major && student.major && student.major.toLowerCase() !== major.toLowerCase()) return;
 
             const key = student.discord.toLowerCase();
             if (!studentStats[key]) {
                 studentStats[key] = {
                     name: student.name,
                     discord: student.discord,
+                    major: student.major || session.major || 'General',
                     totalGrade: 0,
                     sessionsCount: 0,
                     grades: []
@@ -302,6 +399,7 @@ async function getLeaderboard() {
             return {
                 name: s.name,
                 discord: s.discord,
+                major: s.major,
                 averageGrade: bayesianAverage.toFixed(2),
                 sessionsCount: s.sessionsCount,
                 totalGrade: s.totalGrade
@@ -312,4 +410,4 @@ async function getLeaderboard() {
     return leaderboard;
 }
 
-module.exports = { createSession, joinSession, getSessionsByMentor, getSessionsForStudent, getJoinableSessions, getSessionById, updateStudentNote, updateStudentResult, updateStudentQuestions, completeSession, deleteSession, deleteAllSessions, updateStudentStatus, updateStudentGrade, getLeaderboard };
+module.exports = { createSession, joinSession, getSessionsByMentor, getSessionsForStudent, getJoinableSessions, getSessionById, updateStudentNote, updateStudentResult, updateStudentQuestions, completeSession, deleteSession, deleteAllSessions, updateStudentStatus, updateStudentGrade, getLeaderboard, removeStudentFromSession, getSessionsToNotify, markSessionNotified };

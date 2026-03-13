@@ -1,16 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { getLeaderboard } from '../api';
-import { Trophy, Award, Users, TrendingUp } from 'lucide-react';
+import { getLeaderboard, getMajors } from '../api';
+import { useAuth } from '../context/AuthContext';
+import { Trophy, Award, Users, TrendingUp, GraduationCap } from 'lucide-react';
 import './Leaderboard.css';
 
 const Leaderboard = () => {
+    const { user } = useAuth();
     const [leaderboard, setLeaderboard] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [majors, setMajors] = useState([]);
+    const [selectedMajor, setSelectedMajor] = useState('');
 
     useEffect(() => {
-        const fetchLeaderboard = async () => {
+        const init = async () => {
             try {
-                const data = await getLeaderboard();
+                const majorsData = await getMajors();
+                const majorsList = (majorsData || []).map(m => m.name || m);
+                setMajors(majorsList);
+
+                // Determine initial major
+                let initialMajor = '';
+                if (user?.role === 'student') {
+                    // Students auto-filter by their own major
+                    initialMajor = user?.major || majorsList[0] || '';
+                } else if (user?.role === 'mentor') {
+                    // Mentors: use first major from their assigned majors
+                    const mentorMajors = (user?.major || '').split(',').map(m => m.trim()).filter(Boolean);
+                    initialMajor = mentorMajors[0] || majorsList[0] || '';
+                } else {
+                    initialMajor = majorsList[0] || '';
+                }
+                setSelectedMajor(initialMajor);
+            } catch (err) {
+                console.error("Failed to load majors", err);
+            }
+        };
+        init();
+    }, [user]);
+
+    useEffect(() => {
+        if (!selectedMajor) return;
+        const fetchLeaderboard = async () => {
+            setLoading(true);
+            try {
+                const data = await getLeaderboard(selectedMajor);
                 setLeaderboard(data);
             } catch (err) {
                 console.error("Failed to fetch leaderboard", err);
@@ -19,7 +52,19 @@ const Leaderboard = () => {
             }
         };
         fetchLeaderboard();
-    }, []);
+    }, [selectedMajor]);
+
+    // For mentors: get the majors they teach
+    const mentorMajors = user?.role === 'mentor'
+        ? (user?.major || '').split(',').map(m => m.trim()).filter(Boolean)
+        : [];
+
+    // Determine which majors to show in dropdown
+    const availableMajors = user?.role === 'mentor'
+        ? (mentorMajors.length > 0 ? mentorMajors : majors)
+        : user?.role === 'admin'
+            ? majors
+            : []; // students don't get a dropdown
 
     const getRankStyle = (rank) => {
         if (rank === 1) return { background: 'linear-gradient(135deg, #FFD700, #FFA500)', color: '#000' };
@@ -50,10 +95,34 @@ const Leaderboard = () => {
             <div className="leaderboard-header-card">
                 <div className="leaderboard-header-title">
                     <Trophy size={40} color="#FFD700" className="trophy-icon" />
-                    <h1>Student Leaderboard</h1>
+                    <h1>{selectedMajor} Leaderboard</h1>
                     <Trophy size={40} color="#FFD700" className="trophy-icon" />
                 </div>
                 <p>Ranking students by their average PLD performance</p>
+
+                {/* Major Selector for mentors and admins */}
+                {availableMajors.length > 0 && (
+                    <div className="major-selector">
+                        <GraduationCap size={18} />
+                        <select
+                            value={selectedMajor}
+                            onChange={(e) => setSelectedMajor(e.target.value)}
+                            className="major-select"
+                        >
+                            {availableMajors.map(m => (
+                                <option key={m} value={m}>{m}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                {/* Student info */}
+                {user?.role === 'student' && selectedMajor && (
+                    <div className="major-badge-display">
+                        <GraduationCap size={16} />
+                        <span>{selectedMajor}</span>
+                    </div>
+                )}
             </div>
 
             {/* Stats Summary */}
@@ -84,7 +153,7 @@ const Leaderboard = () => {
                 <div className="card empty-state">
                     <Trophy size={64} className="empty-icon" />
                     <h3>No Data Yet</h3>
-                    <p>Complete some PLD sessions with grades to see the leaderboard!</p>
+                    <p>Complete some PLD sessions with grades to see the {selectedMajor} leaderboard!</p>
                 </div>
             ) : (
                 <div className="card table-card">
