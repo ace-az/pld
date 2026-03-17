@@ -204,6 +204,8 @@ export default function SessionRun() {
         }
     };
 
+    const [generatingStudent, setGeneratingStudent] = useState(null);
+
     const handleGenerateReports = async () => {
         if (!session?.students) return;
         const isConfirmed = await confirm("Generate AI reports for all students?");
@@ -220,21 +222,22 @@ export default function SessionRun() {
                 }
                 if (newResults[student.id]) continue;
 
+                setGeneratingStudent(student.id);
+
                 const feedback = await generateFeedback(student.name, session.topicName || session.groupName, student.notes || "Participated in session.");
                 newResults[student.id] = feedback;
+                setResults({ ...newResults }); // Update UI progressively
 
                 await saveStudentResult(session.id, student.id, feedback);
             }
 
-            setResults(newResults);
-            // Removed auto-end session
-            // await endSession(session.id); 
             fetchSession(); // Refresh status
             toast.success("Reports generated!");
         } catch (err) {
             console.error('Error generating feedback:', err);
             toast.error("Failed to generate some reports. Please try again.");
         } finally {
+            setGeneratingStudent(null);
             setGenerating(false);
         }
     };
@@ -685,6 +688,14 @@ export default function SessionRun() {
                             {results[currentStudent.id] ? (
                                 <div style={{ flex: 1, whiteSpace: 'pre-wrap', fontSize: '0.95rem', overflowY: 'auto', maxHeight: '500px', background: 'var(--bg-app)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                                     {results[currentStudent.id]}
+                                </div>
+                            ) : generatingStudent === currentStudent.id ? (
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', border: '2px dashed var(--color-primary)', borderRadius: 'var(--radius-sm)', padding: '2rem', background: 'rgba(var(--color-primary-rgb, 67, 97, 238), 0.05)' }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div className="spinner" style={{ margin: '0 auto 1rem auto' }}></div>
+                                        <p style={{ color: 'var(--color-primary)', fontWeight: '600' }}>Generating AI Report...</p>
+                                        <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>This usually takes 5-10 seconds per student.</p>
+                                    </div>
                                 </div>
                             ) : (
                                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '2rem' }}>
