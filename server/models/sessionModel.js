@@ -2,7 +2,7 @@
 const { supabase } = require('./db');
 const { v4: uuidv4 } = require('uuid');
 
-async function createSession(mentorId, groupName, studentsData = [], topicIds, customDate = null, scheduledTime = null, scheduledDate = null, sessionMajor = 'General') {
+async function createSession(mentorId, groupName, studentsData = [], topicIds = [], customDate = null, scheduledTime = null, scheduledDate = null, sessionMajor = 'General', customQuestions = []) {
     // studentsData = [{ name, discord }]
     const students = (studentsData || []).map(s => ({
         id: uuidv4(),
@@ -18,26 +18,37 @@ async function createSession(mentorId, groupName, studentsData = [], topicIds, c
     }));
 
     // topicIds is expected to be an array
-    const ids = Array.isArray(topicIds) ? topicIds : [topicIds];
+    const ids = Array.isArray(topicIds) ? topicIds.filter(Boolean) : [topicIds].filter(Boolean);
 
-    // Fetch snapshot of questions from all selected topic sets
-    const { data: selectedSets } = await supabase.from('questions').select('*').in('id', ids);
-
-    // Aggregate questions and topic names
     let allQuestions = [];
     let topicNames = [];
 
-    (selectedSets || []).forEach(set => {
-        if (set.questions) {
-            // Add topic context to each question for better UI inside the session
-            const contextQuestions = set.questions.map(q => ({
-                ...(typeof q === 'string' ? { text: q } : q),
-                topicName: set.topic
-            }));
-            allQuestions = [...allQuestions, ...contextQuestions];
-        }
-        topicNames.push(set.topic);
-    });
+    if (ids.length > 0) {
+        // Fetch snapshot of questions from all selected topic sets
+        const { data: selectedSets } = await supabase.from('questions').select('*').in('id', ids);
+
+        // Aggregate questions and topic names
+        (selectedSets || []).forEach(set => {
+            if (set.questions) {
+                // Add topic context to each question for better UI inside the session
+                const contextQuestions = set.questions.map(q => ({
+                    ...(typeof q === 'string' ? { text: q } : q),
+                    topicName: set.topic
+                }));
+                allQuestions = [...allQuestions, ...contextQuestions];
+            }
+            topicNames.push(set.topic);
+        });
+    }
+
+    if (customQuestions && customQuestions.length > 0) {
+        const mappedCustom = customQuestions.map(q => ({
+            text: q.body || q.text || '',
+            topicName: q.title || 'Custom Task'
+        }));
+        allQuestions = [...allQuestions, ...mappedCustom];
+        topicNames.push('Custom');
+    }
 
     // Build the scheduled_date by combining date + time
     let finalScheduledDate = null;
@@ -410,4 +421,42 @@ async function getLeaderboard(major = null) {
     return leaderboard;
 }
 
-module.exports = { createSession, joinSession, getSessionsByMentor, getSessionsForStudent, getJoinableSessions, getSessionById, updateStudentNote, updateStudentResult, updateStudentQuestions, completeSession, deleteSession, deleteAllSessions, updateStudentStatus, updateStudentGrade, getLeaderboard, removeStudentFromSession, getSessionsToNotify, markSessionNotified };
+async function toggleStudentWorkshopPermission(sessionId, studentId, hasPermission) {
+    const { data: session, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !session) return null;
+
+    const students = session.students || [];
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return null;
+
+    students[studentIndex].hasWorkshopPermission = hasPermission;
+
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error updating student workshop permission:", error);
+        return null;
+    }
+    return students[studentIndex];
+}
+
+module.exports = {
+    createSession,
+    joinSession,
+    getSessionsByMentor,
+    getSessionsForStudent,
+    getJoinableSessions,
+    getSessionById,
+    updateStudentNote,
+    updateStudentResult,
+    updateStudentQuestions,
+    completeSession,
+    deleteSession,
+    deleteAllSessions,
+    updateStudentStatus,
+    updateStudentGrade,
+    getLeaderboard,
+    removeStudentFromSession,
+    getSessionsToNotify,
+    markSessionNotified,
+    toggleStudentWorkshopPermission
+};

@@ -7,6 +7,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import History from './pages/History';
 import SessionRun from './pages/SessionRun';
+import WorkshopWorkspace from './pages/WorkshopWorkspace';
+import Workshops from './pages/Workshops';
 import Students from './pages/Students';
 import Questions from './pages/Questions';
 import StudentDashboard from './pages/StudentDashboard';
@@ -52,6 +54,16 @@ export default function App() {
             <Route path="/session/:id" element={
               <PrivateRoute>
                 <SessionRun />
+              </PrivateRoute>
+            } />
+            <Route path="/workshops" element={
+              <PrivateRoute>
+                <Workshops />
+              </PrivateRoute>
+            } />
+            <Route path="/workshop/:id" element={
+              <PrivateRoute>
+                <WorkshopWorkspace />
               </PrivateRoute>
             } />
             <Route path="/students" element={

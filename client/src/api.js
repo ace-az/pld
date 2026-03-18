@@ -200,6 +200,15 @@ export const saveStudentResult = async (sessionId, studentId, result) => {
     return handleResponse(response);
 };
 
+export const toggleWorkshopPermission = async (sessionId, studentId, hasWorkshopPermission) => {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/permission`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ hasWorkshopPermission })
+    });
+    return handleResponse(response);
+};
+
 export const toggleStudentStatus = async (sessionId, studentId, status) => {
     const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/status`, {
         method: 'PUT',

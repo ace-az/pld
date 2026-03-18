@@ -43,7 +43,9 @@ export default function Dashboard() {
     }, [showCreate]);
 
     useEffect(() => {
-        if (location.state?.returnToSessionCreation) {
+        if (location.state?.showCreate) {
+            setShowCreate(true);
+        } else if (location.state?.returnToSessionCreation) {
             setShowCreate(true);
             const saved = localStorage.getItem('sessionFormData');
             if (saved) {
@@ -74,6 +76,7 @@ export default function Dashboard() {
     const fetchSessions = async () => {
         try {
             console.log('Fetching sessions...');
+            // if (sessions.length === 0) setLoading(true); // Don't block UI if we already have them
             const data = await getSessions();
             console.log('Sessions received:', data?.length);
             if (Array.isArray(data)) setSessions(data.reverse());

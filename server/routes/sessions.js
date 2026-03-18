@@ -23,6 +23,8 @@ router.post('/:sessionId/send-all', requireSessionMentorOwner, sessionController
 router.delete('/all', requireRole('mentor'), sessionController.deleteAllSessions);
 router.delete('/:id', requireSessionMentorOwner, sessionController.deleteSession);
 router.post('/:id/end', requireSessionMentorOwner, sessionController.endSession);
+router.post('/:sessionId/students/:studentId/submit-code', sessionController.submitCode);
+router.post('/:sessionId/students/:studentId/permission', requireSessionMentorOwner, sessionController.toggleStudentWorkshopPermission);
 router.get('/stats/leaderboard', sessionController.getLeaderboard);
 
 module.exports = router;
