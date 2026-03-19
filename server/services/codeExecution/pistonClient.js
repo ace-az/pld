@@ -50,6 +50,8 @@ async function executeCode(language, code) {
     if (!apiUrl.endsWith('/execute')) {
         if (apiUrl.includes('emkc.org')) {
             apiUrl += '/execute';
+        } else if (apiUrl.includes('/api/v2')) {
+            apiUrl += '/execute';
         } else {
             apiUrl += '/api/v2/execute';
         }

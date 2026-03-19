@@ -47,7 +47,7 @@ const client = new Client({
 client.on('debug', console.log);
 client.on('error', console.error);
 client.on('warn', console.warn);
-client.on('ready', () => console.log('Client has emitted the ready event!'));
+client.on('clientReady', () => console.log('Client has emitted the ready event!'));
 
 if (process.env.DISCORD_TOKEN) {
     const t = process.env.DISCORD_TOKEN;

@@ -3,6 +3,7 @@ const router = express.Router();
 const { OpenRouter } = require('@openrouter/sdk');
 const authMiddleware = require('../utils/authMiddleware');
 const codeExecution = require('../services/codeExecution');
+const axios = require('axios');
 
 const openrouter = new OpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY || ''
@@ -97,6 +98,35 @@ router.post('/execute-only', authMiddleware, async (req, res) => {
             success: false,
             error: 'server_error',
             message: errorMessage
+        });
+    }
+});
+
+// GET /api/ai/piston-status
+router.get('/piston-status', authMiddleware, async (req, res) => {
+    try {
+        const pistonUrl = process.env.PISTON_URL;
+        if (!pistonUrl) return res.status(500).json({ error: 'PISTON_URL not set' });
+
+        // Clean URL to base
+        let baseUrl = pistonUrl.replace(/\/$/, '').replace(/\/api\/v2$/, '').replace(/\/execute$/, '');
+        if (!baseUrl.startsWith('http')) baseUrl = `http://${baseUrl}`;
+
+        const runtimeUrl = `${baseUrl.endsWith(':2000') ? baseUrl : baseUrl + ':2000'}/api/v2/runtimes`;
+        console.log(`[Diagnostic] Probing Piston at: ${runtimeUrl}`);
+
+        const response = await axios.get(runtimeUrl, { timeout: 8000 });
+        res.json({ 
+            success: true, 
+            url: runtimeUrl,
+            data: response.data 
+        });
+    } catch (err) {
+        console.error('[Diagnostic Error]:', err.message);
+        res.status(500).json({ 
+            success: false, 
+            error: err.message,
+            url: process.env.PISTON_URL
         });
     }
 });
