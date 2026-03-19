@@ -89,6 +89,7 @@ app.use('/api/profile', require('./routes/profile'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/majors', require('./routes/majors'));
+app.use('/api/ai', require('./routes/ai'));
 
 
 app.get('/', (req, res) => {

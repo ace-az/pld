@@ -11,6 +11,7 @@ router.post('/', requireRole('mentor'), sessionController.createSession);
 router.get('/', sessionController.getMySessions);
 router.get('/joinable', sessionController.getJoinableSessions);
 router.post('/:id/join', sessionController.joinSession);
+router.post('/:id/students', requireSessionMentorOwner, sessionController.addStudent);
 router.get('/:id', sessionController.getSession);
 router.delete('/:sessionId/students/:studentId', sessionController.removeStudent);
 router.put('/:sessionId/students/:studentId/notes', requireSessionMentorOwner, sessionController.updateNote);
@@ -26,5 +27,6 @@ router.post('/:id/end', requireSessionMentorOwner, sessionController.endSession)
 router.post('/:sessionId/students/:studentId/submit-code', sessionController.submitCode);
 router.post('/:sessionId/students/:studentId/permission', requireSessionMentorOwner, sessionController.toggleStudentWorkshopPermission);
 router.get('/stats/leaderboard', sessionController.getLeaderboard);
+router.put('/:id/workshop-code', sessionController.updateWorkshopCode);
 
 module.exports = router;

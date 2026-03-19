@@ -209,6 +209,15 @@ export const toggleWorkshopPermission = async (sessionId, studentId, hasWorkshop
     return handleResponse(response);
 };
 
+export const updateWorkshopCode = async (sessionId, codeData) => {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/workshop-code`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(codeData)
+    });
+    return handleResponse(response);
+};
+
 export const toggleStudentStatus = async (sessionId, studentId, status) => {
     const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/status`, {
         method: 'PUT',

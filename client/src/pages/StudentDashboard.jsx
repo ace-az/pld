@@ -310,15 +310,22 @@ export default function StudentDashboard() {
 
                 {activeSessions.length > 0 ? (
                     <div className="student-active-sessions">
-                        {activeSessions.map(session => (
-                            <div key={session.id} className="student-session-card">
-                                <h3>{session.groupName}</h3>
-                                <p className="session-topic">Topic: {session.topicName}</p>
-                                <Link to={`/session/${session.id}`} className="btn-enter-session">
-                                    Enter Session
-                                </Link>
-                            </div>
-                        ))}
+                        {activeSessions.map(session => {
+                            const isWorkshop = session.groupName && session.groupName.startsWith('[WORKSHOP]');
+                            return (
+                                <div key={session.id} className="student-session-card">
+                                    <h3>{isWorkshop ? session.groupName.replace('[WORKSHOP] ', '') : session.groupName}</h3>
+                                    <p className="session-topic">Topic: {session.topicName || (isWorkshop ? 'Interactive Workshop' : 'PLD Session')}</p>
+                                    <Link 
+                                        to={isWorkshop ? `/workshop/${session.id}` : `/session/${session.id}`} 
+                                        className="btn-enter-session"
+                                        style={isWorkshop ? { background: 'var(--color-primary)' } : {}}
+                                    >
+                                        {isWorkshop ? 'Enter Workshop' : 'Enter Session'}
+                                    </Link>
+                                </div>
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="student-empty-state">

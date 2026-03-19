@@ -13,6 +13,7 @@ async function createSession(mentorId, groupName, studentsData = [], topicIds = 
         grade: 0, // Default grade
         status: 'present', // Default status
         result: null, // AI result
+        submissions: {}, // Per-question submissions { [index]: { code, language, output, feedback } }
         answeredQuestions: [], // Tracking covered questions IDs
         incorrectQuestions: [] // Tracking incorrect questions IDs
     }));
@@ -81,7 +82,14 @@ async function createSession(mentorId, groupName, studentsData = [], topicIds = 
         createdAt: customDate || new Date().toISOString(),
         scheduled_date: finalScheduledDate,
         notified: false,
-        students
+        students,
+        workshop_data: {
+            code: '# Write Python here\n',
+            language: 'python',
+            updatedAt: new Date().toISOString(),
+            updatedBy: mentorId,
+            questionIndex: 0
+        }
     };
 
     const { data, error } = await supabase.from('sessions').insert([session]).select().single();
@@ -110,6 +118,7 @@ async function joinSession(sessionId, studentData) {
         grade: 0,
         status: 'present',
         result: null,
+        submissions: {},
         answeredQuestions: [],
         incorrectQuestions: []
     };
@@ -119,6 +128,39 @@ async function joinSession(sessionId, studentData) {
     const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
     if (error) {
         console.error("Error joining session:", error);
+        throw error;
+    }
+    return data;
+}
+
+async function addStudentToSession(sessionId, studentData) {
+    const { data: session, error: getError } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (getError || !session) throw new Error('Session not found');
+
+    const students = session.students || [];
+    const exists = students.find(s => s.discord && s.discord.toLowerCase() === studentData.discord.toLowerCase());
+    if (exists) throw new Error('Student already in session');
+
+    const newStudent = {
+        id: uuidv4(),
+        name: studentData.name,
+        discord: studentData.discord,
+        major: studentData.major || '',
+        notes: '',
+        grade: 0,
+        status: 'present',
+        result: null,
+        submissions: {},
+        hasWorkshopPermission: false,
+        answeredQuestions: [],
+        incorrectQuestions: []
+    };
+
+    students.push(newStudent);
+
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error adding student to session:", error);
         throw error;
     }
     return data;
@@ -217,6 +259,36 @@ async function updateStudentResult(sessionId, studentId, resultSummary) {
     const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
     if (error) {
         console.error("Error updating student result:", error);
+        return null;
+    }
+    return students[studentIndex];
+}
+
+async function updateStudentSubmission(sessionId, studentId, questionIndex, submissionData) {
+    const { data: session, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !session) return null;
+
+    const students = session.students || [];
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return null;
+
+    if (!students[studentIndex].submissions) {
+        students[studentIndex].submissions = {};
+    }
+
+    students[studentIndex].submissions[questionIndex] = {
+        ...(students[studentIndex].submissions[questionIndex] || {}),
+        ...submissionData
+    };
+
+    // Also update the global result if feedback is provided (for backward compatibility/mentor view)
+    if (submissionData.feedback) {
+        students[studentIndex].result = submissionData.feedback;
+    }
+
+    const { data, error } = await supabase.from('sessions').update({ students }).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error updating student submission:", error);
         return null;
     }
     return students[studentIndex];
@@ -458,5 +530,33 @@ module.exports = {
     removeStudentFromSession,
     getSessionsToNotify,
     markSessionNotified,
-    toggleStudentWorkshopPermission
+    toggleStudentWorkshopPermission,
+    updateStudentSubmission,
+    addStudentToSession,
+    updateWorkshopCode
 };
+
+async function updateWorkshopCode(sessionId, { code, language, questionIndex, updatedBy }) {
+    const updateData = {
+        workshop_data: {
+            code,
+            language,
+            questionIndex,
+            updatedBy,
+            updatedAt: new Date().toISOString()
+        }
+    };
+
+    const { data, error } = await supabase
+        .from('sessions')
+        .update(updateData)
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error updating workshop code:", error);
+        throw error;
+    }
+    return data;
+}

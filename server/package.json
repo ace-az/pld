@@ -9,6 +9,7 @@
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
+        "@openrouter/sdk": "^0.9.11",
         "@supabase/supabase-js": "^2.97.0",
         "axios": "^1.13.5",
         "bcryptjs": "^2.4.3",
