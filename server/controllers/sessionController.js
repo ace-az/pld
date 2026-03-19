@@ -569,7 +569,7 @@ exports.addStudent = async (req, res) => {
 exports.updateWorkshopCode = async (req, res) => {
     try {
         const { id } = req.params;
-        const { code, language, questionIndex } = req.body;
+        const { code, language, questionIndex, lastEditPos } = req.body;
         
         // Security: only mentor or students with permission can update
         const session = await sessionModel.getSessionById(id);
@@ -583,11 +583,21 @@ exports.updateWorkshopCode = async (req, res) => {
             return res.status(403).json({ error: 'Access denied: You do not have permission to edit this workshop.' });
         }
 
+        let updatedByName = req.user.username; // fallback
+        const userRecord = await userModel.findUserById(req.user.id);
+        if (userRecord && userRecord.firstName) {
+            updatedByName = `${userRecord.firstName} ${userRecord.lastName}`.trim();
+        } else if (userRecord) {
+            updatedByName = userRecord.username;
+        }
+
         const updated = await sessionModel.updateWorkshopCode(id, {
             code,
             language,
             questionIndex,
-            updatedBy: req.user.id
+            updatedBy: req.user.id,
+            updatedByName,
+            lastEditPos
         });
 
         res.json(updated);

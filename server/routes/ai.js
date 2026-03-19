@@ -67,6 +67,28 @@ Respond in this exact JSON format only:
 }`;
 }
 
+function getTutorOnlyPrompt(language) {
+  return `You are an expert ${language} programming tutor.
+You are reviewing code that has already been executed securely.
+
+Tasks:
+1. Explain what the code does in beginner-friendly terms
+2. Provide improvement suggestions
+3. Give hints if there are errors in the execution output
+4. Rate code quality (1-10)
+
+Respond in this exact JSON format only:
+{
+  "explanation": "beginner-friendly explanation of what code does",
+  "suggestions": ["suggestion 1", "suggestion 2"],
+  "hints": ["hint if something is wrong"],
+  "codeQuality": {
+    "score": 8,
+    "feedback": "brief quality feedback"
+  }
+}`;
+}
+
 const BASE_FEEDBACK_PROMPT = `
 You are a friendly Teaching Assistant for Peer Learning Days (PLD).
 Your job is to write simple, clear feedback messages that will be sent to students via Discord (A2 level English).
@@ -104,14 +126,22 @@ const askAI = async (prompt, systemPrompt = '') => {
     }
 };
 
-async function evaluateCode(language, code, tutorMode = false, expectedOutput = null) {
-    const systemPrompt = tutorMode 
-        ? getFullTutorPrompt(language)
-        : getExecutionOnlyPrompt(language);
+async function evaluateCode(language, code, tutorMode = false, expectedOutput = null, realOutput = null) {
+    let systemPrompt;
+    if (tutorMode && realOutput !== null) {
+        systemPrompt = getTutorOnlyPrompt(language);
+    } else if (tutorMode) {
+        systemPrompt = getFullTutorPrompt(language);
+    } else {
+        systemPrompt = getExecutionOnlyPrompt(language);
+    }
 
     let prompt = `Code:\n${code}`;
     if (expectedOutput) {
         prompt += `\n\nExpected Output (for context):\n${expectedOutput}`;
+    }
+    if (realOutput !== null) {
+        prompt += `\n\nActual Execution Output:\n${realOutput}`;
     }
 
     const responseText = await askAI(prompt, systemPrompt);
@@ -169,8 +199,8 @@ router.post('/evaluate', authMiddleware, async (req, res) => {
             
             // STEP 2: If tutor mode ON, get AI feedback too
             if (tutorMode) {
-                // Code already ran successfully, now get AI feedback on the code quality
-                const tutorFeedback = await evaluateCode(language, code, true, expectedOutput);
+                // Code already ran successfully, now get AI feedback ONLY, providing the real output
+                const tutorFeedback = await evaluateCode(language, code, true, expectedOutput, executionResult.output);
                 executionResult.explanation = tutorFeedback.explanation;
                 executionResult.suggestions = tutorFeedback.suggestions;
                 executionResult.hints = tutorFeedback.hints;
@@ -184,6 +214,30 @@ router.post('/evaluate', authMiddleware, async (req, res) => {
         }
 
         return res.json(executionResult);
+    } catch (err) {
+        console.error('[AI Route Error]:', err);
+        res.status(500).json({ 
+            success: false,
+            error: 'server_error',
+            message: err.message || 'An unexpected error occurred'
+        });
+    }
+});
+
+// POST /api/ai/tutor-review
+router.post('/tutor-review', authMiddleware, async (req, res) => {
+    try {
+        const { language, code, expectedOutput, realOutput } = req.body;
+
+        if (!language || !code) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Language and code are required' 
+            });
+        }
+
+        const tutorFeedback = await evaluateCode(language, code, true, expectedOutput, realOutput);
+        return res.json(tutorFeedback);
     } catch (err) {
         console.error('[AI Route Error]:', err);
         res.status(500).json({ 

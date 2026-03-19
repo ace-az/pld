@@ -573,14 +573,43 @@ module.exports = {
     updateSession
 };
 
-async function updateWorkshopCode(sessionId, { code, language, questionIndex, updatedBy }) {
+async function updateWorkshopCode(sessionId, { code, language, questionIndex, updatedBy, updatedByName, lastEditPos }) {
+    // Fetch the current session to merge workshop_data
+    const { data: currentSession, error: fetchError } = await supabase
+        .from('sessions')
+        .select('workshop_data')
+        .eq('id', sessionId)
+        .single();
+
+    if (fetchError) {
+        console.error("Error fetching session for workshop code update:", fetchError);
+        throw fetchError;
+    }
+
+    const existingData = currentSession.workshop_data || {};
+    const submissions = existingData.submissions || {};
+
     const updateData = {
         workshop_data: {
+            ...existingData,
             code,
             language,
             questionIndex,
             updatedBy,
-            updatedAt: new Date().toISOString()
+            updatedByName,
+            lastEditPos,
+            updatedAt: new Date().toISOString(),
+            submissions: {
+                ...submissions,
+                [questionIndex]: {
+                    code,
+                    language,
+                    updatedBy,
+                    updatedByName,
+                    lastEditPos,
+                    updatedAt: new Date().toISOString()
+                }
+            }
         }
     };
 

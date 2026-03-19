@@ -11,6 +11,10 @@ RUN apk update && apk add --no-cache \
     bash \
     dotnet8-sdk
 
+# Install dotnet-script for C# support
+ENV PATH="${PATH}:/root/.dotnet/tools"
+RUN dotnet tool install -g dotnet-script
+
 WORKDIR /usr/src/app
 
 COPY package*.json ./

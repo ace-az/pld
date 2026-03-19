@@ -42,8 +42,13 @@ function runPython(id, code, startTime) {
   const filePath = path.join(TEMP_DIR, `${id}.py`);
   fs.writeFileSync(filePath, code);
   
+  let pythonCmd = 'python3';
+  if (process.platform === 'win32') {
+    pythonCmd = 'python';
+  }
+
   try {
-    const output = execSync(`python3 "${filePath}"`, {
+    const output = execSync(`${pythonCmd} "${filePath}"`, {
       timeout: TIMEOUT,
       maxBuffer: 1024 * 10, // 10KB max output
       cwd: TEMP_DIR,
@@ -58,6 +63,26 @@ function runPython(id, code, startTime) {
       executionTime: Date.now() - startTime
     };
   } catch (error) {
+    // If python3 fails on windows/linux, try python as fallback just in case
+    if (error.code === 'ENOENT' && pythonCmd === 'python3') {
+        try {
+            const output2 = execSync(`python "${filePath}"`, {
+              timeout: TIMEOUT,
+              maxBuffer: 1024 * 10,
+              cwd: TEMP_DIR,
+              env: { PATH: process.env.PATH },
+              stdio: ['pipe', 'pipe', 'pipe']
+            });
+            return {
+              success: true,
+              output: output2.toString(),
+              exitCode: 0,
+              executionTime: Date.now() - startTime
+            };
+        } catch (err2) {
+            return handleExecError(err2, startTime);
+        }
+    }
     return handleExecError(error, startTime);
   }
 }
