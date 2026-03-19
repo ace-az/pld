@@ -511,6 +511,42 @@ async function toggleStudentWorkshopPermission(sessionId, studentId, hasPermissi
     return students[studentIndex];
 }
 
+async function updateSession(sessionId, updateData) {
+    // If topicIds or customQuestions are updated, we might need to re-generate the questions list
+    // However, for simplicity and to avoid overwriting student progress, 
+    // we should probably only allow updating basic info or specific fields.
+    // The requirement says: "edit an existing workshop session's details (title, description, coding challenges, instructions, expected output, difficulty level, etc.)"
+    
+    const { data: currentSession, error: fetchErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    if (fetchErr || !currentSession) throw new Error('Session not found');
+
+    const updateFields = {};
+    if (updateData.groupName) updateFields.groupName = updateData.groupName;
+    if (updateData.major) updateFields.major = updateData.major;
+    if (updateData.status) updateFields.status = updateData.status;
+    
+    // If they want to update questions/challenges
+    if (updateData.questions) {
+        updateFields.questions = updateData.questions;
+    }
+    
+    if (updateData.topicNames) {
+        updateFields.topicNames = updateData.topicNames;
+        updateFields.topicName = updateData.topicNames.join(', ');
+    }
+
+    if (updateData.scheduled_date) {
+        updateFields.scheduled_date = updateData.scheduled_date;
+    }
+
+    const { data, error } = await supabase.from('sessions').update(updateFields).eq('id', sessionId).select().single();
+    if (error) {
+        console.error("Error updating session:", error);
+        throw error;
+    }
+    return data;
+}
+
 module.exports = {
     createSession,
     joinSession,
@@ -533,7 +569,8 @@ module.exports = {
     toggleStudentWorkshopPermission,
     updateStudentSubmission,
     addStudentToSession,
-    updateWorkshopCode
+    updateWorkshopCode,
+    updateSession
 };
 
 async function updateWorkshopCode(sessionId, { code, language, questionIndex, updatedBy }) {

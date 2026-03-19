@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { getSessions, createSession } from '../api';
-import { Code, Calendar, Play, Plus, X, Upload } from 'lucide-react';
+import { getSessions, createSession, updateSession, deleteSession } from '../api';
+import { Code, Calendar, Play, Plus, X, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function Workshops() {
     const { user } = useAuth();
@@ -11,9 +12,11 @@ export default function Workshops() {
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const toast = useToast();
+    const { confirm } = useConfirm();
 
-    // Create Workshop State
+    // Create/Edit Workshop State
     const [showCreate, setShowCreate] = useState(false);
+    const [editingSession, setEditingSession] = useState(null);
     const [groupName, setGroupName] = useState('');
     const [sessionMajors, setSessionMajors] = useState([]);
     const [customQuestions, setCustomQuestions] = useState([{ title: '', body: '' }]);
@@ -40,6 +43,31 @@ export default function Workshops() {
             toast.error("Failed to load workshop sessions.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleEditWorkshop = (session) => {
+        setEditingSession(session);
+        setGroupName(session.groupName.replace('[WORKSHOP] ', ''));
+        setSessionMajors(session.major ? session.major.split(',').map(m => m.trim()) : []);
+        setCustomQuestions(session.questions.map(q => ({
+            title: q.topicName || '',
+            body: q.text || (typeof q === 'string' ? q : '')
+        })));
+        setShowCreate(true);
+    };
+
+    const handleDeleteWorkshop = async (id) => {
+        const isConfirmed = await confirm("Are you sure? This will delete the session and all student submissions for this session.");
+        if (!isConfirmed) return;
+
+        try {
+            await deleteSession(id);
+            toast.success("Workshop deleted successfully.");
+            fetchData();
+        } catch (err) {
+            console.error('Delete workshop failed:', err);
+            toast.error("Failed to delete workshop.");
         }
     };
 
@@ -85,33 +113,48 @@ export default function Workshops() {
         try {
             const workshopName = `[WORKSHOP] ${groupName.trim()}`;
             const majorString = sessionMajors.join(', ');
+            const mappedQuestions = customQuestions.map(q => ({
+                topicName: q.title,
+                text: q.body
+            }));
+
+            if (editingSession) {
+                await updateSession(editingSession.id, {
+                    groupName: workshopName,
+                    major: majorString,
+                    questions: mappedQuestions,
+                    topicNames: sessionMajors
+                });
+                toast.success("Workshop updated successfully!");
+            } else {
+                const newSession = await createSession({
+                    groupName: workshopName,
+                    major: majorString,
+                    students: [], // No adding students explicitly for Workshops
+                    topicIds: [], // We use custom questions instead
+                    customQuestions: customQuestions,
+                    createdAt: new Date().toISOString(),
+                    scheduledTime: '00:00' // Immediate
+                });
+                toast.success("Workshop created successfully!");
+                navigate(`/workshop/${newSession.id}`);
+            }
             
-            const newSession = await createSession({
-                groupName: workshopName,
-                major: majorString,
-                students: [], // No adding students explicitly for Workshops
-                topicIds: [], // We use custom questions instead
-                customQuestions: customQuestions,
-                createdAt: new Date().toISOString(),
-                scheduledTime: '00:00' // Immediate
-            });
-            
-            toast.success("Workshop created successfully! Students empty initially, they will join.");
             setShowCreate(false);
+            setEditingSession(null);
             setGroupName('');
             setSessionMajors([]);
             setCustomQuestions([{ title: '', body: '' }]);
-            
-            navigate(`/workshop/${newSession.id}`);
+            fetchData();
         } catch (err) {
-            console.error('Create workshop failed:', err);
-            toast.error(err.message || "Failed to create workshop");
+            console.error('Save workshop failed:', err);
+            toast.error(err.message || "Failed to save workshop");
         }
     };
 
     if (loading) {
         return (
-            <div className="flex-center" style={{ height: '50vh', flexDirection: 'column' }}>
+            <div className="flex-center" style={{ height: '80vh', flexDirection: 'column' }}>
                 <div className="spinner"></div>
                 <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Loading interactive workshops...</p>
             </div>
@@ -152,7 +195,7 @@ export default function Workshops() {
                     </button>
                     
                     {user?.role === 'mentor' && !showCreate && (
-                        <button onClick={() => setShowCreate(true)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button onClick={() => { setEditingSession(null); setGroupName(''); setSessionMajors([]); setCustomQuestions([{ title: '', body: '' }]); setShowCreate(true); }} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Plus size={16} /> Create New Workshop
                         </button>
                     )}
@@ -166,7 +209,7 @@ export default function Workshops() {
 
             {showCreate ? (
                 <div style={{ background: 'var(--bg-card)', padding: '2rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '2rem' }}>
-                    <h2 style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>Create New Workshop</h2>
+                    <h2 style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>{editingSession ? 'Edit Workshop' : 'Create New Workshop'}</h2>
                     <form onSubmit={handleCreateWorkshop}>
                         {/* Workshop Name */}
                         <div style={{ marginBottom: '1.5rem' }}>
@@ -238,7 +281,7 @@ export default function Workshops() {
                         </div>
 
                         <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontWeight: 'bold', fontSize: '1rem', borderRadius: '8px' }}>
-                            Start Workshop
+                            {editingSession ? 'Update Workshop' : 'Start Workshop'}
                         </button>
                     </form>
                 </div>
@@ -260,9 +303,20 @@ export default function Workshops() {
                                     flexDirection: 'column',
                                     gap: '1rem',
                                     boxShadow: 'var(--shadow-sm)',
+                                    position: 'relative'
                                 }}>
+                                    {user?.role === 'mentor' && (
+                                        <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
+                                            <button onClick={() => handleEditWorkshop(session)} className="btn-icon" style={{ color: 'var(--text-secondary)', padding: '0.25rem' }} title="Edit Workshop">
+                                                <Edit size={16} />
+                                            </button>
+                                            <button onClick={() => handleDeleteWorkshop(session.id)} className="btn-icon" style={{ color: '#ef4444', padding: '0.25rem' }} title="Delete Workshop">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    )}
                                     <div>
-                                        <h3 style={{ fontSize: '1.15rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>{session.groupName.replace('[WORKSHOP] ', '')}</h3>
+                                        <h3 style={{ fontSize: '1.15rem', color: 'var(--text-main)', marginBottom: '0.5rem', paddingRight: user?.role === 'mentor' ? '3rem' : '0' }}>{session.groupName.replace('[WORKSHOP] ', '')}</h3>
                                         <p style={{ color: 'var(--color-primary)', fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.5rem' }}>
                                             Topic: {session.topicNames?.join(', ') || 'General'}
                                         </p>

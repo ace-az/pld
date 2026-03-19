@@ -1,47 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { OpenRouter } = require('@openrouter/sdk');
+const authMiddleware = require('../utils/authMiddleware');
+const codeExecution = require('../services/codeExecution');
 
 const openrouter = new OpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY || ''
 });
-
-// Helper to execute code (used for workshop)
-const executeCode = (language, code) => {
-    return new Promise((resolve) => {
-        const tempDir = path.join(__dirname, '../temp');
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-
-        const fileExt = language === 'python' ? 'py' : 'js';
-        const fileName = `exec_${Date.now()}.${fileExt}`;
-        const filePath = path.join(tempDir, fileName);
-
-        fs.writeFileSync(filePath, code);
-
-        let command = '';
-        if (language === 'python') {
-            command = `python "${filePath}"`;
-        } else if (language === 'javascript') {
-            command = `node "${filePath}"`;
-        } else {
-            fs.unlinkSync(filePath);
-            return resolve({ error: `Language ${language} not supported.` });
-        }
-
-        const options = { timeout: 5000, maxBuffer: 1024 * 1024 };
-        exec(command, options, (error, stdout, stderr) => {
-            try { fs.unlinkSync(filePath); } catch (e) {}
-            if (error) {
-                if (error.killed) return resolve({ output: '', error: 'Timed out (5s).' });
-                return resolve({ output: stdout, error: stderr || error.message });
-            }
-            resolve({ output: stdout, error: stderr });
-        });
-    });
-};
 
 // --- AI Prompts (Migrated from Client) ---
 
@@ -83,39 +50,99 @@ const askAI = async (prompt, systemPrompt = '') => {
 };
 
 // POST /api/ai/execute-only
-router.post('/execute-only', async (req, res) => {
+router.post('/execute-only', authMiddleware, async (req, res) => {
     try {
         const { code, language } = req.body;
-        if (!code || !code.trim()) return res.status(400).json({ error: 'No code provided' });
+        
+        // Validation
+        const validation = codeExecution.validateCode(language, code);
+        if (!validation.isValid) {
+            return res.status(400).json({ error: validation.error });
+        }
 
-        const execResult = await executeCode(language, code);
-        const executionOutput = execResult.error
-            ? `ERROR:\n${execResult.error}${execResult.output ? '\nSTDOUT:\n' + execResult.output : ''}`
-            : execResult.output;
+        // Rate limiting based on user ID
+        const rateLimit = codeExecution.checkRateLimit(req.user.id);
+        if (!rateLimit.allowed) {
+            return res.status(429).json({ error: rateLimit.error });
+        }
 
-        res.json({ executionOutput });
+        const execResult = await codeExecution.executeCode(language, code);
+        
+        // Piston return format: success, language, output, stdout, stderr, exitCode, executionTime
+        // Or if error: success: false, error: '...', message: '...'
+
+        if (!execResult.success) {
+            return res.json({ 
+                success: false,
+                error: execResult.error,
+                message: codeExecution.sanitizeOutput(execResult.message),
+                exitCode: execResult.exitCode
+            });
+        }
+
+        const executionOutput = codeExecution.sanitizeOutput(execResult.output);
+
+        res.json({ 
+            success: true,
+            language: execResult.language,
+            output: executionOutput,
+            stdout: codeExecution.sanitizeOutput(execResult.stdout),
+            stderr: codeExecution.sanitizeOutput(execResult.stderr),
+            exitCode: execResult.exitCode,
+            executionTime: execResult.executionTime,
+            executionOutput // Keeping compatibility for client
+        });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ 
+            success: false,
+            error: 'server_error',
+            message: err.message 
+        });
     }
 });
 
 // POST /api/ai/evaluate-code (Workshop)
-router.post('/evaluate-code', async (req, res) => {
+router.post('/evaluate-code', authMiddleware, async (req, res) => {
     try {
         const { code, language, question } = req.body;
-        if (!code) return res.status(400).json({ error: 'No code provided' });
 
-        const execResult = await executeCode(language, code);
-        const executionOutput = execResult.error
-            ? `ERROR:\n${execResult.error}${execResult.output ? '\nSTDOUT:\n' + execResult.output : ''}`
-            : execResult.output;
+        // Validation
+        const validation = codeExecution.validateCode(language, code);
+        if (!validation.isValid) {
+            return res.status(400).json({ error: validation.error });
+        }
+
+        // Rate limiting based on user ID
+        const rateLimit = codeExecution.checkRateLimit(req.user.id);
+        if (!rateLimit.allowed) {
+            return res.status(429).json({ error: rateLimit.error });
+        }
+
+        const execResult = await codeExecution.executeCode(language, code);
+        
+        const executionOutput = codeExecution.sanitizeOutput(execResult.success ? execResult.output : execResult.message);
+        const displayOutput = execResult.success 
+            ? executionOutput 
+            : `ERROR:\n${executionOutput}${execResult.stdout ? '\nSTDOUT:\n' + codeExecution.sanitizeOutput(execResult.stdout) : ''}`;
 
         const prompt = `Task: ${question}\nCode (${language}):\n${code}\nOutput: ${executionOutput}\nEvaluate work. Brief feedback.`;
         const feedback = await askAI(prompt, 'You are a code evaluator.');
 
-        res.json({ executionOutput, feedback });
+        res.json({ 
+            success: execResult.success,
+            executionOutput: displayOutput, // compatibility
+            output: executionOutput,
+            stdout: codeExecution.sanitizeOutput(execResult.stdout),
+            stderr: codeExecution.sanitizeOutput(execResult.stderr),
+            exitCode: execResult.exitCode,
+            feedback 
+        });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ 
+            success: false,
+            error: 'server_error',
+            message: err.message 
+        });
     }
 });
 

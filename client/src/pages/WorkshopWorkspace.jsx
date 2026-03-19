@@ -45,6 +45,15 @@ export default function WorkshopWorkspace() {
     const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
     const [showPermissions, setShowPermissions] = useState(false);
     const [terminalOutput, setTerminalOutput] = useState('');
+    const [aiReviewEnabled, setAiReviewEnabled] = useState(() => {
+        const saved = localStorage.getItem('aiReviewEnabled');
+        return saved !== null ? JSON.parse(saved) : false; // Default to OFF
+    });
+
+    useEffect(() => {
+        localStorage.setItem('aiReviewEnabled', JSON.stringify(aiReviewEnabled));
+    }, [aiReviewEnabled]);
+
     const [studentIdentifier, setStudentIdentifier] = useState('');
     const [addingStudent, setAddingStudent] = useState(false);
     const [masterStudents, setMasterStudents] = useState([]);
@@ -295,19 +304,28 @@ export default function WorkshopWorkspace() {
             const execData = await execRes.json();
             if (!execRes.ok) throw new Error(execData.error || 'Execution failed');
             const executionOutput = `$ ${language} execution\n${execData.executionOutput || '(No output)'}`;
-            setTerminalOutput(`${executionOutput}\n\nAI is reviewing your code...`);
+            
+            let finalOutput = executionOutput;
+            let feedback = null;
 
-            // 2. AI Feedback
-            const aiRes = await fetch(`${apiUrl}/api/ai/evaluate-code`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ code, language, question: currentQuestion.text || currentQuestion })
-            });
-            const aiData = await aiRes.json();
-            if (!aiRes.ok) throw new Error(aiData.error || 'AI evaluation failed');
-            const { feedback } = aiData;
-            const combinedOutput = `${executionOutput}\n\n--- AI FEEDBACK ---\n${feedback}`;
-            setTerminalOutput(combinedOutput);
+            if (aiReviewEnabled) {
+                setTerminalOutput(`${executionOutput}\n\nAI is reviewing your code...`);
+
+                // 2. AI Feedback
+                const aiRes = await fetch(`${apiUrl}/api/ai/evaluate-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ code, language, question: currentQuestion.text || currentQuestion })
+                });
+                const aiData = await aiRes.json();
+                if (!aiRes.ok) throw new Error(aiData.error || 'AI evaluation failed');
+                feedback = aiData.feedback;
+                finalOutput = `${executionOutput}\n\n--- AI FEEDBACK ---\n${feedback}`;
+            } else {
+                finalOutput = `${executionOutput}\n\n(AI Review is currently disabled. Use the toggle to enable it.)`;
+            }
+
+            setTerminalOutput(finalOutput);
 
             // 3. Save to Server
             if (user.role === 'student' && myStatus) {
@@ -320,7 +338,7 @@ export default function WorkshopWorkspace() {
                         feedback: feedback, 
                         sessionId: session.id,
                         questionIndex: currentQuestionIdx,
-                        output: combinedOutput
+                        output: finalOutput
                     })
                 });
             }
@@ -331,11 +349,11 @@ export default function WorkshopWorkspace() {
                 [currentQuestionIdx]: {
                     code,
                     language,
-                    output: combinedOutput,
+                    output: finalOutput,
                     feedback
                 }
             }));
-            toast.success("Code evaluated!");
+            toast.success(aiReviewEnabled ? "Code evaluated!" : "Code executed!");
 
         } catch (err) {
             setTerminalOutput("Error: " + err.message);
@@ -473,7 +491,36 @@ export default function WorkshopWorkspace() {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
                                         <Code size={16} /> Editor {(!canEdit) && "(Read-Only)"}
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem', padding: '2px 8px', background: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: aiReviewEnabled ? 'var(--color-primary)' : 'var(--text-secondary)' }}>
+                                                AI Review: {aiReviewEnabled ? 'ON' : 'OFF'}
+                                            </span>
+                                            <div 
+                                                style={{ 
+                                                    position: 'relative', 
+                                                    width: '32px', 
+                                                    height: '18px', 
+                                                    background: aiReviewEnabled ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)', 
+                                                    borderRadius: '9px', 
+                                                    cursor: 'pointer', 
+                                                    transition: 'background 0.3s ease' 
+                                                }} 
+                                                onClick={() => setAiReviewEnabled(!aiReviewEnabled)}
+                                            >
+                                                <div style={{ 
+                                                    position: 'absolute', 
+                                                    top: '2px', 
+                                                    left: aiReviewEnabled ? '16px' : '2px', 
+                                                    width: '14px', 
+                                                    height: '14px', 
+                                                    background: 'white', 
+                                                    borderRadius: '50%', 
+                                                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', 
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)' 
+                                                }} />
+                                            </div>
+                                        </div>
                                         <select value={language} onChange={(e) => handleLanguageChange(e.target.value)} className="input-control" style={{ padding: '0.25rem 0.5rem', width: 'auto', height: '32px', fontSize: '0.85rem' }} disabled={!canEdit}>
                                             <option value="javascript">JavaScript</option>
                                             <option value="python">Python</option>

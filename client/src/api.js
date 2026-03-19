@@ -132,6 +132,15 @@ export const createSession = async (sessionData) => {
     return handleResponse(response);
 };
 
+export const updateSession = async (id, sessionData) => {
+    const response = await fetch(`${API_URL}/api/sessions/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(sessionData)
+    });
+    return handleResponse(response);
+};
+
 export const deleteSession = async (id) => {
     const response = await fetch(`${API_URL}/api/sessions/${id}`, {
         method: 'DELETE',

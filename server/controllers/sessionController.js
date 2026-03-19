@@ -176,6 +176,19 @@ exports.deleteSession = async (req, res) => {
     }
 };
 
+exports.updateSession = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+        
+        const updated = await sessionModel.updateSession(id, updateData);
+        res.json(updated);
+    } catch (err) {
+        console.error('Error in updateSession:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 exports.removeStudent = async (req, res) => {
     try {
         const { sessionId, studentId } = req.params;

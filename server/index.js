@@ -9,7 +9,13 @@ const { startCronJob } = require('./cron');
 // Fix for Node.js 17+ on Render silently hanging on Discord IPv6 WebSockets
 dns.setDefaultResultOrder('ipv4first');
 
-dotenv.config();
+const path = require('path');
+dotenv.config({ path: path.join(__dirname, '.env') });
+console.log('--- Startup Config ---');
+console.log('PORT:', process.env.PORT);
+console.log('PISTON_URL:', process.env.PISTON_URL);
+console.log('MOCK_PISTON:', process.env.USE_MOCK_PISTON);
+console.log('----------------------');
 assertJwtSecretOrThrow();
 
 const app = express();
