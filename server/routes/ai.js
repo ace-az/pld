@@ -2,14 +2,70 @@ const express = require('express');
 const router = express.Router();
 const { OpenRouter } = require('@openrouter/sdk');
 const authMiddleware = require('../utils/authMiddleware');
-const codeExecution = require('../services/codeExecution');
-const axios = require('axios');
 
 const openrouter = new OpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY || ''
 });
 
-// --- AI Prompts (Migrated from Client) ---
+// --- AI Prompts ---
+
+function getExecutionOnlyPrompt(language) {
+  return `You are a ${language} code execution simulator.
+
+Predict EXACTLY what this code would output when executed.
+
+Rules:
+- Return ONLY the output exactly as it would appear
+- Include all newlines, spaces, formatting precisely
+- For errors, show exact compiler/interpreter error messages
+- No explanations, no suggestions, just raw output
+
+Respond in this exact JSON format only:
+{
+  "success": true,
+  "output": "exact output here",
+  "exitCode": 0,
+  "executionTime": 45
+}
+
+If there's an error:
+{
+  "success": false,
+  "output": "exact error message here",
+  "exitCode": 1,
+  "executionTime": 12
+}`;
+}
+
+function getFullTutorPrompt(language) {
+  return `You are an expert ${language} programming tutor and code execution simulator.
+
+Tasks:
+1. Predict EXACT output of this code
+2. Explain what the code does in beginner-friendly terms
+3. Provide improvement suggestions
+4. Give hints if there are errors
+5. Rate code quality (1-10)
+
+Rules for output:
+- Predict output EXACTLY as it would appear (newlines, spaces, formatting)
+- For errors, show exact compiler/interpreter error messages
+
+Respond in this exact JSON format only:
+{
+  "success": true,
+  "output": "exact output or error message",
+  "exitCode": 0,
+  "executionTime": 45,
+  "explanation": "beginner-friendly explanation of what code does",
+  "suggestions": ["suggestion 1", "suggestion 2"],
+  "hints": ["hint if something is wrong"],
+  "codeQuality": {
+    "score": 8,
+    "feedback": "brief quality feedback"
+  }
+}`;
+}
 
 const BASE_FEEDBACK_PROMPT = `
 You are a friendly Teaching Assistant for Peer Learning Days (PLD).
@@ -48,132 +104,92 @@ const askAI = async (prompt, systemPrompt = '') => {
     }
 };
 
-// POST /api/ai/execute-only
-router.post('/execute-only', authMiddleware, async (req, res) => {
+async function evaluateCode(language, code, tutorMode = false, expectedOutput = null) {
+    const systemPrompt = tutorMode 
+        ? getFullTutorPrompt(language)
+        : getExecutionOnlyPrompt(language);
+
+    let prompt = `Code:\n${code}`;
+    if (expectedOutput) {
+        prompt += `\n\nExpected Output (for context):\n${expectedOutput}`;
+    }
+
+    const responseText = await askAI(prompt, systemPrompt);
+    
     try {
-        const { code, language } = req.body;
-        
-        // Validation
-        const validation = codeExecution.validateCode(language, code);
-        if (!validation.isValid) {
-            return res.status(400).json({ error: validation.error });
+        // Find JSON block in the response
+        const match = responseText.match(/\{[\s\S]*\}/);
+        if (match) {
+            return JSON.parse(match[0]);
         }
+        throw new Error("No JSON found in response");
+    } catch (err) {
+        console.error("Error parsing AI JSON response:", err);
+        return {
+            success: false,
+            output: "Failed to evaluate code.",
+            exitCode: 1,
+            executionTime: 0,
+            rawResponse: responseText
+        };
+    }
+}
 
-        // Rate limiting based on user ID
-        const rateLimit = codeExecution.checkRateLimit(req.user.id);
-        if (!rateLimit.allowed) {
-            return res.status(429).json({ error: rateLimit.error });
-        }
+const { scanCode } = require('../services/securityScanner');
+const { runCode } = require('../services/codeRunner');
 
-        const execResult = await codeExecution.executeCode(language, code);
-        
-        // Piston return format: success, language, output, stdout, stderr, exitCode, executionTime
-        // Or if error: success: false, error: '...', message: '...'
+// POST /api/ai/evaluate
+router.post('/evaluate', authMiddleware, async (req, res) => {
+    try {
+        const { language, code, tutorMode, expectedOutput } = req.body;
 
-        if (!execResult.success) {
-            return res.json({ 
-                success: false,
-                error: execResult.error,
-                message: codeExecution.sanitizeOutput(execResult.message),
-                exitCode: execResult.exitCode
+        if (!language || !code) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Language and code are required' 
             });
         }
 
-        const executionOutput = codeExecution.sanitizeOutput(execResult.output);
+        if (code.length > 10000) {
+            return res.status(400).json({
+                success: false,
+                error: 'Code too long. Maximum 10,000 characters.'
+            });
+        }
 
-        res.json({ 
-            success: true,
-            language: execResult.language,
-            output: executionOutput,
-            stdout: codeExecution.sanitizeOutput(execResult.stdout),
-            stderr: codeExecution.sanitizeOutput(execResult.stderr),
-            exitCode: execResult.exitCode,
-            executionTime: execResult.executionTime,
-            executionOutput // Keeping compatibility for client
-        });
+        // STEP 1: Security scan (<10ms)
+        const scan = scanCode(language, code);
+
+        let executionResult;
+
+        if (scan.safe) {
+            // ⚡ SAFE → Real execution (fast, <100ms)
+            executionResult = runCode(language, code);
+            executionResult.executionMode = 'real';
+            
+            // STEP 2: If tutor mode ON, get AI feedback too
+            if (tutorMode) {
+                // Code already ran successfully, now get AI feedback on the code quality
+                const tutorFeedback = await evaluateCode(language, code, true, expectedOutput);
+                executionResult.explanation = tutorFeedback.explanation;
+                executionResult.suggestions = tutorFeedback.suggestions;
+                executionResult.hints = tutorFeedback.hints;
+                executionResult.codeQuality = tutorFeedback.codeQuality;
+            }
+        } else {
+            // 🛡️ DANGEROUS → AI evaluation (safe, 2-3s)
+            executionResult = await evaluateCode(language, code, tutorMode || false, expectedOutput);
+            executionResult.executionMode = 'ai';
+            executionResult.securityWarning = 'Some code patterns were restricted. Output is AI-predicted.';
+        }
+
+        return res.json(executionResult);
     } catch (err) {
         console.error('[AI Route Error]:', err);
-        const errorMessage = err.message || 'An unexpected error occurred';
         res.status(500).json({ 
             success: false,
             error: 'server_error',
-            message: errorMessage
-        });
-    }
-});
-
-// GET /api/ai/piston-status
-router.get('/piston-status', authMiddleware, async (req, res) => {
-    try {
-        const pistonUrl = process.env.PISTON_URL;
-        if (!pistonUrl) return res.status(500).json({ error: 'PISTON_URL not set' });
-
-        // Clean URL to base
-        let baseUrl = pistonUrl.replace(/\/$/, '').replace(/\/api\/v2$/, '').replace(/\/execute$/, '');
-        if (!baseUrl.startsWith('http')) baseUrl = `http://${baseUrl}`;
-
-        const runtimeUrl = `${baseUrl.endsWith(':2000') ? baseUrl : baseUrl + ':2000'}/api/v2/runtimes`;
-        console.log(`[Diagnostic] Probing Piston at: ${runtimeUrl}`);
-
-        const response = await axios.get(runtimeUrl, { timeout: 8000 });
-        res.json({ 
-            success: true, 
-            url: runtimeUrl,
-            data: response.data 
-        });
-    } catch (err) {
-        console.error('[Diagnostic Error]:', err.message);
-        res.status(500).json({ 
-            success: false, 
-            error: err.message,
-            url: process.env.PISTON_URL
-        });
-    }
-});
-
-// POST /api/ai/evaluate-code (Workshop)
-router.post('/evaluate-code', authMiddleware, async (req, res) => {
-    try {
-        const { code, language, question } = req.body;
-
-        // Validation
-        const validation = codeExecution.validateCode(language, code);
-        if (!validation.isValid) {
-            return res.status(400).json({ error: validation.error });
-        }
-
-        // Rate limiting based on user ID
-        const rateLimit = codeExecution.checkRateLimit(req.user.id);
-        if (!rateLimit.allowed) {
-            return res.status(429).json({ error: rateLimit.error });
-        }
-
-        const execResult = await codeExecution.executeCode(language, code);
-        
-        const executionOutput = codeExecution.sanitizeOutput(execResult.success ? execResult.output : execResult.message);
-        const displayOutput = execResult.success 
-            ? executionOutput 
-            : `ERROR:\n${executionOutput}${execResult.stdout ? '\nSTDOUT:\n' + codeExecution.sanitizeOutput(execResult.stdout) : ''}`;
-
-        const prompt = `Task: ${question}\nCode (${language}):\n${code}\nOutput: ${executionOutput}\nEvaluate work. Brief feedback.`;
-        const feedback = await askAI(prompt, 'You are a code evaluator.');
-
-        res.json({ 
-            success: execResult.success,
-            executionOutput: displayOutput, // compatibility
-            output: executionOutput,
-            stdout: codeExecution.sanitizeOutput(execResult.stdout),
-            stderr: codeExecution.sanitizeOutput(execResult.stderr),
-            exitCode: execResult.exitCode,
-            feedback 
-        });
-    } catch (err) {
-        console.error('[AI Route Error]:', err);
-        const errorMessage = err.message || 'An unexpected error occurred';
-        res.status(500).json({ 
-            success: false,
-            error: 'server_error',
-            message: errorMessage
+            message: err.message || 'An unexpected error occurred'
         });
     }
 });

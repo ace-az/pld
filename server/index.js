@@ -11,11 +11,9 @@ dns.setDefaultResultOrder('ipv4first');
 
 const path = require('path');
 dotenv.config({ path: path.join(__dirname, '.env') });
-console.log('--- Startup Config ---');
+console.log('--- Startup Info ---');
 console.log('PORT:', process.env.PORT);
-console.log('PISTON_URL:', process.env.PISTON_URL);
-console.log('MOCK_PISTON:', process.env.USE_MOCK_PISTON);
-console.log('----------------------');
+console.log('--------------------');
 assertJwtSecretOrThrow();
 
 const app = express();

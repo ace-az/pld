@@ -30,6 +30,21 @@ const ResizeHandle = ({ direction = 'horizontal' }) => (
     </Separator>
 );
 
+const LANGUAGE_CONFIG = {
+    python: { icon: '🐍', name: 'Python 3.10', command: 'python main.py', filename: 'main.py' },
+    javascript: { icon: '🟨', name: 'Node.js 18', command: 'node main.js', filename: 'main.js' },
+    java: { icon: '☕', name: 'Java 17', command: 'javac Main.java && java Main', filename: 'Main.java' },
+    csharp: { icon: '#️⃣', name: 'C# .NET 6', command: 'dotnet run', filename: 'Program.cs' },
+    c: { icon: '⚙️', name: 'GCC 11', command: 'gcc main.c -o main && ./main', filename: 'main.c' },
+    cpp: { icon: '⚙️', name: 'G++ 11', command: 'g++ main.cpp -o main && ./main', filename: 'main.cpp' },
+    typescript: { icon: '🔷', name: 'TypeScript 5', command: 'tsc main.ts && node main.js', filename: 'main.ts' },
+    go: { icon: '🐹', name: 'Go 1.21', command: 'go run main.go', filename: 'main.go' },
+    ruby: { icon: '💎', name: 'Ruby 3.2', command: 'ruby main.rb', filename: 'main.rb' },
+    php: { icon: '🐘', name: 'PHP 8.2', command: 'php main.php', filename: 'main.php' },
+    swift: { icon: '🍎', name: 'Swift 5.8', command: 'swift main.swift', filename: 'main.swift' },
+    kotlin: { icon: '🎯', name: 'Kotlin 1.9', command: 'kotlinc Main.kt -include-runtime -d main.jar && java -jar main.jar', filename: 'Main.kt' }
+};
+
 export default function WorkshopWorkspace() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -44,15 +59,15 @@ export default function WorkshopWorkspace() {
     const [submitting, setSubmitting] = useState(false);
     const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
     const [showPermissions, setShowPermissions] = useState(false);
-    const [terminalOutput, setTerminalOutput] = useState('');
-    const [aiReviewEnabled, setAiReviewEnabled] = useState(() => {
-        const saved = localStorage.getItem('aiReviewEnabled');
-        return saved !== null ? JSON.parse(saved) : false; // Default to OFF
+    const [terminalOutput, setTerminalOutput] = useState(null); // Now an object
+    const [aiTutorEnabled, setAiTutorEnabled] = useState(() => {
+        const saved = localStorage.getItem('aiTutorEnabled');
+        return saved === 'true'; // Default to OFF
     });
 
     useEffect(() => {
-        localStorage.setItem('aiReviewEnabled', JSON.stringify(aiReviewEnabled));
-    }, [aiReviewEnabled]);
+        localStorage.setItem('aiTutorEnabled', String(aiTutorEnabled));
+    }, [aiTutorEnabled]);
 
     const [studentIdentifier, setStudentIdentifier] = useState('');
     const [addingStudent, setAddingStudent] = useState(false);
@@ -289,46 +304,29 @@ export default function WorkshopWorkspace() {
     const handleSubmitCode = async () => {
         if (!code.trim()) { toast.error("Please write some code."); return; }
         setSubmitting(true);
-        setTerminalOutput("Executing...");
+        setTerminalOutput({ type: 'loading', message: 'Executing...' });
         
         const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         const apiUrl = rawApiUrl.replace(/\/+$/, '');
         const token = localStorage.getItem('token');
 
         try {
-            // 1. Execute only first
-            const execRes = await fetch(`${apiUrl}/api/ai/execute-only`, {
+            const res = await fetch(`${apiUrl}/api/ai/evaluate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ code, language })
+                body: JSON.stringify({ 
+                    language, 
+                    code,
+                    tutorMode: aiTutorEnabled,
+                    expectedOutput: currentQuestion?.text || null
+                })
             });
-            const execData = await execRes.json();
-            if (!execRes.ok) throw new Error(execData.error || 'Execution failed');
-            const executionOutput = `$ ${language} execution\n${execData.executionOutput || '(No output)'}`;
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || data.message || 'Execution failed');
             
-            let finalOutput = executionOutput;
-            let feedback = null;
+            setTerminalOutput(data);
 
-            if (aiReviewEnabled) {
-                setTerminalOutput(`${executionOutput}\n\nAI is reviewing your code...`);
-
-                // 2. AI Feedback
-                const aiRes = await fetch(`${apiUrl}/api/ai/evaluate-code`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ code, language, question: currentQuestion.text || currentQuestion })
-                });
-                const aiData = await aiRes.json();
-                if (!aiRes.ok) throw new Error(aiData.error || 'AI evaluation failed');
-                feedback = aiData.feedback;
-                finalOutput = `${executionOutput}\n\n--- AI FEEDBACK ---\n${feedback}`;
-            } else {
-                finalOutput = `${executionOutput}\n\n(AI Review is currently disabled. Use the toggle to enable it.)`;
-            }
-
-            setTerminalOutput(finalOutput);
-
-            // 3. Save to Server
+            // Save to Server
             if (user.role === 'student' && myStatus) {
                 await fetch(`${apiUrl}/api/sessions/${session.id}/students/${myStatus.id}/submit-code`, {
                     method: 'POST',
@@ -336,10 +334,10 @@ export default function WorkshopWorkspace() {
                     body: JSON.stringify({ 
                         code, 
                         language, 
-                        feedback: feedback, 
+                        feedback: aiTutorEnabled ? data.explanation : null, 
                         sessionId: session.id,
                         questionIndex: currentQuestionIdx,
-                        output: finalOutput
+                        output: data.output
                     })
                 });
             }
@@ -350,18 +348,108 @@ export default function WorkshopWorkspace() {
                 [currentQuestionIdx]: {
                     code,
                     language,
-                    output: finalOutput,
-                    feedback
+                    output: data,
+                    feedback: aiTutorEnabled ? data.explanation : null
                 }
             }));
-            toast.success(aiReviewEnabled ? "Code evaluated!" : "Code executed!");
+            toast.success("Code evaluated!");
 
         } catch (err) {
-            setTerminalOutput("Error: " + err.message);
+            setTerminalOutput({ type: 'error', message: err.message });
             toast.error(err.message || 'Failed to submit code.');
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const renderTerminalOutput = () => {
+        if (!terminalOutput) return <span style={{ color: '#555' }}>Output will appear here after running your code...</span>;
+        if (typeof terminalOutput === 'string') return terminalOutput; // fallback
+        if (terminalOutput.type === 'loading') return <span style={{ color: '#888' }}>{terminalOutput.message}</span>;
+        if (terminalOutput.type === 'error') return <span style={{ color: '#ef4444' }}>{terminalOutput.message}</span>;
+
+        const config = LANGUAGE_CONFIG[language] || LANGUAGE_CONFIG.python;
+        const isSuccess = terminalOutput.exitCode === 0;
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <div style={{ color: '#e0e0e0', opacity: 0.8 }}>$ {config.command}</div>
+                    {terminalOutput.executionMode && (
+                        <div style={{ 
+                            fontSize: '0.75rem', 
+                            padding: '2px 8px', 
+                            borderRadius: '12px', 
+                            fontWeight: 'bold',
+                            background: terminalOutput.executionMode === 'real' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                            color: terminalOutput.executionMode === 'real' ? '#4ade80' : '#c084fc',
+                            border: `1px solid ${terminalOutput.executionMode === 'real' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`
+                        }}>
+                            {terminalOutput.executionMode === 'real' ? '⚡ Real Execution' : '🤖 AI Predicted'}
+                        </div>
+                    )}
+                </div>
+                
+                {terminalOutput.securityWarning && (
+                    <div style={{ padding: '0.5rem', marginBottom: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '4px', fontSize: '0.85rem', borderLeft: '3px solid #ef4444' }}>
+                        ⚠️ {terminalOutput.securityWarning}
+                    </div>
+                )}
+
+                <div style={{ color: isSuccess ? '#e0e0e0' : '#ef4444', padding: '0.5rem 0' }}>
+                    {terminalOutput.output}
+                </div>
+                <div style={{ 
+                    color: isSuccess ? '#22c55e' : '#ef4444', 
+                    marginTop: '1rem',
+                    borderTop: '1px dashed #333',
+                    paddingTop: '0.5rem',
+                    display: 'flex',
+                    justifyContent: 'space-between'
+                }}>
+                    <span>
+                        {isSuccess ? '✓ Process exited with code 0' : `✗ Process exited with code ${terminalOutput.exitCode || 1}`}
+                    </span>
+                    <span style={{ color: '#888' }}>[{terminalOutput.executionTime || 45}ms]</span>
+                </div>
+                {aiTutorEnabled && terminalOutput.explanation && (
+                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(67, 97, 238, 0.1)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', fontFamily: 'sans-serif' }}>
+                        <div style={{ fontWeight: 'bold', color: 'var(--color-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            🤖 AI Tutor Feedback
+                        </div>
+                        <div style={{ color: '#e0e0e0', marginBottom: '1rem', lineHeight: '1.5' }}>{terminalOutput.explanation}</div>
+                        
+                        {terminalOutput.suggestions && terminalOutput.suggestions.length > 0 && (
+                            <div style={{ marginBottom: '0.5rem' }}>
+                                <strong style={{ color: '#a78bfa' }}>Suggestions:</strong>
+                                <ul style={{ margin: '0.25rem 0', paddingLeft: '1.5rem', color: '#e0e0e0' }}>
+                                    {terminalOutput.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                        
+                        {terminalOutput.hints && terminalOutput.hints.length > 0 && (
+                            <div style={{ marginBottom: '0.5rem' }}>
+                                <strong style={{ color: '#fbbf24' }}>Hints:</strong>
+                                <ul style={{ margin: '0.25rem 0', paddingLeft: '1.5rem', color: '#e0e0e0' }}>
+                                    {terminalOutput.hints.map((s, i) => <li key={i}>{s}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                        
+                        {terminalOutput.codeQuality && (
+                            <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                                <strong style={{ color: '#cbd5e1' }}>Code Quality:</strong> 
+                                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'white' }}>
+                                    {terminalOutput.codeQuality.score}/10
+                                </span>
+                                <span style={{ color: '#94a3b8' }}>- {terminalOutput.codeQuality.feedback}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     if (!session || (!myStatus && user.role !== 'mentor')) return null;
@@ -494,25 +582,25 @@ export default function WorkshopWorkspace() {
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem', padding: '2px 8px', background: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: aiReviewEnabled ? 'var(--color-primary)' : 'var(--text-secondary)' }}>
-                                                AI Review: {aiReviewEnabled ? 'ON' : 'OFF'}
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: aiTutorEnabled ? 'var(--color-primary)' : 'var(--text-secondary)' }}>
+                                                AI Review: {aiTutorEnabled ? 'ON' : 'OFF'}
                                             </span>
                                             <div 
                                                 style={{ 
                                                     position: 'relative', 
                                                     width: '32px', 
                                                     height: '18px', 
-                                                    background: aiReviewEnabled ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)', 
+                                                    background: aiTutorEnabled ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)', 
                                                     borderRadius: '9px', 
                                                     cursor: 'pointer', 
                                                     transition: 'background 0.3s ease' 
                                                 }} 
-                                                onClick={() => setAiReviewEnabled(!aiReviewEnabled)}
+                                                onClick={() => setAiReviewEnabled(!aiTutorEnabled)}
                                             >
                                                 <div style={{ 
                                                     position: 'absolute', 
                                                     top: '2px', 
-                                                    left: aiReviewEnabled ? '16px' : '2px', 
+                                                    left: aiTutorEnabled ? '16px' : '2px', 
                                                     width: '14px', 
                                                     height: '14px', 
                                                     background: 'white', 
@@ -554,7 +642,7 @@ export default function WorkshopWorkspace() {
                                     <CheckCircle size={14} color="#22c55e" /> Terminal Output
                                 </div>
                                 <div style={{ flex: 1, padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '0.9rem', overflowY: 'auto', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
-                                    {terminalOutput || <span style={{ color: '#555' }}>Output will appear here after running your code...</span>}
+                                    {renderTerminalOutput()}
                                 </div>
                             </div>
                         </Panel>
