@@ -1,7 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
 const { OpenRouter } = require('@openrouter/sdk');
 const authMiddleware = require('../utils/authMiddleware');
 const codeExecution = require('../services/codeExecution');
@@ -93,10 +91,12 @@ router.post('/execute-only', authMiddleware, async (req, res) => {
             executionOutput // Keeping compatibility for client
         });
     } catch (err) {
+        console.error('[AI Route Error]:', err);
+        const errorMessage = err.message || 'An unexpected error occurred';
         res.status(500).json({ 
             success: false,
             error: 'server_error',
-            message: err.message 
+            message: errorMessage
         });
     }
 });
@@ -138,10 +138,12 @@ router.post('/evaluate-code', authMiddleware, async (req, res) => {
             feedback 
         });
     } catch (err) {
+        console.error('[AI Route Error]:', err);
+        const errorMessage = err.message || 'An unexpected error occurred';
         res.status(500).json({ 
             success: false,
             error: 'server_error',
-            message: err.message 
+            message: errorMessage
         });
     }
 });

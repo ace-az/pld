@@ -69,6 +69,8 @@ async function executeCode(language, code) {
             ],
             compile_timeout: EXECUTION_SETTINGS.compile_timeout,
             run_timeout: EXECUTION_SETTINGS.run_timeout
+        }, {
+            timeout: 15000 // 15 second network timeout
         });
 
         const { run, compile } = response.data;
@@ -108,7 +110,7 @@ async function executeCode(language, code) {
             stdout: run.stdout,
             stderr: run.stderr,
             exitCode: run.code,
-            executionTime: null
+            executionTime: run.time
         };
     } catch (error) {
         console.error('[Piston] Connection Error:', error.message);

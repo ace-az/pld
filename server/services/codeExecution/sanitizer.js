@@ -16,11 +16,11 @@ function sanitizeOutput(output) {
     }
 
     // Strip potential server paths (common patterns like /var/www, C:\Users, etc)
-    // We don't have access to the exact tempDir here easily, but we can try to find common patterns
-    // or just rely on what Piston returns (which is usually isolated)
-    // However, the instructions say "Strip server paths from error messages"
-    
-    // For now, let's assume Piston might return some paths we want to hide.
+    // This helps prevent leaking internal directory structures in error messages
+    sanitized = sanitized
+        .replace(/\/[a-zA-Z0-9._\-\/]+\//g, '.../') // Strip Unix-style paths
+        .replace(/[a-zA-Z]:\\[a-zA-Z0-9._\-\\]+\\/g, '...\\'); // Strip Windows-style paths
+
     // We can also escape basic HTML tags to prevent simple XSS if the output is rendered directly.
     sanitized = sanitized
         .replace(/&/g, "&amp;")

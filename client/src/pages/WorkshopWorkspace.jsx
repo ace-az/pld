@@ -291,7 +291,8 @@ export default function WorkshopWorkspace() {
         setSubmitting(true);
         setTerminalOutput("Executing...");
         
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const apiUrl = rawApiUrl.replace(/\/+$/, '');
         const token = localStorage.getItem('token');
 
         try {
