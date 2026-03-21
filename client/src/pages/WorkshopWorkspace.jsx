@@ -82,6 +82,7 @@ export default function WorkshopWorkspace() {
     const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
     const [showPermissions, setShowPermissions] = useState(false);
     const [terminalOutput, setTerminalOutput] = useState(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [aiTutorEnabled, setAiTutorEnabled] = useState(() => {
         const saved = localStorage.getItem('aiTutorEnabled');
         return saved === 'true';
@@ -90,6 +91,12 @@ export default function WorkshopWorkspace() {
     useEffect(() => {
         localStorage.setItem('aiTutorEnabled', String(aiTutorEnabled));
     }, [aiTutorEnabled]);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const [studentIdentifier, setStudentIdentifier] = useState('');
     const [addingStudent, setAddingStudent] = useState(false);
@@ -553,7 +560,7 @@ export default function WorkshopWorkspace() {
 
     if (!session || (!myStatus && user.role !== 'mentor')) return null;
 
-    const currentQuestion = session.questions && session.questions.length > 0 ? session.questions[currentQuestionIdx] : null;
+    const currentQuestion = session.questions?.[currentQuestionIdx];
 
     return (
         <div style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', padding: '1rem', background: 'var(--bg-app)' }}>
@@ -608,55 +615,63 @@ export default function WorkshopWorkspace() {
                 }
             `}</style>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', background: 'var(--bg-card)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+            {/* Workspace Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', background: 'var(--bg-card)', padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <button onClick={() => navigate('/workshops')} className="btn-outline" style={{ display: 'flex', alignItems: 'center', border: 'none', padding: '0.5rem', background: 'var(--bg-app)', borderRadius: '8px' }}>
-                        <ArrowLeft size={16} />
+                        <ArrowLeft size={18} />
                     </button>
                     <div>
-                        <h1 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <h1 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.25rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Code size={20} color="var(--color-primary)" />
-                            {session.groupName.replace('[WORKSHOP] ', '')}
+                            {session.groupName?.replace('[WORKSHOP] ', '')}
                         </h1>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                            Topic: {session.topicNames?.join(', ') || 'General'}
-                        </span>
+                        {!isMobile && (
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                Topic: {session.topicNames?.join(', ') || 'General'}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                     {!canEdit && !isMentor && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                            <Lock size={14} /> Editor Locked by Mentor
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                            <Lock size={12} /> {isMobile ? 'Locked' : 'Editor Locked'}
                         </span>
                     )}
                     {isMentor && (
-                        <button onClick={() => setShowPermissions(true)} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
-                            <Shield size={16} /> Manage Permissions
+                        <button onClick={() => setShowPermissions(true)} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', fontSize: '0.85rem', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
+                            <Shield size={16} /> {isMobile ? 'Perms' : 'Manage Permissions'}
                         </button>
                     )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {!isMobile && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{user?.username}</span>}
+                        <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.username}&background=random`} alt="User" style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)' }} />
+                    </div>
                 </div>
             </div>
 
-            <Group orientation="horizontal" style={{ flex: 1, height: '100%', gap: '0' }}>
-                <Panel defaultSize={30} minSize={20}>
+            <Group orientation={isMobile ? "vertical" : "horizontal"} style={{ flex: 1, height: '100%', gap: '0' }}>
+                {/* Tasks & Instructions */}
+                <Panel defaultSize={isMobile ? 30 : 25} minSize={20}>
                     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-                        <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(var(--color-primary-rgb, 67, 97, 238), 0.05)' }}>
-                            <h2 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(var(--color-primary-rgb, 67, 97, 238), 0.05)' }}>
+                            <h2 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <HelpCircle size={18} />
-                                Task {currentQuestionIdx + 1} of {session.questions?.length || 0}
+                                {isMobile ? `Task ${currentQuestionIdx + 1}` : `Task ${currentQuestionIdx + 1} of ${session.questions?.length || 0}`}
                             </h2>
                         </div>
 
-                        <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', fontSize: '1rem', lineHeight: '1.6', color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>
+                        <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>
                             {currentQuestion ? (
                                 <div>
                                     {currentQuestion.topicName && (
-                                        <div style={{ display: 'inline-block', padding: '0.25rem 0.5rem', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                                        <div style={{ display: 'inline-block', padding: '0.2rem 0.4rem', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
                                             {currentQuestion.topicName}
                                         </div>
                                     )}
-                                    <div>{currentQuestion.text || currentQuestion}</div>
+                                    <div style={{ fontSize: isMobile ? '0.9rem' : '0.95rem' }}>{currentQuestion.text || currentQuestion}</div>
                                 </div>
                             ) : (
                                 <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
@@ -666,40 +681,41 @@ export default function WorkshopWorkspace() {
                         </div>
 
                         {session.questions && session.questions.length > 1 && (
-                            <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', background: 'var(--bg-app)' }}>
-                                <button onClick={() => handleQuestionSwitch(Math.max(0, currentQuestionIdx - 1))} disabled={currentQuestionIdx === 0} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}>
-                                    <ArrowLeft size={16} /> Previous
+                            <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', background: 'var(--bg-app)', gap: '0.5rem' }}>
+                                <button onClick={() => handleQuestionSwitch(Math.max(0, currentQuestionIdx - 1))} disabled={currentQuestionIdx === 0} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                    <ArrowLeft size={14} /> Prev
                                 </button>
-                                <button onClick={() => handleQuestionSwitch(Math.min(session.questions.length - 1, currentQuestionIdx + 1))} disabled={currentQuestionIdx === session.questions.length - 1} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}>
-                                    Next <ArrowRight size={16} />
+                                <button onClick={() => handleQuestionSwitch(Math.min(session.questions.length - 1, currentQuestionIdx + 1))} disabled={currentQuestionIdx === session.questions.length - 1} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                    Next <ArrowRight size={14} />
                                 </button>
                             </div>
                         )}
                     </div>
                 </Panel>
 
-                <ResizeHandle direction="horizontal" />
+                <ResizeHandle direction={isMobile ? "vertical" : "horizontal"} />
 
-                <Panel defaultSize={70}>
+                <Panel defaultSize={isMobile ? 70 : 75}>
                     <Group orientation="vertical" style={{ height: '100%' }}>
+                        {/* Editor Panel */}
                         <Panel defaultSize={70} minSize={30}>
                             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-                                <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                                        <Code size={16} /> Editor {(!canEdit) && "(Read-Only)"}
+                                <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 'bold', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                        <Code size={14} /> {isMobile ? 'Editor' : 'Code Editor'} {(!canEdit) && "(Read-Only)"}
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem', padding: '2px 8px', background: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: aiTutorEnabled ? 'var(--color-primary)' : 'var(--text-secondary)' }}>
-                                                AI Review: {aiTutorEnabled ? 'ON' : 'OFF'}
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginRight: '0.25rem', padding: '2px 6px', background: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: aiTutorEnabled ? 'var(--color-primary)' : 'var(--text-secondary)' }}>
+                                                {isMobile ? 'AI' : 'AI Review'}: {aiTutorEnabled ? 'ON' : 'OFF'}
                                             </span>
                                             <div
                                                 style={{
                                                     position: 'relative',
-                                                    width: '32px',
-                                                    height: '18px',
+                                                    width: '28px',
+                                                    height: '16px',
                                                     background: aiTutorEnabled ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)',
-                                                    borderRadius: '9px',
+                                                    borderRadius: '8px',
                                                     cursor: 'pointer',
                                                     transition: 'background 0.3s ease'
                                                 }}
@@ -708,9 +724,9 @@ export default function WorkshopWorkspace() {
                                                 <div style={{
                                                     position: 'absolute',
                                                     top: '2px',
-                                                    left: aiTutorEnabled ? '16px' : '2px',
-                                                    width: '14px',
-                                                    height: '14px',
+                                                    left: aiTutorEnabled ? '14px' : '2px',
+                                                    width: '12px',
+                                                    height: '12px',
                                                     background: 'white',
                                                     borderRadius: '50%',
                                                     transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -718,15 +734,15 @@ export default function WorkshopWorkspace() {
                                                 }} />
                                             </div>
                                         </div>
-                                        <select value={language} onChange={(e) => handleLanguageChange(e.target.value)} className="input-control" style={{ padding: '0.25rem 0.5rem', width: 'auto', height: '32px', fontSize: '0.85rem' }} disabled={!canEdit}>
+                                        <select value={language} onChange={(e) => handleLanguageChange(e.target.value)} className="input-control" style={{ padding: '0.2rem 0.4rem', width: 'auto', height: '28px', fontSize: '0.8rem' }} disabled={!canEdit}>
                                             {Object.entries(LANGUAGE_CONFIG).map(([key, config]) => (
                                                 <option key={key} value={key}>
                                                     {config.icon} {config.name.includes('GCC') ? 'C' : config.name.includes('G++') ? 'C++' : config.name.split(' ')[0]}
                                                 </option>
                                             ))}
                                         </select>
-                                        <button onClick={handleSubmitCode} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 1rem', height: '32px', fontSize: '0.85rem' }} disabled={submitting || !canEdit}>
-                                            {submitting ? 'Running...' : <><Play size={14} /> Run Code</>}
+                                        <button onClick={handleSubmitCode} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.75rem', height: '28px', fontSize: '0.8rem' }} disabled={submitting || !canEdit}>
+                                            {submitting ? '...' : <><Play size={12} /> {isMobile ? 'Run' : 'Run Code'}</>}
                                         </button>
                                     </div>
                                 </div>
@@ -758,6 +774,7 @@ export default function WorkshopWorkspace() {
 
                         <ResizeHandle direction="vertical" />
 
+                        {/* Terminal Panel */}
                         <Panel defaultSize={30} minSize={10}>
                             <div style={{
                                 height: '100%',
@@ -770,24 +787,24 @@ export default function WorkshopWorkspace() {
                                 boxShadow: 'var(--shadow-inner)'
                             }}>
                                 <div style={{
-                                    padding: '0.5rem 1rem',
+                                    padding: '0.4rem 0.75rem',
                                     borderBottom: '1px solid var(--border-color)',
                                     color: 'var(--text-secondary)',
-                                    fontSize: '0.8rem',
+                                    fontSize: '0.75rem',
                                     fontWeight: 'bold',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.5rem',
+                                    gap: '0.4rem',
                                     background: 'var(--bg-app)'
                                 }}>
-                                    <CheckCircle size={14} color="#22c55e" /> Terminal Output
+                                    <CheckCircle size={12} color="#22c55e" /> Terminal Output
                                 </div>
                                 <div style={{
                                     flex: 1,
-                                    padding: '1rem',
+                                    padding: '0.75rem',
                                     color: 'var(--text-main)',
                                     fontFamily: 'monospace',
-                                    fontSize: '0.9rem',
+                                    fontSize: '0.85rem',
                                     overflowY: 'auto',
                                     whiteSpace: 'pre-wrap',
                                     lineHeight: '1.5'
@@ -803,85 +820,56 @@ export default function WorkshopWorkspace() {
             {showPermissions && isMentor && (
                 <div className="premium-modal-backdrop" onClick={() => setShowPermissions(false)}>
                     <div className="premium-modal-container" onClick={e => e.stopPropagation()}>
-                        <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)' }}>
+                        <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <div style={{ background: 'rgba(var(--color-primary-rgb, 67, 97, 238), 0.15)', padding: '0.5rem', borderRadius: '10px' }}>
-                                    <Shield size={22} color="var(--color-primary)" />
+                                <div style={{ background: 'rgba(var(--color-primary-rgb, 67, 97, 238), 0.15)', padding: '0.55rem', borderRadius: '10px' }}>
+                                    <Shield size={20} color="var(--color-primary)" />
                                 </div>
-                                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-main)' }}>Device Permissions</h3>
+                                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-main)' }}>Permissions</h3>
                             </div>
                             <button onClick={() => setShowPermissions(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', display: 'flex', transition: 'all 0.2s' }}>
-                                <X size={20} />
+                                <X size={18} />
                             </button>
                         </div>
 
-                        <div style={{ padding: '1.5rem' }}>
-                            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-                                Grant specific students permission to type code on their own device during this workshop session.
+                        <div style={{ padding: '1.25rem' }}>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+                                Grant specific students permission to type code on their own device.
                             </p>
 
-                            <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
-                                <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                            <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', padding: '0.5rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
                                     <input
                                         type="text"
-                                        placeholder="Username or Discord ID..."
+                                        placeholder="Search student..."
                                         value={studentIdentifier}
                                         onChange={(e) => setStudentIdentifier(e.target.value)}
                                         className="input-control"
-                                        style={{ flex: 1, height: '38px', fontSize: '0.85rem', background: 'rgba(0,0,0,0.2)' }}
+                                        style={{ flex: 1, height: '34px', fontSize: '0.8rem', background: 'rgba(0,0,0,0.1)' }}
                                         onKeyPress={(e) => e.key === 'Enter' && handleAddStudent()}
                                     />
                                     <button
                                         onClick={() => handleAddStudent()}
                                         disabled={addingStudent || !studentIdentifier.trim()}
                                         className="btn btn-primary"
-                                        style={{ height: '38px', padding: '0 1rem', fontSize: '0.85rem' }}
+                                        style={{ height: '34px', padding: '0 0.75rem', fontSize: '0.8rem' }}
                                     >
-                                        {addingStudent ? 'Adding...' : 'Add Student'}
+                                        Add
                                     </button>
                                 </div>
 
                                 {filteredStudents.length > 0 && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: '100%',
-                                        left: 0,
-                                        right: 0,
-                                        background: 'var(--bg-card)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: '8px',
-                                        marginTop: '4px',
-                                        zIndex: 100,
-                                        maxHeight: '200px',
-                                        overflowY: 'auto',
-                                        boxShadow: 'var(--shadow-lg)'
-                                    }}>
+                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', marginTop: '4px', zIndex: 100, maxHeight: '180px', overflowY: 'auto', boxShadow: 'var(--shadow-lg)' }}>
                                         {filteredStudents.map(s => (
                                             <div
                                                 key={s.id}
                                                 onClick={() => handleAddStudent(s.discord || s.username)}
-                                                style={{
-                                                    padding: '0.75rem 1rem',
-                                                    cursor: 'pointer',
-                                                    borderBottom: '1px solid var(--border-color)',
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center',
-                                                    fontSize: '0.9rem',
-                                                    color: 'var(--text-main)',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.background = 'var(--color-primary)';
-                                                    e.currentTarget.style.color = '#fff';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.background = 'transparent';
-                                                    e.currentTarget.style.color = 'var(--text-main)';
-                                                }}
+                                                style={{ padding: '0.6rem 0.8rem', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-main)', transition: 'all 0.2s' }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-primary)'; e.currentTarget.style.color = '#fff'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-main)'; }}
                                             >
                                                 <span style={{ fontWeight: '500' }}>{s.name}</span>
-                                                <code style={{ fontSize: '0.8rem', opacity: 0.7, color: 'inherit' }}>{s.discord}</code>
+                                                <code style={{ fontSize: '0.75rem', opacity: 0.7, color: 'inherit' }}>{s.discord}</code>
                                             </div>
                                         ))}
                                     </div>
@@ -889,51 +877,46 @@ export default function WorkshopWorkspace() {
                             </div>
 
                             {session.students && session.students.length > 0 && (
-                                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                                    <button onClick={() => handleBulkPermission(true)} className="btn-outline" style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', borderColor: 'rgba(34, 197, 94, 0.3)', color: '#4ade80' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                                    <button onClick={() => handleBulkPermission(true)} className="btn-outline" style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', borderColor: 'rgba(34, 197, 94, 0.2)', color: '#4ade80' }}>
                                         Grant All
                                     </button>
-                                    <button onClick={() => handleBulkPermission(false)} className="btn-outline" style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171' }}>
+                                    <button onClick={() => handleBulkPermission(false)} className="btn-outline" style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#f87171' }}>
                                         Revoke All
                                     </button>
                                 </div>
                             )}
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '0.2rem' }}>
                                 {session.students && session.students.length > 0 ? (
                                     session.students.map(s => (
-                                        <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', transition: 'all 0.2s' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem', color: 'white' }}>
+                                        <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.85rem', color: 'white' }}>
                                                     {s.name?.charAt(0) || 'S'}
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-main)' }}>{s.name}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.discord}</div>
+                                                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>{s.name}</div>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{s.discord}</div>
                                                 </div>
                                             </div>
 
-                                            <div style={{ position: 'relative', width: '44px', height: '24px', background: s.hasWorkshopPermission ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)', borderRadius: '12px', cursor: 'pointer', transition: 'background 0.3s ease' }} onClick={() => handleTogglePermission(s.id, !!s.hasWorkshopPermission)}>
-                                                <div style={{ position: 'absolute', top: '2px', left: s.hasWorkshopPermission ? '22px' : '2px', width: '20px', height: '20px', background: 'white', borderRadius: '50%', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
+                                            <div style={{ position: 'relative', width: '38px', height: '20px', background: s.hasWorkshopPermission ? 'var(--color-primary)' : 'rgba(255,255,255,0.08)', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.3s ease' }} onClick={() => handleTogglePermission(s.id, !!s.hasWorkshopPermission)}>
+                                                <div style={{ position: 'absolute', top: '2px', left: s.hasWorkshopPermission ? '20px' : '2px', width: '16px', height: '16px', background: 'white', borderRadius: '50%', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '50%' }}>
-                                            <Users size={32} opacity={0.3} />
-                                        </div>
-                                        <div>
-                                            <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.25rem' }}>No Students Joined</div>
-                                            <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>Students will appear here once they join.</div>
-                                        </div>
+                                    <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                                        <Users size={28} opacity={0.2} />
+                                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>No students joined yet.</div>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        <div style={{ padding: '1.25rem 1.5rem', background: 'rgba(255, 255, 255, 0.02)', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={() => setShowPermissions(false)} className="btn btn-primary" style={{ minWidth: '100px', padding: '0.75rem 1.5rem', borderRadius: '10px', fontWeight: 'bold' }}>
+                        <div style={{ padding: '1rem 1.25rem', background: 'rgba(255, 255, 255, 0.01)', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setShowPermissions(false)} className="btn btn-primary" style={{ padding: '0.6rem 1.25rem', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem' }}>
                                 Done
                             </button>
                         </div>
@@ -943,4 +926,3 @@ export default function WorkshopWorkspace() {
         </div>
     );
 }
-

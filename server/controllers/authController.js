@@ -34,21 +34,28 @@ const generateRefreshToken = async (userId, familyId = null) => {
 };
 
 const getCookieOptions = () => {
-    const isProd = process.env.NODE_ENV === 'production';
+    // Robust production check: either NODE_ENV is production OR we are on a known production domain
+    const isProd = process.env.NODE_ENV === 'production' || 
+                   (process.env.RAILWAY_ENVIRONMENT === 'production') ||
+                   (process.env.VITE_FRONTEND_URL && !process.env.VITE_FRONTEND_URL.includes('localhost'));
+    
+    // Always use 'none' for sameSite in production-like environments to support cross-site cookies
     const sameSite = isProd ? 'none' : 'lax';
     
     return {
         httpOnly: true,
-        secure: sameSite === 'none' ? true : isProd,
+        secure: isProd, // Must be true for SameSite=None
         sameSite: sameSite,
-        partitioned: sameSite === 'none',
-        path: '/api/auth', // Narrowed path as requested
+        partitioned: isProd, // Support SHIPS for cross-site cookie privacy
+        path: '/', // Changed from /api/auth to / to ensure it's sent reliably
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     };
 };
 
 const setRefreshTokenCookie = (res, token) => {
-    res.cookie('refreshToken', token, getCookieOptions());
+    const options = getCookieOptions();
+    console.log(`[AUTH] Setting refreshToken cookie. SECURE: ${options.secure}, SAMESITE: ${options.sameSite}, PATH: ${options.path}`);
+    res.cookie('refreshToken', token, options);
 };
 
 exports.register = async (req, res) => {
@@ -200,15 +207,16 @@ exports.refreshToken = async (req, res) => {
         const { refreshToken: token } = req.cookies;
         
         if (!token) {
-            console.warn('[AUTH] Refresh token missing from cookies. If cross-domain, ensure SameSite: None and Secure: true!');
+            console.warn('[AUTH] Refresh token MISSING from cookies.');
+            console.log('[AUTH] All Cookies received:', JSON.stringify(req.cookies));
             return res.status(401).json({ error: 'Refresh token missing from cookies' });
         }
 
         const refreshToken = await findRefreshToken(token);
         
         if (!refreshToken) {
-            console.warn('[AUTH] Refresh token not found in database:', token.substring(0, 8) + '...');
-            return res.status(401).json({ error: 'Invalid refresh token' });
+            console.warn('[AUTH] Refresh token NOT FOUND in database:', token.substring(0, 8) + '...');
+            return res.status(401).json({ error: 'Invalid refresh token (not found in DB)' });
         }
 
         const isRevoked = refreshToken.isRevoked === undefined ? refreshToken.is_revoked : refreshToken.isRevoked;
