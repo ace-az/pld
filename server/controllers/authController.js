@@ -33,14 +33,18 @@ const generateRefreshToken = async (userId, familyId = null) => {
     return refreshToken;
 };
 
-const setRefreshTokenCookie = (res, token) => {
+const getCookieOptions = () => {
     const isProd = process.env.NODE_ENV === 'production';
-    res.cookie('refreshToken', token, {
+    return {
         httpOnly: true,
         secure: isProd,
-        sameSite: isProd ? 'lax' : 'lax', // Lax is better for development and production reloads
+        sameSite: isProd ? 'none' : 'lax', // 'none' is REQUIRED for Vercel + Railway cross-site cookies
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
-    });
+    };
+};
+
+const setRefreshTokenCookie = (res, token) => {
+    res.cookie('refreshToken', token, getCookieOptions());
 };
 
 exports.register = async (req, res) => {
@@ -208,7 +212,8 @@ exports.refreshToken = async (req, res) => {
         if (isRevoked) {
             // Potential reuse detected! Revoke whole family.
             await revokeFamily(familyId);
-            res.clearCookie('refreshToken');
+            const { maxAge, ...clearOptions } = getCookieOptions();
+            res.clearCookie('refreshToken', clearOptions);
             return res.status(403).json({ error: 'Token reuse detected. All sessions revoked.' });
         }
 
@@ -254,7 +259,8 @@ exports.logout = async (req, res) => {
             console.error('Logout revocation error:', err);
         }
     }
-    res.clearCookie('refreshToken');
+    const { maxAge, ...clearOptions } = getCookieOptions();
+    res.clearCookie('refreshToken', clearOptions);
     res.json({ success: true, message: 'Logged out successfully' });
 };
 
