@@ -33,6 +33,10 @@ app.use((req, res, next) => {
         process.env.FRONTEND_URL
     ].filter(Boolean);
 
+    if (process.env.NODE_ENV === 'production' && origin) {
+        console.log(`[CORS DEBUG] Incoming Origin: ${origin}`);
+    }
+
     if (origin) {
         if (allowedOrigins.includes(origin) || allowedOrigins.includes('*') || process.env.NODE_ENV !== 'production') {
             res.header('Access-Control-Allow-Origin', origin);

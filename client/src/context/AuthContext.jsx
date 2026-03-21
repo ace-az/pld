@@ -117,9 +117,9 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         // Initial silent refresh
+        console.log('[AUTH] App Load: Starting initial session restoration...');
         performSilentRefresh().then(success => {
-            // Even if it failed, we want to ensure loading is false 
-            // so the login page can show up.
+            console.log(`[AUTH] App Load: Session restoration finished. Success: ${success}`);
             setLoading(false);
         });
     }, [performSilentRefresh]);
@@ -136,7 +136,8 @@ export const AuthProvider = ({ children }) => {
     return (
         <AuthContext.Provider value={{ 
             user, 
-            accessToken, 
+            accessToken,
+            isAuthenticated: !!user,
             login, 
             logout, 
             loading, 

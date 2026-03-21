@@ -39,11 +39,10 @@ const getCookieOptions = () => {
     
     return {
         httpOnly: true,
-        // MUST be secure: true for SameSite: None. 
-        // We force it in prod or if the URL is clearly production (Railway/Vercel)
         secure: sameSite === 'none' ? true : isProd,
         sameSite: sameSite,
-        partitioned: sameSite === 'none', // CHIPS: for modern browser cross-site cookie support
+        partitioned: sameSite === 'none',
+        path: '/api/auth', // Narrowed path as requested
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     };
 };
@@ -195,11 +194,14 @@ exports.login = async (req, res) => {
 
 exports.refreshToken = async (req, res) => {
     try {
+        console.log(`[AUTH] Refresh Request. Origin: ${req.headers.origin}`);
+        console.log('[AUTH] Cookies received:', JSON.stringify(req.cookies));
+        
         const { refreshToken: token } = req.cookies;
         
         if (!token) {
-            console.warn('[AUTH] Refresh token missing from cookies');
-            return res.status(401).json({ error: 'Refresh token missing' });
+            console.warn('[AUTH] Refresh token missing from cookies. If cross-domain, ensure SameSite: None and Secure: true!');
+            return res.status(401).json({ error: 'Refresh token missing from cookies' });
         }
 
         const refreshToken = await findRefreshToken(token);

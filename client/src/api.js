@@ -123,18 +123,22 @@ export const loginUser = (credentials) => api.post('/api/auth/login', credential
  */
 export const refreshToken = async () => {
     if (isRefreshing) {
+        console.log('[AUTH CLIENT] Refresh already in progress. Queueing...');
         return new Promise((resolve, reject) => {
             failedQueue.push({ resolve, reject });
         });
     }
 
+    console.log('[AUTH CLIENT] Starting silent refresh attempt...');
     isRefreshing = true;
     try {
         const response = await api.post('/api/auth/refresh-token', {}, { _retry: true });
-        const newToken = response.accessToken || response.data?.accessToken;
+        // Handle both standard axios response.data and my interceptor's auto-extraction
+        const newToken = response?.accessToken || response?.data?.accessToken;
         
-        if (!newToken) throw new Error("No token in response");
+        if (!newToken) throw new Error("No access token in refresh response");
 
+        console.log('[AUTH CLIENT] Silent refresh SUCCESS.');
         // Sync with internal and React state
         setAccessToken(newToken);
         if (window.setAccessToken) window.setAccessToken(newToken);
