@@ -35,26 +35,25 @@ const generateRefreshToken = async (userId, familyId = null) => {
 
 const getCookieOptions = () => {
     // Robust production check: either NODE_ENV is production OR we are on a known production domain
+    // If we're on any .railway.app or .up.railway.app, it's basically production
     const isProd = process.env.NODE_ENV === 'production' || 
-                   (process.env.RAILWAY_ENVIRONMENT_NAME === 'production') ||
-                   (process.env.FRONTEND_URL && !process.env.FRONTEND_URL.includes('localhost')) ||
-                   (process.env.VITE_FRONTEND_URL && !process.env.VITE_FRONTEND_URL.includes('localhost'));
+                   process.env.RAILWAY_ENVIRONMENT_NAME === 'production' ||
+                   process.env.RAILWAY_STATIC_URL || 
+                   process.env.RAILWAY_SERVICE_ID ||
+                   (process.env.FRONTEND_URL && !process.env.FRONTEND_URL.includes('localhost'));
     
-    // Fallback: If we're on any .railway.app or .up.railway.app, it's basically production
-    const isRailway = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_SERVICE_ID || (process.env.RAILWAY_ENVIRONMENT_NAME);
-    const useSecure = isProd || isRailway;
-    
-    // Always use 'none' for sameSite in production-like environments to support cross-site cookies
+    // In production (or cloud), we MUST use SameSite=None and Secure=true for cross-origin (Vercel -> Railway)
+    const useSecure = isProd;
     const sameSite = useSecure ? 'none' : 'lax';
     
-    console.log(`[AUTH DEBUG] Cookie Options Calc - isProd: ${isProd}, isRailway: ${!!isRailway}, Resulting Secure: ${useSecure}, SameSite: ${sameSite}`);
+    console.log(`[AUTH DEBUG] Simplified Cookie Options - isProd: ${isProd}, Resulting Secure: ${useSecure}, SameSite: ${sameSite}`);
 
     return {
         httpOnly: true,
-        secure: useSecure, // Must be true for SameSite=None
+        secure: useSecure,
         sameSite: sameSite,
-        partitioned: useSecure, // Support CHIPS for cross-site cookie privacy
-        path: '/', // Ensure it's sent reliably to all /api routes
+        // Removed partitioned: true for maximum compatibility as it's still being rolled out
+        path: '/', 
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     };
 };

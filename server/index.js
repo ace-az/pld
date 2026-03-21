@@ -18,7 +18,7 @@ console.log('--------------------');
 assertJwtSecretOrThrow();
 
 const app = express();
-app.set('trust proxy', 1); // Trust first proxy (Railway/Render) for secure cookies
+app.set('trust proxy', true); // Trust proxies (Railway/Render) for secure cookies
 const PORT = process.env.PORT || 5000;
 
 // Middleware
