@@ -38,7 +38,7 @@ const setRefreshTokenCookie = (res, token) => {
     res.cookie('refreshToken', token, {
         httpOnly: true,
         secure: isProd,
-        sameSite: isProd ? 'strict' : 'lax', // Lax is better for development with different ports
+        sameSite: isProd ? 'lax' : 'lax', // Lax is better for development and production reloads
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     });
 };
