@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Play, CheckCircle, HelpCircle, Shield, X, Users, Code, Lock } from 'lucide-react';
-import { getSession, toggleWorkshopPermission, updateWorkshopCode } from '../api';
+import { 
+    getSession, 
+    toggleWorkshopPermission, 
+    updateWorkshopCode, 
+    getMasterStudents, 
+    addSessionStudent,
+    evaluateCode,
+    tutorReview,
+    submitWorkshopCode
+} from '../api';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import CodeEditor from '../components/CodeEditor';
 import './SessionRun.css';
 import { Panel, Group, Separator } from 'react-resizable-panels';
@@ -31,21 +40,30 @@ const ResizeHandle = ({ direction = 'horizontal' }) => (
 );
 
 const LANGUAGE_CONFIG = {
-    python: { icon: '🐍', name: 'Python 3.10', command: 'python main.py', filename: 'main.py', defaultCode: '# Write your solution here\n' },
-    javascript: { icon: '🟨', name: 'Node.js 18', command: 'node main.js', filename: 'main.js', defaultCode: '// Write your solution here\n' },
-    java: { icon: '☕', name: 'Java 17', command: 'javac Main.java && java Main', filename: 'Main.java', defaultCode: '// Write your solution here\n' },
-    csharp: { icon: '#️⃣', name: 'C# .NET 6', command: 'dotnet run', filename: 'Program.cs', defaultCode: '// Write your solution here\n' },
-    c: { icon: '⚙️', name: 'GCC 11', command: 'gcc main.c -o main && ./main', filename: 'main.c', defaultCode: '// Write your solution here\n' },
-    cpp: { icon: '⚙️', name: 'G++ 11', command: 'g++ main.cpp -o main && ./main', filename: 'main.cpp', defaultCode: '// Write your solution here\n' },
-    typescript: { icon: '🔷', name: 'TypeScript 5', command: 'tsc main.ts && node main.js', filename: 'main.ts', defaultCode: '// Write your solution here\n' },
-    go: { icon: '🐹', name: 'Go 1.21', command: 'go run main.go', filename: 'main.go', defaultCode: '// Write your solution here\n' },
-    ruby: { icon: '💎', name: 'Ruby 3.2', command: 'ruby main.rb', filename: 'main.rb', defaultCode: '# Write your solution here\n' },
-    php: { icon: '🐘', name: 'PHP 8.2', command: 'php main.php', filename: 'main.php', defaultCode: '<?php\n// Write your solution here\n' },
-    swift: { icon: '🍎', name: 'Swift 5.8', command: 'swift main.swift', filename: 'main.swift', defaultCode: '// Write your solution here\n' },
-    kotlin: { icon: '🎯', name: 'Kotlin 1.9', command: 'kotlinc Main.kt -include-runtime -d main.jar && java -jar main.jar', filename: 'Main.kt', defaultCode: '// Write your solution here\n' },
-    rust: { icon: '🦀', name: 'Rust 1.72', command: 'rustc main.rs && ./main', filename: 'main.rs', defaultCode: '// Write your solution here\n' },
-    sql: { icon: '🗄️', name: 'PostgreSQL 15', command: 'psql -f main.sql', filename: 'main.sql', defaultCode: '-- Write your solution here\n' },
-    lua: { icon: '🌙', name: 'Lua 5.4', command: 'lua main.lua', filename: 'main.lua', defaultCode: '-- Write your solution here\n' }
+    python: { icon: '🐍', name: 'Python 3.10', command: 'python main.py', filename: 'main.py', defaultCode: '# Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    javascript: { icon: '🟨', name: 'Node.js 18', command: 'node main.js', filename: 'main.js', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    java: { icon: '☕', name: 'Java 17', command: 'javac Main.java && java Main', filename: 'Main.java', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    csharp: { icon: '#️⃣', name: 'C# .NET 6', command: 'dotnet run', filename: 'Program.cs', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    c: { icon: '⚙️', name: 'GCC 11', command: 'gcc main.c -o main && ./main', filename: 'main.c', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    cpp: { icon: '⚙️', name: 'G++ 11', command: 'g++ main.cpp -o main && ./main', filename: 'main.cpp', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    typescript: { icon: '🔷', name: 'TypeScript 5', command: 'tsc main.ts && node main.js', filename: 'main.ts', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    go: { icon: '🐹', name: 'Go 1.21', command: 'go run main.go', filename: 'main.go', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    ruby: { icon: '💎', name: 'Ruby 3.2', command: 'ruby main.rb', filename: 'main.rb', defaultCode: '# Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    php: { icon: '🐘', name: 'PHP 8.2', command: 'php main.php', filename: 'main.php', defaultCode: '<?php\n// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    swift: { icon: '🍎', name: 'Swift 5.8', command: 'swift main.swift', filename: 'main.swift', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    kotlin: { icon: '🎯', name: 'Kotlin 1.9', command: 'kotlinc Main.kt -include-runtime -d main.jar && java -jar main.jar', filename: 'Main.kt', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    rust: { icon: '🦀', name: 'Rust 1.72', command: 'rustc main.rs && ./main', filename: 'main.rs', defaultCode: '// Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    sql: { icon: '🗄️', name: 'PostgreSQL 15', command: 'psql -f main.sql', filename: 'main.sql', defaultCode: '-- Write your solution here\n\n\n\n\n\n\n\n\n\n' },
+    lua: { icon: '🌙', name: 'Lua 5.4', command: 'lua main.lua', filename: 'main.lua', defaultCode: '-- Write your solution here\n\n\n\n\n\n\n\n\n\n' }
+};
+
+const getNormalizedCode = (codeStr, lang) => {
+    if (!codeStr) return LANGUAGE_CONFIG[lang]?.defaultCode || '';
+    const trimmed = codeStr.trim();
+    if (trimmed === '# Write your solution here' || trimmed === '// Write your solution here' || trimmed === '-- Write your solution here' || trimmed === '<?php\n// Write your solution here') {
+        return LANGUAGE_CONFIG[lang]?.defaultCode || '';
+    }
+    return codeStr;
 };
 
 export default function WorkshopWorkspace() {
@@ -56,16 +74,17 @@ export default function WorkshopWorkspace() {
 
     const [session, setSession] = useState(null);
     const [myStatus, setMyStatus] = useState(null);
-    const [allSubmissions, setAllSubmissions] = useState({}); // { [index]: { code, language, output, feedback } }
+    const [allSubmissions, setAllSubmissions] = useState({});
+    const [codeStacks, setCodeStacks] = useState({});
     const [code, setCode] = useState(LANGUAGE_CONFIG.python.defaultCode);
     const [language, setLanguage] = useState('python');
     const [submitting, setSubmitting] = useState(false);
     const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
     const [showPermissions, setShowPermissions] = useState(false);
-    const [terminalOutput, setTerminalOutput] = useState(null); // Now an object
+    const [terminalOutput, setTerminalOutput] = useState(null);
     const [aiTutorEnabled, setAiTutorEnabled] = useState(() => {
         const saved = localStorage.getItem('aiTutorEnabled');
-        return saved === 'true'; // Default to OFF
+        return saved === 'true';
     });
 
     useEffect(() => {
@@ -85,22 +104,16 @@ export default function WorkshopWorkspace() {
 
     useEffect(() => {
         fetchSession();
-        fetchMasterStudents();
+        fetchMasterStudentsList();
 
-        // Start polling for real-time collaboration
-        const interval = setInterval(fetchSession, 3000);
+        const interval = setInterval(fetchSession, 1000);
         return () => clearInterval(interval);
     }, [id]);
 
-    const fetchMasterStudents = async () => {
+    const fetchMasterStudentsList = async () => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${apiUrl}/api/students`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (res.ok && Array.isArray(data)) setMasterStudents(data);
+            const data = await getMasterStudents();
+            if (Array.isArray(data)) setMasterStudents(data);
         } catch (err) {
             console.error('Error fetching master students:', err);
         }
@@ -118,67 +131,52 @@ export default function WorkshopWorkspace() {
         }
     }, [studentIdentifier, masterStudents]);
 
-    // Initial load of submissions when session is first loaded
     useEffect(() => {
-        const isBoilerplate = (codeStr) => {
-            if (!codeStr) return true;
-            const t = codeStr.trim().toLowerCase().replace(/\s+/g, '');
-            return t.includes('writeyoursolutionhere') || t.includes('writejshere') || t.includes('writepythonhere');
-        };
-
         if (session?.workshop_data?.submissions) {
-            // Merge local state with shared workshop state (workshop state takes precedence)
             setAllSubmissions(prev => ({ ...prev, ...session.workshop_data.submissions }));
-
-            // Set initial question state if it exists for the current question
             const initialSub = session.workshop_data.submissions[currentQuestionIdx];
             if (initialSub) {
                 const lang = initialSub.language || 'javascript';
-                let initialCode = initialSub.code || '';
-                if (isBoilerplate(initialCode)) {
-                    initialCode = LANGUAGE_CONFIG[lang]?.defaultCode || '';
-                }
+                const initialCode = getNormalizedCode(initialSub.code || '', lang);
                 setCode(initialCode);
                 setLanguage(lang);
-                // Don't overwrite output if it's not saved
             }
         } else if (myStatus?.submissions) {
             setAllSubmissions(myStatus.submissions);
             const initialSub = myStatus.submissions[currentQuestionIdx];
             if (initialSub) {
                 const lang = initialSub.language || 'javascript';
-                let initialCode = initialSub.code || '';
-                if (isBoilerplate(initialCode)) {
-                    initialCode = LANGUAGE_CONFIG[lang]?.defaultCode || '';
-                }
+                const initialCode = getNormalizedCode(initialSub.code || '', lang);
                 setCode(initialCode);
                 setLanguage(lang);
                 setTerminalOutput(initialSub.output || '');
             }
         }
-    }, [session?.id, myStatus?.id]); // Run when session or status is established
+    }, [session?.id, myStatus?.id]);
 
-    // Handle question switching
     useEffect(() => {
-        // Try to load from shared workshop_data first, then fallback to local allSubmissions
         const sharedSub = session?.workshop_data?.submissions?.[currentQuestionIdx];
         const localSub = allSubmissions[currentQuestionIdx];
         const sub = sharedSub || localSub;
 
         if (sub) {
-            setCode(sub.code || '');
-            setLanguage(sub.language || 'python');
-            // Prefer local output as server doesn't sync output real-time to workshop_data
+            const lang = sub.language || 'python';
+            const stackCode = codeStacks[currentQuestionIdx]?.[lang];
+            setCode(getNormalizedCode(stackCode !== undefined ? stackCode : (sub.code || ''), lang));
+            setLanguage(lang);
             setTerminalOutput(localSub?.output || '');
         } else {
-            // New question - clear or set defaults
-            const config = LANGUAGE_CONFIG[language] || LANGUAGE_CONFIG.python;
-            setCode(config.defaultCode || '');
+            const stackCode = codeStacks[currentQuestionIdx]?.[language];
+            if (stackCode !== undefined) {
+                setCode(getNormalizedCode(stackCode, language));
+            } else {
+                const config = LANGUAGE_CONFIG[language] || LANGUAGE_CONFIG.python;
+                setCode(config.defaultCode || '');
+            }
             setTerminalOutput('');
         }
     }, [currentQuestionIdx]);
 
-    // REAL-TIME SYNC: Update local state from server
     useEffect(() => {
         if (!session?.workshop_data) return;
         const { 
@@ -191,16 +189,11 @@ export default function WorkshopWorkspace() {
             lastEditPos 
         } = session.workshop_data;
         
-        // Don't sync if we are the one who just updated it
         if (updatedBy === user.id) return;
-        
-        // Don't sync if we are looking at a different question
         if (serverIdx !== currentQuestionIdx) return;
 
-        // Detect remote edit for badge
         if (updatedAt) {
             const editTime = new Date(updatedAt).getTime();
-            // If the edit is fresh (within last 4 seconds) and different from last remote edit we saw
             if (Date.now() - editTime < 4000 && (!remoteEdit || remoteEdit.timestamp !== updatedAt)) {
                 setRemoteEdit({
                     userId: updatedBy,
@@ -211,22 +204,30 @@ export default function WorkshopWorkspace() {
             }
         }
 
-        // CRITICAL: Don't sync if we are currently typing (avoids cursor jumps)
         const timeSinceLastType = Date.now() - lastLocalChange;
         if (timeSinceLastType < 2500) return;
 
-        if (serverCode !== undefined && serverCode !== code) {
-            setCode(serverCode);
+        if (serverCode !== undefined) {
+            const normalizedServer = getNormalizedCode(serverCode, serverLang || language);
+            if (normalizedServer !== code) {
+                setCode(normalizedServer);
+                setCodeStacks(prev => ({
+                    ...prev,
+                    [currentQuestionIdx]: {
+                        ...(prev[currentQuestionIdx] || {}),
+                        [serverLang || language]: normalizedServer
+                    }
+                }));
+            }
         }
         if (serverLang !== undefined && serverLang !== language) {
             setLanguage(serverLang);
         }
     }, [session?.workshop_data, currentQuestionIdx]);
 
-    // REAL-TIME SYNC: Save local state to server (Debounced)
     useEffect(() => {
         if (!canEdit) return;
-        if (Date.now() - lastLocalChange > 5000) return; // Only save if actually changed recently
+        if (Date.now() - lastLocalChange > 5000) return;
         
         const timer = setTimeout(async () => {
             try {
@@ -239,13 +240,12 @@ export default function WorkshopWorkspace() {
             } catch (err) {
                 console.error("Failed to sync code:", err);
             }
-        }, 1000);
+        }, 500);
 
         return () => clearTimeout(timer);
     }, [code, language, currentQuestionIdx, id, canEdit, lastLocalEditPos]);
 
     const handleQuestionSwitch = (newIdx) => {
-        // Save current active buffer to local state before switching
         setAllSubmissions(prev => ({
             ...prev,
             [currentQuestionIdx]: {
@@ -254,28 +254,41 @@ export default function WorkshopWorkspace() {
                 output: terminalOutput
             }
         }));
+        
+        setCodeStacks(prev => ({
+            ...prev,
+            [currentQuestionIdx]: {
+                ...(prev[currentQuestionIdx] || {}),
+                [language]: code
+            }
+        }));
+
         setCurrentQuestionIdx(newIdx);
     };
 
     const handleLanguageChange = (newLang) => {
-        const oldLang = language;
+        setCodeStacks(prev => ({
+            ...prev,
+            [currentQuestionIdx]: {
+                ...(prev[currentQuestionIdx] || {}),
+                [language]: code
+            }
+        }));
+
         setLanguage(newLang);
         setLastLocalChange(Date.now());
 
-        // Check if current code is boilerplate for any language or generic empty state
-        const currentTrimmed = code.trim().toLowerCase().replace(/\s+/g, '');
+        setCodeStacks(prev => {
+            const existingCode = prev[currentQuestionIdx]?.[newLang];
+            if (existingCode !== undefined) {
+                setCode(existingCode);
+            } else {
+                const newConfig = LANGUAGE_CONFIG[newLang] || LANGUAGE_CONFIG.python;
+                setCode(newConfig.defaultCode || '');
+            }
+            return prev;
+        });
 
-        const isOldBoilerplate = !code.trim() || 
-            currentTrimmed.includes('writeyoursolutionhere') || 
-            currentTrimmed.includes('writejshere') || 
-            currentTrimmed.includes('writepythonhere');
-
-        if (isOldBoilerplate) {
-            const newConfig = LANGUAGE_CONFIG[newLang] || LANGUAGE_CONFIG.python;
-            setCode(newConfig.defaultCode || '');
-        }
-
-        // Also update local state
         setAllSubmissions(prev => ({
             ...prev,
             [currentQuestionIdx]: {
@@ -320,8 +333,6 @@ export default function WorkshopWorkspace() {
         try {
             const studentIds = session.students?.map(s => s.id) || [];
             if (studentIds.length === 0) return;
-
-            // Sequentially or parallel? Parallel is faster.
             await Promise.all(studentIds.map(id => toggleWorkshopPermission(session.id, id, grant)));
 
             setSession(prev => ({
@@ -341,23 +352,14 @@ export default function WorkshopWorkspace() {
 
         setAddingStudent(true);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${apiUrl}/api/sessions/${session.id}/students`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ identifier: idToUse })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to add student');
-
+            const data = await addSessionStudent(session.id, idToUse);
             setSession(data);
             setStudentIdentifier('');
             setFilteredStudents([]);
             toast.success("Student added to session!");
         } catch (err) {
             console.error(err);
-            toast.error(err.message);
+            toast.error(err.message || 'Failed to add student');
         } finally {
             setAddingStudent(false);
         }
@@ -368,33 +370,20 @@ export default function WorkshopWorkspace() {
         setSubmitting(true);
         setTerminalOutput({ type: 'loading', message: 'Executing...' });
 
-        const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const apiUrl = rawApiUrl.replace(/\/+$/, '');
-        const token = localStorage.getItem('token');
-
         try {
-            // STEP 1: Execute code instantly
-            const res = await fetch(`${apiUrl}/api/ai/evaluate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    language,
-                    code,
-                    tutorMode: false, // We handle tutor separately now for better UX
-                    expectedOutput: currentQuestion?.text || null
-                })
+            const data = await evaluateCode({
+                language,
+                code,
+                tutorMode: false,
+                expectedOutput: currentQuestion?.text || null
             });
-            let data = await res.json();
-            if (!res.ok) throw new Error(data.error || data.message || 'Execution failed');
 
-            // If AI Tutor is enabled, show the output immediately but mark tutor as loading
             if (aiTutorEnabled) {
                 data.tutorLoading = true;
             }
 
             setTerminalOutput(data);
 
-            // Sync initial state to local allSubmissions
             setAllSubmissions(prev => ({
                 ...prev,
                 [currentQuestionIdx]: {
@@ -405,86 +394,60 @@ export default function WorkshopWorkspace() {
                 }
             }));
 
-            // Save to Server initially
             if (user.role === 'student' && myStatus) {
-                await fetch(`${apiUrl}/api/sessions/${session.id}/students/${myStatus.id}/submit-code`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({
-                        code,
-                        language,
-                        feedback: null,
-                        sessionId: session.id,
-                        questionIndex: currentQuestionIdx,
-                        output: data.output
-                    })
+                await submitWorkshopCode(session.id, myStatus.id, {
+                    code,
+                    language,
+                    feedback: null,
+                    sessionId: session.id,
+                    questionIndex: currentQuestionIdx,
+                    output: data.output
                 });
             }
 
-            // STEP 2: Asynchronously fetch AI Tutor review if enabled
             if (aiTutorEnabled) {
                 try {
-                    const tutorRes = await fetch(`${apiUrl}/api/ai/tutor-review`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({
-                            language,
-                            code,
-                            expectedOutput: currentQuestion?.text || null,
-                            realOutput: data.output
-                        })
+                    const tutorData = await tutorReview({
+                        language,
+                        code,
+                        expectedOutput: currentQuestion?.text || null,
+                        realOutput: data.output
                     });
-                    const tutorData = await tutorRes.json();
 
-                    if (tutorRes.ok) {
-                        data = {
-                            ...data,
-                            tutorLoading: false,
-                            explanation: tutorData.explanation,
-                            suggestions: tutorData.suggestions,
-                            hints: tutorData.hints,
-                            codeQuality: tutorData.codeQuality
-                        };
+                    const updatedData = {
+                        ...data,
+                        tutorLoading: false,
+                        explanation: tutorData.explanation,
+                        suggestions: tutorData.suggestions,
+                        hints: tutorData.hints,
+                        codeQuality: tutorData.codeQuality
+                    };
 
-                        setTerminalOutput(data);
+                    setTerminalOutput(updatedData);
 
-                        // Update local state with feedback
-                        setAllSubmissions(prev => ({
-                            ...prev,
-                            [currentQuestionIdx]: {
-                                ...prev[currentQuestionIdx],
-                                output: data,
-                                feedback: tutorData.explanation
-                            }
-                        }));
-
-                        // Save updated feedback to server
-                        if (user.role === 'student' && myStatus) {
-                            await fetch(`${apiUrl}/api/sessions/${session.id}/students/${myStatus.id}/submit-code`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                body: JSON.stringify({
-                                    code,
-                                    language,
-                                    feedback: tutorData.explanation,
-                                    sessionId: session.id,
-                                    questionIndex: currentQuestionIdx,
-                                    output: data.output
-                                })
-                            });
+                    setAllSubmissions(prev => ({
+                        ...prev,
+                        [currentQuestionIdx]: {
+                            ...prev[currentQuestionIdx],
+                            output: updatedData,
+                            feedback: tutorData.explanation
                         }
-                        toast.success("AI Review Complete!");
-                    } else {
-                        data.tutorLoading = false;
-                        data.explanation = "AI Tutor failed to analyze the code.";
-                        setTerminalOutput(data);
-                        toast.error("AI Review failed to load.");
+                    }));
+
+                    if (user.role === 'student' && myStatus) {
+                        await submitWorkshopCode(session.id, myStatus.id, {
+                            code,
+                            language,
+                            feedback: tutorData.explanation,
+                            sessionId: session.id,
+                            questionIndex: currentQuestionIdx,
+                            output: data.output
+                        });
                     }
+                    toast.success("AI Review Complete!");
                 } catch (tutorErr) {
                     console.error("Tutor Error:", tutorErr);
-                    data.tutorLoading = false;
-                    data.explanation = "AI Tutor failed to analyze the code.";
-                    setTerminalOutput(data);
+                    setTerminalOutput(prev => ({ ...prev, tutorLoading: false, explanation: "AI Tutor failed to analyze the code." }));
                 }
             } else {
                 toast.success("Code executed!");
@@ -500,7 +463,7 @@ export default function WorkshopWorkspace() {
 
     const renderTerminalOutput = () => {
         if (!terminalOutput) return <span style={{ color: '#555' }}>Output will appear here after running your code...</span>;
-        if (typeof terminalOutput === 'string') return terminalOutput; // fallback
+        if (typeof terminalOutput === 'string') return terminalOutput;
         if (terminalOutput.type === 'loading') return <span style={{ color: '#888' }}>{terminalOutput.message}</span>;
         if (terminalOutput.type === 'error') return <span style={{ color: '#ef4444' }}>{terminalOutput.message}</span>;
 
@@ -591,7 +554,6 @@ export default function WorkshopWorkspace() {
     if (!session || (!myStatus && user.role !== 'mentor')) return null;
 
     const currentQuestion = session.questions && session.questions.length > 0 ? session.questions[currentQuestionIdx] : null;
-    const lastEditor = session?.workshop_data?.submissions?.[currentQuestionIdx]?.updatedByName || session?.workshop_data?.updatedByName;
 
     return (
         <div style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', padding: '1rem', background: 'var(--bg-app)' }}>
@@ -646,7 +608,6 @@ export default function WorkshopWorkspace() {
                 }
             `}</style>
 
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', background: 'var(--bg-card)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <button onClick={() => navigate('/workshops')} className="btn-outline" style={{ display: 'flex', alignItems: 'center', border: 'none', padding: '0.5rem', background: 'var(--bg-app)', borderRadius: '8px' }}>
@@ -677,10 +638,7 @@ export default function WorkshopWorkspace() {
                 </div>
             </div>
 
-            {/* Main Split Screen */}
             <Group orientation="horizontal" style={{ flex: 1, height: '100%', gap: '0' }}>
-
-                {/* Left Pane: Question Section */}
                 <Panel defaultSize={30} minSize={20}>
                     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
                         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(var(--color-primary-rgb, 67, 97, 238), 0.05)' }}>
@@ -722,7 +680,6 @@ export default function WorkshopWorkspace() {
 
                 <ResizeHandle direction="horizontal" />
 
-                {/* Right Pane: Code Editor & Terminal */}
                 <Panel defaultSize={70}>
                     <Group orientation="vertical" style={{ height: '100%' }}>
                         <Panel defaultSize={70} minSize={30}>
@@ -779,8 +736,13 @@ export default function WorkshopWorkspace() {
                                         onChange={(value, viewUpdate) => {
                                             setCode(value);
                                             setLastLocalChange(Date.now());
-
-                                            // Capture cursor position from ViewUpdate if available
+                                            setCodeStacks(prev => ({
+                                                ...prev,
+                                                [currentQuestionIdx]: {
+                                                    ...(prev[currentQuestionIdx] || {}),
+                                                    [language]: value
+                                                }
+                                            }));
                                             if (viewUpdate) {
                                                 const head = viewUpdate.state.selection.main.head;
                                                 setLastLocalEditPos(head);
@@ -838,7 +800,6 @@ export default function WorkshopWorkspace() {
                 </Panel>
             </Group>
 
-            {/* Permissions Modal (Mentor Only) */}
             {showPermissions && isMentor && (
                 <div className="premium-modal-backdrop" onClick={() => setShowPermissions(false)}>
                     <div className="premium-modal-container" onClick={e => e.stopPropagation()}>
@@ -859,7 +820,6 @@ export default function WorkshopWorkspace() {
                                 Grant specific students permission to type code on their own device during this workshop session.
                             </p>
 
-                            {/* Add Student Section */}
                             <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
                                 <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
                                     <input
@@ -983,3 +943,4 @@ export default function WorkshopWorkspace() {
         </div>
     );
 }
+

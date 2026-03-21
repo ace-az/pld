@@ -2,13 +2,50 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { createUser, findUserByUsername, findUserByDiscordId, updateUserPassword } = require('../models/userModel');
+const { createRefreshToken, findRefreshToken, revokeRefreshToken, revokeFamily } = require('../models/refreshTokenModel');
 const { v4: uuidv4 } = require('uuid');
-const { verifications } = require('../index'); // Share memory store from index.js
+const { verifications } = require('../index'); 
 const { getJwtSecret } = require('../utils/jwtSecret');
+
+const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
+const REFRESH_TOKEN_EXPIRY_DAYS = 30;
+
+const generateAccessToken = (user) => {
+    return jwt.sign(
+        { id: user.id, username: user.username, role: user.role, discordId: user.discordId },
+        getJwtSecret(),
+        { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+};
+
+const generateRefreshToken = async (userId, familyId = null) => {
+    const token = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
+    
+    const refreshToken = await createRefreshToken({
+        userId,
+        token,
+        expiresAt: expiresAt.toISOString(),
+        familyId: familyId || uuidv4()
+    });
+    
+    return refreshToken;
+};
+
+const setRefreshTokenCookie = (res, token) => {
+    const isProd = process.env.NODE_ENV === 'production';
+    res.cookie('refreshToken', token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'strict' : 'lax', // Lax is better for development with different ports
+        maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    });
+};
 
 exports.register = async (req, res) => {
     try {
-        const { username, password, discordId, firstName, lastName } = req.body; // user registers with own user/pass + discord username
+        const { username, password, discordId, firstName, lastName } = req.body;
         if (!username || !password || !discordId || !firstName || !lastName) return res.status(400).json({ error: 'Missing required configuration fields' });
 
         if (/\s/.test(username)) {
@@ -21,8 +58,7 @@ exports.register = async (req, res) => {
         const existingDiscord = await findUserByDiscordId(discordId);
         if (existingDiscord) return res.status(400).json({ error: 'This Discord account is already registered.' });
 
-        // Auto-assign Role from Discord
-        let role = 'student'; // Default fallback
+        let role = 'student';
         const client = req.discordClient;
         if (client) {
             const guildId = process.env.DISCORD_GUILD_ID;
@@ -32,9 +68,6 @@ exports.register = async (req, res) => {
             try {
                 const guild = client.guilds.cache.get(guildId);
                 if (guild) {
-                    // Try to match discordId (which might be username) to a member
-                    // Since registration form asks for "Discord Username", let's search.
-                    // Ideally we should use ID, but user provided username.
                     const members = await guild.members.fetch({ query: discordId, limit: 10 });
                     const member = members.find(m => m.user.username.toLowerCase() === discordId.toLowerCase());
 
@@ -45,21 +78,15 @@ exports.register = async (req, res) => {
                 }
             } catch (discordErr) {
                 console.error("Failed to fetch discord role on register:", discordErr);
-                // Fallback to student? Or error? Let's fallback but log.
             }
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        // We pass 'role' here which is now auto-detected
         const user = await createUser(username, hashedPassword, discordId, role, 'Undeclared', firstName, lastName);
 
-        // Auto-verify: mark the student as discord_verified in the students table
-        // Or if they don't exist yet, insert them so mentors can see them.
         if (discordId && role === 'student') {
             try {
                 const { supabase } = require('../models/db');
-
-                // First check if they already exist in the roster
                 const { data: existingStudent } = await supabase
                     .from('students')
                     .select('id')
@@ -72,9 +99,6 @@ exports.register = async (req, res) => {
                         .update({ discord_verified: true, name: `${firstName} ${lastName}` })
                         .eq('id', existingStudent.id);
                 } else {
-                    // Insert them into the roster so they appear in "Manage Students"
-                    // We assume mentorId can be null for self-registered students until claimed
-                    const { v4: uuidv4 } = require('uuid');
                     await supabase.from('students').insert([{
                         id: uuidv4(),
                         mentorId: null,
@@ -90,9 +114,13 @@ exports.register = async (req, res) => {
             }
         }
 
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, getJwtSecret(), { expiresIn: '7d' });
+        const accessToken = generateAccessToken(user);
+        const refreshToken = await generateRefreshToken(user.id);
+        
+        setRefreshTokenCookie(res, refreshToken.token);
+
         res.json({
-            token,
+            accessToken,
             user: {
                 id: user.id,
                 username: user.username,
@@ -112,14 +140,33 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { username, password } = req.body;
+        console.log(`[LOGIN ATTEMPT] Username: ${username}`);
+
         const user = await findUserByUsername(username);
-        if (!user || !(await bcrypt.compare(password, user.password))) {
+        if (!user) {
+            console.log(`[LOGIN FAILED] User not found: ${username}`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, getJwtSecret(), { expiresIn: '7d' });
+        console.log(`[LOGIN] User found, comparing password...`);
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            console.log(`[LOGIN FAILED] Password mismatch for: ${username}`);
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        console.log(`[LOGIN] Password matched. Generating tokens...`);
+        const accessToken = generateAccessToken(user);
+        
+        console.log(`[LOGIN] Generating refresh token for user ID: ${user.id}`);
+        const refreshToken = await generateRefreshToken(user.id);
+        
+        console.log(`[LOGIN] Setting refresh token cookie...`);
+        setRefreshTokenCookie(res, refreshToken.token);
+
+        console.log(`[LOGIN SUCCESS] User: ${username}`);
         res.json({
-            token,
+            accessToken,
             user: {
                 id: user.id,
                 username: user.username,
@@ -132,8 +179,83 @@ exports.login = async (req, res) => {
             }
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('[LOGIN ERROR] Full stack trace:', err);
+        res.status(500).json({ error: err.message || 'Internal server error during login' });
     }
+};
+
+exports.refreshToken = async (req, res) => {
+    try {
+        const { refreshToken: token } = req.cookies;
+        
+        if (!token) {
+            console.warn('[AUTH] Refresh token missing from cookies');
+            return res.status(401).json({ error: 'Refresh token missing' });
+        }
+
+        const refreshToken = await findRefreshToken(token);
+        
+        if (!refreshToken) {
+            console.warn('[AUTH] Refresh token not found in database:', token.substring(0, 8) + '...');
+            return res.status(401).json({ error: 'Invalid refresh token' });
+        }
+
+        const isRevoked = refreshToken.isRevoked === undefined ? refreshToken.is_revoked : refreshToken.isRevoked;
+        const expiresAt = refreshToken.expiresAt === undefined ? refreshToken.expires_at : refreshToken.expiresAt;
+        const familyId = refreshToken.familyId === undefined ? refreshToken.family_id : refreshToken.familyId;
+        const userId = refreshToken.userId === undefined ? refreshToken.user_id : refreshToken.userId;
+
+        if (isRevoked) {
+            // Potential reuse detected! Revoke whole family.
+            await revokeFamily(familyId);
+            res.clearCookie('refreshToken');
+            return res.status(403).json({ error: 'Token reuse detected. All sessions revoked.' });
+        }
+
+        if (new Date(expiresAt) < new Date()) {
+            return res.status(401).json({ error: 'Refresh token expired' });
+        }
+
+        // Revoke old token (rotation)
+        await revokeRefreshToken(refreshToken.id);
+
+        const { supabase } = require('../models/db');
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        const newAccessToken = generateAccessToken(user);
+        const newRefreshToken = await generateRefreshToken(user.id, refreshToken.familyId);
+        
+        setRefreshTokenCookie(res, newRefreshToken.token);
+
+        res.json({ accessToken: newAccessToken });
+    } catch (err) {
+        console.error('Refresh Token Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.logout = async (req, res) => {
+    const { refreshToken: token } = req.cookies;
+    if (token) {
+        try {
+            const refreshToken = await findRefreshToken(token);
+            if (refreshToken) {
+                await revokeRefreshToken(refreshToken.id);
+            }
+        } catch (err) {
+            console.error('Logout revocation error:', err);
+        }
+    }
+    res.clearCookie('refreshToken');
+    res.json({ success: true, message: 'Logged out successfully' });
 };
 
 exports.requestPasswordReset = async (req, res) => {
@@ -248,11 +370,11 @@ exports.discordCallback = async (req, res) => {
         }
 
         const tokenData = await tokenResponse.json();
-        const accessToken = tokenData.access_token;
+        const discordAccessToken = tokenData.access_token;
 
         // 2. Fetch the user's Discord profile
         const userResponse = await fetch('https://discord.com/api/users/@me', {
-            headers: { Authorization: `Bearer ${accessToken}` }
+            headers: { Authorization: `Bearer ${discordAccessToken}` }
         });
 
         if (!userResponse.ok) {
@@ -335,11 +457,14 @@ exports.discordCallback = async (req, res) => {
             }
         }
 
-        // 4. Generate JWT Token
-        const jwtToken = jwt.sign({ id: user.id, username: user.username, role: user.role, discordId: user.discordId }, getJwtSecret(), { expiresIn: '7d' });
+        // 4. Generate Tokens
+        const accessToken = generateAccessToken(user);
+        const refreshToken = await generateRefreshToken(user.id);
+
+        setRefreshTokenCookie(res, refreshToken.token);
 
         res.json({
-            token: jwtToken,
+            accessToken,
             user: {
                 id: user.id,
                 username: user.username,

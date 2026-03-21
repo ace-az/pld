@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getLeaderboard, getMajors } from '../api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Trophy, Award, Users, TrendingUp, GraduationCap, ArrowLeft } from 'lucide-react';
 import './Leaderboard.css';
@@ -241,3 +241,4 @@ const Leaderboard = () => {
 };
 
 export default Leaderboard;
+

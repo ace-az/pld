@@ -1,6 +1,6 @@
 // client/src/pages/Dashboard.jsx
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Plus, Users, ArrowRight, Trash2, Calendar, MoreHorizontal, FileText, X, Upload, Clock, HelpCircle, Shuffle } from 'lucide-react';
 import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets, deleteAllSessions } from '../api';
@@ -33,14 +33,21 @@ export default function Dashboard() {
     const [scheduledTime, setScheduledTime] = useState('10:00');
     const [searchIndex, setSearchIndex] = useState(-1);
     const [filteredStudents, setFilteredStudents] = useState([]);
+    const hasFetched = useRef(false);
 
     const todayStr = new Date().toISOString().split('T')[0];
 
     useEffect(() => {
-        fetchSessions();
+        if (!user) return; 
+        
+        if (!hasFetched.current) {
+            fetchSessions();
+            fetchMajors();
+            hasFetched.current = true;
+        }
+
         if (showCreate) fetchMasterData();
-        fetchMajors();
-    }, [showCreate]);
+    }, [showCreate, user]);
 
     useEffect(() => {
         if (location.state?.showCreate) {
@@ -735,3 +742,4 @@ export default function Dashboard() {
         </div>
     );
 }
+

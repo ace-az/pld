@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const dns = require('node:dns');
@@ -20,17 +21,63 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:5174',
+        process.env.VITE_FRONTEND_URL,
+        process.env.FRONTEND_URL
+    ].filter(Boolean);
+
+    if (origin) {
+        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*') || process.env.NODE_ENV !== 'production') {
+            res.header('Access-Control-Allow-Origin', origin);
+            res.header('Access-Control-Allow-Credentials', 'true');
+        }
+    } else if (process.env.NODE_ENV !== 'production') {
+        // For tools like Postman or direct browser access without origin
+        res.header('Access-Control-Allow-Origin', '*');
+    }
+
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-admin-password, Cookie');
+    res.header('Access-Control-Expose-Headers', 'set-cookie');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    next();
+});
+
+app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
+
+// Debug logging
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} Origin: ${req.headers.origin}`);
+    next();
+});
 
 // Normalize double slashes in URL
 app.use((req, res, next) => {
+    const oldUrl = req.url;
     req.url = req.url.replace(/\/{2,}/g, '/');
+    if (oldUrl !== req.url) {
+        console.log(`[URL FIX] ${oldUrl} -> ${req.url}`);
+    }
     next();
 });
 
 const verifications = {};
 module.exports.verifications = verifications;
+
+// Health Check
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
 
 // Discord Bot Setup
 const client = new Client({
@@ -98,6 +145,12 @@ app.use('/api/ai', require('./routes/ai'));
 
 app.get('/', (req, res) => {
     res.send('PLD Management API is running');
+});
+
+// Catch-all 404 for debugging
+app.use((req, res) => {
+    console.warn(`[404] No route found for: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
 // Start the background notification processor

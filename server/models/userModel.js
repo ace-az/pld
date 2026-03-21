@@ -4,16 +4,16 @@ const { v4: uuidv4 } = require('uuid');
 
 async function createUser(username, password, discordId, role = 'student', major = '', firstName = '', lastName = '') {
     const user = {
-        id: uuidv4(),
-        username,
-        password,
-        discordId,
-        firstName,
-        lastName,
-        avatar_url: '',
-        role,
-        major,
-        createdAt: new Date().toISOString()
+        "id": uuidv4(),
+        "username": username,
+        "password": password,
+        "discordId": discordId,
+        "firstName": firstName,
+        "lastName": lastName,
+        "avatar_url": '',
+        "role": role,
+        "major": major,
+        "createdAt": new Date().toISOString()
     };
 
     const { data, error } = await supabase.from('users').insert([user]).select().single();

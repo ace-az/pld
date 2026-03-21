@@ -1,7 +1,7 @@
 // client/src/pages/Login.jsx
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from '../hooks/useAuth';
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { loginUser, requestPasswordReset, resetPassword } from "../api";
 import { Eye, EyeOff } from "lucide-react";
 import logo from "../assets/logo.png";
@@ -21,9 +21,12 @@ export default function Login() {
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  const from = location.state?.from?.pathname || (username === "admin" ? "/" : "/student-dashboard");
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -31,11 +34,18 @@ export default function Login() {
     setLoading(true);
     try {
       const data = await loginUser({ username, password });
-      login(data.token, data.user);
-      if (data.user.role === "student") {
-        navigate("/student-dashboard");
+      // accessToken is now returned as accessToken, not token
+      login(data.accessToken, data.user);
+      
+      // Navigate to intended page or default based on role
+      if (from === "/student-dashboard" || from === "/") {
+          if (data.user.role === "student") {
+            navigate("/student-dashboard");
+          } else {
+            navigate("/");
+          }
       } else {
-        navigate("/");
+          navigate(from, { replace: true });
       }
     } catch (err) {
       setError(err.message);
@@ -94,7 +104,7 @@ export default function Login() {
         justifyContent: "center",
         alignItems: "center",
         minHeight: "60vh",
-        flexDirection: "column", // yuxarıdan aşağıya düzülmə
+        flexDirection: "column",
         textAlign: "center",
       }}
     >
@@ -131,6 +141,7 @@ export default function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
+                autoComplete="username"
               />
             </div>
 
@@ -143,6 +154,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
@@ -365,3 +377,4 @@ export default function Login() {
     </div>
   );
 }
+

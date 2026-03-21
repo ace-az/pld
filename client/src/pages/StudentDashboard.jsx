@@ -1,8 +1,8 @@
 // client/src/pages/StudentDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
-import { getSessions, getJoinableSessions, joinSession, getAnnouncements } from '../api';
+import { getSessions, getJoinableSessions, joinSession, getAnnouncements, updateUserProfile } from '../api';
 import { Calendar, BookOpen, Clock, ChevronRight, Award, Brain, ChevronDown, ChevronUp, CheckCircle, BookMarked, Megaphone } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import './StudentDashboard.css';
@@ -72,22 +72,10 @@ export default function StudentDashboard() {
     const handleSavePreferences = async () => {
         setSavingPrefs(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/profile`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ pldDay, pldTime })
-            });
-            if (!res.ok) throw new Error('Failed to save preferences');
+            await updateUserProfile({ pldDay, pldTime });
             toast.success("PLD Availability preferences saved!");
-
-            // Note: Since AuthContext provides 'user', a full page reload or context refresh 
-            // is usually ideal, but for now state holds it correctly.
         } catch (err) {
-            toast.error(err.message);
+            toast.error(err.message || 'Failed to save preferences');
         } finally {
             setSavingPrefs(false);
         }
@@ -372,3 +360,4 @@ export default function StudentDashboard() {
         </div>
     );
 }
+

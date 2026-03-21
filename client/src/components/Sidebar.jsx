@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Users, Calendar, History, HelpCircle, MessageSquare, Trophy, LogOut, LayoutDashboard, Brain, FileText, Menu, Megaphone, Code } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from '../hooks/useAuth';
 import { useConfirm } from '../context/ConfirmContext';
 import "./Sidebar.css";
 
@@ -119,3 +119,4 @@ export default function Sidebar({ isOpen, onClose }) {
     </>
   );
 }
+

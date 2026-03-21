@@ -5,7 +5,7 @@ import { FileText, Users, Calendar, ArrowRight, Trash2, ArrowLeft, Edit, X } fro
 import { getSessions, deleteSession, updateSession, getMajors } from '../api';
 import { useConfirm } from '../context/ConfirmContext';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import './History.css';
 
 export default function History() {
@@ -240,3 +240,4 @@ export default function History() {
         </div>
     );
 }
+

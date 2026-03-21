@@ -1,14 +1,14 @@
 // client/src/pages/Profile.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { getUserProfile, updateUserProfile, updateAvatar, changePassword } from '../api';
+import { getUserProfile, updateUserProfile, updateAvatar, changePassword, getMajors } from '../api';
 import { User, Mail, Lock, Shield, Camera, Trash2, Save, X, Key, AlertCircle, CheckCircle2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useConfirm } from '../context/ConfirmContext';
 import './Profile.css';
 
 export default function Profile() {
-    const { user, login } = useAuth();
+    const { user, accessToken, login } = useAuth();
     const { confirm } = useConfirm();
     const navigate = useNavigate();
     const [profileData, setProfileData] = useState({
@@ -38,13 +38,12 @@ export default function Profile() {
 
     useEffect(() => {
         fetchProfile();
-        fetchMajors();
+        fetchMajorsList();
     }, []);
 
-    const fetchMajors = async () => {
+    const fetchMajorsList = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/majors`);
-            const data = await res.json();
+            const data = await getMajors();
             if (Array.isArray(data)) setMajorsList(data);
         } catch (err) {
             console.error('Failed to fetch majors:', err);
@@ -54,7 +53,6 @@ export default function Profile() {
     const fetchProfile = async () => {
         try {
             const data = await getUserProfile();
-            // Map avatar_url from DB to avatar used by the UI
             setProfileData({
                 ...data,
                 avatar: data.avatar_url || data.avatar || ''
@@ -94,13 +92,11 @@ export default function Profile() {
             }
 
             const res = await updateUserProfile(dataToSave);
-            // Update local storage user data, preserving avatar mapping
-            const storedToken = localStorage.getItem('token');
             const updatedUser = {
                 ...res.user,
                 avatar: res.user.avatar_url || res.user.avatar || ''
             };
-            login(storedToken, updatedUser);
+            login(accessToken, updatedUser);
             showProfileMsg('success', 'Profile updated successfully!');
         } catch (err) {
             showProfileMsg('error', err.message);
@@ -143,12 +139,8 @@ export default function Profile() {
             try {
                 await updateAvatar(base64);
                 setProfileData(prev => ({ ...prev, avatar: base64, avatar_url: base64 }));
-
-                // Update local storage
-                const storedToken = localStorage.getItem('token');
                 const updatedUser = { ...user, avatar: base64, avatar_url: base64 };
-                login(storedToken, updatedUser);
-
+                login(accessToken, updatedUser);
                 showAvatarMsg('success', 'Profile photo updated!');
             } catch (err) {
                 showAvatarMsg('error', err.message);
@@ -163,12 +155,8 @@ export default function Profile() {
         try {
             await updateAvatar(null);
             setProfileData(prev => ({ ...prev, avatar: '', avatar_url: '' }));
-
-            // Update local storage
-            const storedToken = localStorage.getItem('token');
             const updatedUser = { ...user, avatar: '', avatar_url: '' };
-            login(storedToken, updatedUser);
-
+            login(accessToken, updatedUser);
             showAvatarMsg('success', 'Profile photo removed');
         } catch (err) {
             showAvatarMsg('error', err.message);
@@ -213,7 +201,6 @@ export default function Profile() {
             )}
 
             <div className="profile-grid">
-                {/* Left Side: Photo & Quick Info */}
                 <div className="profile-card sidebar-card">
                     <div className="avatar-section">
                         <div className="avatar-wrapper" onClick={() => fileInputRef.current.click()} style={{ cursor: 'pointer' }}>
@@ -256,9 +243,7 @@ export default function Profile() {
                     </div>
                 </div>
 
-                {/* Right Side: Forms */}
                 <div className="profile-forms">
-                    {/* Basic Info */}
                     <div className="profile-card">
                         <div className="card-header">
                             <User size={20} />
@@ -357,7 +342,6 @@ export default function Profile() {
                         </form>
                     </div>
 
-                    {/* Security */}
                     <div className="profile-card">
                         <div className="card-header">
                             <Key size={20} />
@@ -455,3 +439,4 @@ export default function Profile() {
         </div>
     );
 }
+

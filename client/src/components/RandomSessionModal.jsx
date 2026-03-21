@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Shuffle, Bell, X, Users, RefreshCw, CheckCircle, GripVertical, BookOpen, ChevronRight, ChevronLeft, Zap } from 'lucide-react';
 import { getMasterStudents, notifyGroups, getQuestionSets, getSessions, getLeaderboard } from '../api';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import './RandomSessionModal.css';
 
 /* ── Pairing History Mining ──────────────────────────────── */
@@ -860,3 +860,4 @@ export default function RandomSessionModal({ onClose }) {
         </div>
     );
 }
+

@@ -1,483 +1,233 @@
 // client/src/api.js
+import axios from 'axios';
+import { isTokenExpiringSoon } from './utils/tokenUtils';
 
-const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const API_URL = RAW_API_URL.replace(/\/+$/, '');
+// In development, we use a Vite proxy to avoid CORS/Cookie issues between ports.
+// In production, we use the VITE_API_URL environment variable.
+const API_URL = import.meta.env.PROD ? (import.meta.env.VITE_API_URL || '') : '';
 
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
-    const adminPass = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
+// Create Axios instance
+const api = axios.create({
+    baseURL: API_URL, 
+    withCredentials: true, // Crucial for sending/receiving refresh token cookie
+    headers: {
+        'Content-Type': 'application/json'
+    }
+});
 
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...(isAdmin ? { 'x-admin-password': adminPass } : {})
-    };
-};
+let accessToken = null; // Internal module state
+let isRefreshing = false;
+let failedQueue = [];
 
-const handleResponse = async (response) => {
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || 'An error occurred');
-        }
-        return data;
+/**
+ * Update the internal access token and axios defaults.
+ * Called by AuthContext to keep them in sync.
+ */
+export const setAccessToken = (token) => {
+    accessToken = token;
+    if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
-        const text = await response.text();
-        if (!response.ok) {
-            throw new Error(`Server Error (${response.status}): ${text.slice(0, 100)}...`);
+        delete api.defaults.headers.common['Authorization'];
+    }
+};
+
+const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
         }
-        return text;
+    });
+    failedQueue = [];
+};
+
+// Request Interceptor: Add Token and Proactive Refresh
+api.interceptors.request.use(
+    async (config) => {
+        // Skip for refresh-token requests to avoid infinite loops
+        if (config.url.includes('/auth/refresh-token')) {
+            return config;
+        }
+
+        const token = accessToken; // Use internal module state
+        const wasLoggedIn = localStorage.getItem('wasLoggedIn') === 'true';
+        
+        const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
+        const adminPass = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
+
+        if (isAdmin) {
+            config.headers['x-admin-password'] = adminPass;
+        }
+
+
+        // Proactive Refresh: 
+        // 1. If token is missing but user was previously logged in (Optimistic UI case)
+        // 2. OR if token exists but is expiring soon
+        const needsRefresh = (!token && wasLoggedIn) || (token && isTokenExpiringSoon(token));
+
+        if (needsRefresh && !config._retry) {
+            try {
+                const newToken = await refreshToken();
+                
+                if (newToken) {
+                    config.headers['Authorization'] = `Bearer ${newToken}`;
+                }
+            } catch (err) {
+                console.warn("[API] Proactive refresh attempt finished:", err.message);
+                // If it fails, we let it proceed so the server can return 401 or the response interceptor can handle it.
+            }
+        } else if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Handle 401s Reactively
+api.interceptors.response.use(
+    (response) => response.data,
+    async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/refresh-token')) {
+            originalRequest._retry = true;
+            
+            try {
+                const newToken = await refreshToken();
+                if (!newToken) throw new Error("No access token in refresh response");
+
+                originalRequest.headers['Authorization'] = 'Bearer ' + newToken;
+                return api(originalRequest);
+            } catch (refreshError) {
+                window.logoutUser?.(); // Trigger logout from context
+                return Promise.reject(refreshError);
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
+
+// Auth API
+export const registerUser = (userData) => api.post('/api/auth/register', userData);
+export const loginUser = (credentials) => api.post('/api/auth/login', credentials);
+
+/**
+ * Unified Refresh Token Logic
+ * Handles locking, queuing, and state updates.
+ * Returns the access token string on success.
+ */
+export const refreshToken = async () => {
+    if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+        });
+    }
+
+    isRefreshing = true;
+    try {
+        const response = await api.post('/api/auth/refresh-token', {}, { _retry: true });
+        const newToken = response.accessToken || response.data?.accessToken;
+        
+        if (!newToken) throw new Error("No token in response");
+
+        // Sync with internal and React state
+        setAccessToken(newToken);
+        if (window.setAccessToken) window.setAccessToken(newToken);
+
+        processQueue(null, newToken);
+        isRefreshing = false;
+        return newToken; // Return the string!
+    } catch (err) {
+        processQueue(err, null);
+        isRefreshing = false;
+        throw err;
     }
 };
+export const logoutUser = () => api.post('/api/auth/logout');
+export const requestPasswordReset = (discordUsername) => api.post('/api/auth/request-password-reset', { discordUsername });
+export const resetPassword = (discordUsername, code, newPassword) => api.post('/api/auth/reset-password', { discordUsername, code, newPassword });
 
-export const registerUser = async (userData) => {
-    const response = await fetch(`${API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData)
-    });
-    return handleResponse(response);
-};
+// Legacy/Compatibility Discord routes (usually prefix with /api or move them)
+export const sendVerificationCode = (discordUsername) => api.post('/register', { discordUsername });
+export const verifyDiscordCode = (discordUsername, code) => api.post('/verify', { discordUsername, code });
 
-export const loginUser = async (credentials) => {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
-    });
-    return handleResponse(response);
-};
+// Sessions API
+export const getSessions = () => api.get('/api/sessions');
+export const getSession = (id) => api.get(`/api/sessions/${id}`);
+export const getJoinableSessions = () => api.get('/api/sessions/joinable');
+export const joinSession = (id) => api.post(`/api/sessions/${id}/join`);
+export const createSession = (sessionData) => api.post('/api/sessions', sessionData);
+export const updateSession = (id, sessionData) => api.put(`/api/sessions/${id}`, sessionData);
+export const deleteSession = (id) => api.delete(`/api/sessions/${id}`);
+export const removeSessionStudent = (sessionId, studentId) => api.delete(`/api/sessions/${sessionId}/students/${studentId}`);
+export const deleteAllSessions = () => api.delete('/api/sessions/all');
+export const endSession = (sessionId) => api.post(`/api/sessions/${sessionId}/end`);
+export const saveStudentNotes = (sessionId, studentId, notes) => api.put(`/api/sessions/${sessionId}/students/${studentId}/notes`, { notes });
+export const saveStudentGrade = (sessionId, studentId, grade) => api.put(`/api/sessions/${sessionId}/students/${studentId}/grade`, { grade });
+export const saveStudentQuestions = (sessionId, studentId, { answered, incorrect }) => api.put(`/api/sessions/${sessionId}/students/${studentId}/questions`, { answered, incorrect });
+export const saveStudentResult = (sessionId, studentId, result) => api.put(`/api/sessions/${sessionId}/students/${studentId}/result`, { result });
+export const toggleWorkshopPermission = (sessionId, studentId, hasWorkshopPermission) => api.post(`/api/sessions/${sessionId}/students/${studentId}/permission`, { hasWorkshopPermission });
+export const updateWorkshopCode = (sessionId, codeData) => api.put(`/api/sessions/${sessionId}/workshop-code`, codeData);
+export const submitWorkshopCode = (sessionId, studentId, submissionData) => api.post(`/api/sessions/${sessionId}/students/${studentId}/submit-code`, submissionData);
+export const addSessionStudent = (sessionId, identifier) => api.post(`/api/sessions/${sessionId}/students`, { identifier });
 
-export const requestPasswordReset = async (discordUsername) => {
-    const response = await fetch(`${API_URL}/api/auth/request-password-reset`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discordUsername })
-    });
-    return handleResponse(response);
-};
+// AI API
+export const evaluateCode = (payload) => api.post('/api/ai/evaluate', payload);
+export const tutorReview = (payload) => api.post('/api/ai/tutor-review', payload);
 
-export const resetPassword = async (discordUsername, code, newPassword) => {
-    const response = await fetch(`${API_URL}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discordUsername, code, newPassword })
-    });
-    return handleResponse(response);
-};
+export const toggleStudentStatus = (sessionId, studentId, status) => api.put(`/api/sessions/${sessionId}/students/${studentId}/status`, { status });
+export const sendToDiscord = (sessionId, studentId) => api.post(`/api/sessions/${sessionId}/students/${studentId}/send`);
+export const sendAllToDiscord = (sessionId) => api.post(`/api/sessions/${sessionId}/send-all`);
 
-export const sendVerificationCode = async (discordUsername) => {
-    const response = await fetch(`${API_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discordUsername })
-    });
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || 'Failed to send verification code');
-    }
-    return response.text();
-};
+// Students API
+export const getMasterStudents = () => api.get('/api/students');
+export const addMasterStudent = (studentData) => api.post('/api/students', studentData);
+export const bulkAddMasterStudents = (students) => api.post('/api/students/bulk', { students });
+export const updateMasterStudent = (id, studentData) => api.put(`/api/students/${id}`, studentData);
+export const deleteMasterStudent = (id) => api.delete(`/api/students/${id}`);
+export const deleteAllMasterStudents = (ids) => api.delete('/api/students/all', { data: { ids } });
 
-export const verifyDiscordCode = async (discordUsername, code) => {
-    const response = await fetch(`${API_URL}/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discordUsername, code })
-    });
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || 'Verification failed');
-    }
-    return response.text();
-};
+// Questions API
+export const getQuestionSets = () => api.get('/api/questions');
+export const addQuestionSet = (setData) => api.post('/api/questions', setData);
+export const updateQuestionSet = (id, setData) => api.put(`/api/questions/${id}`, setData);
+export const shareQuestionSet = (id, targetMentorIds) => api.put(`/api/questions/${id}/share`, { targetMentorIds });
+export const getMentors = () => api.get('/api/users/mentors');
+export const deleteQuestionSet = (id) => api.delete(`/api/questions/${id}`);
+export const deleteAllQuestionSets = () => api.delete('/api/questions/all');
 
-export const getSessions = async () => {
-    const response = await fetch(`${API_URL}/api/sessions`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const getSession = async (id) => {
-    const response = await fetch(`${API_URL}/api/sessions/${id}`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const getJoinableSessions = async () => {
-    const response = await fetch(`${API_URL}/api/sessions/joinable`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const joinSession = async (id) => {
-    const response = await fetch(`${API_URL}/api/sessions/${id}/join`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const createSession = async (sessionData) => {
-    const response = await fetch(`${API_URL}/api/sessions`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(sessionData)
-    });
-    return handleResponse(response);
-};
-
-export const updateSession = async (id, sessionData) => {
-    const response = await fetch(`${API_URL}/api/sessions/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(sessionData)
-    });
-    return handleResponse(response);
-};
-
-export const deleteSession = async (id) => {
-    const response = await fetch(`${API_URL}/api/sessions/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const removeSessionStudent = async (sessionId, studentId) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const deleteAllSessions = async () => {
-    const response = await fetch(`${API_URL}/api/sessions/all`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const endSession = async (sessionId) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/end`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const saveStudentNotes = async (sessionId, studentId, notes) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/notes`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ notes })
-    });
-    return handleResponse(response);
-};
-
-export const saveStudentGrade = async (sessionId, studentId, grade) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/grade`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ grade })
-    });
-    return handleResponse(response);
-};
-
-export const saveStudentQuestions = async (sessionId, studentId, { answered, incorrect }) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/questions`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ answered, incorrect })
-    });
-    return handleResponse(response);
-};
-
-export const saveStudentResult = async (sessionId, studentId, result) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/result`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ result })
-    });
-    return handleResponse(response);
-};
-
-export const toggleWorkshopPermission = async (sessionId, studentId, hasWorkshopPermission) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/permission`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ hasWorkshopPermission })
-    });
-    return handleResponse(response);
-};
-
-export const updateWorkshopCode = async (sessionId, codeData) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/workshop-code`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(codeData)
-    });
-    return handleResponse(response);
-};
-
-export const toggleStudentStatus = async (sessionId, studentId, status) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/status`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ status })
-    });
-    return handleResponse(response);
-};
-
-export const sendToDiscord = async (sessionId, studentId) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/students/${studentId}/send`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const sendAllToDiscord = async (sessionId) => {
-    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/send-all`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const getMasterStudents = async () => {
-    const response = await fetch(`${API_URL}/api/students`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const addMasterStudent = async (studentData) => {
-    const response = await fetch(`${API_URL}/api/students`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(studentData)
-    });
-    return handleResponse(response);
-};
-
-export const bulkAddMasterStudents = async (students) => {
-    const response = await fetch(`${API_URL}/api/students/bulk`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ students })
-    });
-    return handleResponse(response);
-};
-
-export const updateMasterStudent = async (id, studentData) => {
-    const response = await fetch(`${API_URL}/api/students/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(studentData)
-    });
-    return handleResponse(response);
-};
-
-export const deleteMasterStudent = async (id) => {
-    const response = await fetch(`${API_URL}/api/students/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const deleteAllMasterStudents = async (ids) => {
-    const response = await fetch(`${API_URL}/api/students/all`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ids })
-    });
-    return handleResponse(response);
-};
-
-export const getQuestionSets = async () => {
-    const response = await fetch(`${API_URL}/api/questions`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const addQuestionSet = async (setData) => {
-    const response = await fetch(`${API_URL}/api/questions`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(setData)
-    });
-    return handleResponse(response);
-};
-
-export const updateQuestionSet = async (id, setData) => {
-    const response = await fetch(`${API_URL}/api/questions/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(setData)
-    });
-    return handleResponse(response);
-};
-
-export const shareQuestionSet = async (id, targetMentorIds) => {
-    const response = await fetch(`${API_URL}/api/questions/${id}/share`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ targetMentorIds })
-    });
-    return handleResponse(response);
-};
-
-export const getMentors = async () => {
-    const response = await fetch(`${API_URL}/api/users/mentors`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const deleteQuestionSet = async (id) => {
-    const response = await fetch(`${API_URL}/api/questions/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const deleteAllQuestionSets = async () => {
-    const response = await fetch(`${API_URL}/api/questions/all`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const getLeaderboard = async (major = null) => {
+// Leaderboard API
+export const getLeaderboard = (major = null) => {
     const url = major
-        ? `${API_URL}/api/sessions/stats/leaderboard?major=${encodeURIComponent(major)}`
-        : `${API_URL}/api/sessions/stats/leaderboard`;
-    const response = await fetch(url, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+        ? `/api/sessions/stats/leaderboard?major=${encodeURIComponent(major)}`
+        : '/api/sessions/stats/leaderboard';
+    return api.get(url);
 };
 
 // Admin API
-export const getAdminUsers = async () => {
-    const response = await fetch(`${API_URL}/api/users/admin`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const deleteUserAccount = async (id) => {
-    const response = await fetch(`${API_URL}/api/users/admin/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
+export const getAdminUsers = () => api.get('/api/users/admin');
+export const deleteUserAccount = (id) => api.delete(`/api/users/admin/${id}`);
 
 // Majors API
-export const getMajors = async () => {
-    const response = await fetch(`${API_URL}/api/majors`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const addMajor = async (name) => {
-    const response = await fetch(`${API_URL}/api/majors`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ name })
-    });
-    return handleResponse(response);
-};
-
-export const deleteMajor = async (id) => {
-    const response = await fetch(`${API_URL}/api/majors/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
+export const getMajors = () => api.get('/api/majors');
+export const addMajor = (name) => api.post('/api/majors', { name });
+export const deleteMajor = (id) => api.delete(`/api/majors/${id}`);
 
 // Profile API
-export const getUserProfile = async () => {
-    const response = await fetch(`${API_URL}/api/profile`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
+export const getUserProfile = () => api.get('/api/profile');
+export const updateUserProfile = (profileData) => api.put('/api/profile', profileData);
+export const updateAvatar = (avatar) => api.put('/api/profile/avatar', { avatar });
+export const changePassword = (passwords) => api.put('/api/profile/change-password', passwords);
 
-export const updateUserProfile = async (profileData) => {
-    const response = await fetch(`${API_URL}/api/profile`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(profileData)
-    });
-    return handleResponse(response);
-};
+// Announcements API
+export const getAnnouncements = () => api.get('/api/announcements');
+export const createAnnouncement = (data) => api.post('/api/announcements', data);
+export const deleteAnnouncement = (id) => api.delete(`/api/announcements/${id}`);
+export const notifyGroups = (payload) => api.post('/api/announcements/notify-groups', payload);
 
-export const updateAvatar = async (avatar) => {
-    const response = await fetch(`${API_URL}/api/profile/avatar`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ avatar })
-    });
-    return handleResponse(response);
-};
-
-export const changePassword = async (passwords) => {
-    const response = await fetch(`${API_URL}/api/profile/change-password`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(passwords)
-    });
-    return handleResponse(response);
-};
-
-export const getAnnouncements = async () => {
-    const response = await fetch(`${API_URL}/api/announcements`, {
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const createAnnouncement = async (data) => {
-    const response = await fetch(`${API_URL}/api/announcements`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data)
-    });
-    return handleResponse(response);
-};
-
-export const deleteAnnouncement = async (id) => {
-    const response = await fetch(`${API_URL}/api/announcements/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const notifyGroups = async ({ groups, topicIds, groupTimes, scheduledDates }) => {
-    const response = await fetch(`${API_URL}/api/announcements/notify-groups`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ groups, topicIds, groupTimes, scheduledDates })
-    });
-    return handleResponse(response);
-};
-
-export default API_URL;
-
+export default api;

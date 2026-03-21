@@ -1,27 +1,12 @@
 // client/src/services/aiService.js
-// All AI logic has been migrated to the server-side /api/ai routes.
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    return token ? { 
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}` 
-    } : { 'Content-Type': 'application/json' };
-}
+import api from '../api';
 
 /**
  * Generates a friendly Discord feedback message via server-side AI
  */
 export async function generateFeedback(studentName, projectName, mentorNotes) {
     try {
-        const res = await fetch(`${API_URL}/api/ai/generate-feedback`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ studentName, projectName, mentorNotes })
-        });
-        const data = await res.json();
+        const data = await api.post('/api/ai/generate-feedback', { studentName, projectName, mentorNotes });
         return data.feedback || "Failed to generate feedback.";
     } catch (err) {
         console.error("AI Generation Error:", err);
@@ -38,20 +23,13 @@ export async function chatWithTutor(sessionId, studentId, message, mentorReport,
         await saveMessageToBackend(sessionId, studentId, 'user', message);
 
         // 2. Get AI response from server
-        const res = await fetch(`${API_URL}/api/ai/chat-tutor`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ 
-                message, 
-                mentorReport, 
-                studentLevel, 
-                chatHistory 
-            })
+        const data = await api.post('/api/ai/chat-tutor', { 
+            message, 
+            mentorReport, 
+            studentLevel, 
+            chatHistory 
         });
         
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-
         const aiText = data.content;
 
         // 3. Save AI message
@@ -68,12 +46,7 @@ export async function chatWithTutor(sessionId, studentId, message, mentorReport,
  */
 async function saveMessageToBackend(sessionId, studentId, role, content) {
     try {
-        const res = await fetch(`${API_URL}/api/chat/save`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ sessionId, studentId, role, content })
-        });
-        if (!res.ok) throw new Error('Failed to save message');
+        await api.post('/api/chat/save', { sessionId, studentId, role, content });
     } catch (err) {
         console.error("Backend Save Error:", err);
     }
@@ -83,12 +56,7 @@ async function saveMessageToBackend(sessionId, studentId, role, content) {
 
 export async function generatePracticeQuestions(topic, difficulty, count) {
     try {
-        const res = await fetch(`${API_URL}/api/ai/generate-practice`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ topic, difficulty, count })
-        });
-        const data = await res.json();
+        const data = await api.post('/api/ai/generate-practice', { topic, difficulty, count });
         return data.questions || null;
     } catch (err) {
         console.error("AI Practice Gen Error:", err);
@@ -98,12 +66,7 @@ export async function generatePracticeQuestions(topic, difficulty, count) {
 
 export async function evaluatePracticeAnswer(question, answer, topic, difficulty) {
     try {
-        const res = await fetch(`${API_URL}/api/ai/evaluate-practice`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ question, answer, topic, difficulty })
-        });
-        return await res.json();
+        return await api.post('/api/ai/evaluate-practice', { question, answer, topic, difficulty });
     } catch (err) {
         console.error("AI Practice Eval Error:", err);
         return null;

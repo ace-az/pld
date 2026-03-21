@@ -54,3 +54,14 @@ create table if not exists chats (
   "createdAt" timestamptz default now(),
   "updatedAt" timestamptz default now()
 );
+
+-- Refresh Tokens Table
+create table if not exists refresh_tokens (
+  id uuid primary key default uuid_generate_v4(),
+  "userId" uuid references users(id) on delete cascade,
+  token text unique not null,
+  "expiresAt" timestamptz not null,
+  "isRevoked" boolean default false,
+  "familyId" uuid default uuid_generate_v4(),
+  "createdAt" timestamptz default now()
+);

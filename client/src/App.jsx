@@ -1,5 +1,4 @@
 // client/src/App.jsx
-// Triggering Vercel rebuild 2
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -20,18 +19,24 @@ import AdminPanel from './pages/AdminPanel';
 import Calendar from './pages/Calendar';
 import Profile from './pages/Profile';
 import Announcements from './pages/Announcements';
+import ProtectedRoute from './components/ProtectedRoute';
 
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
-import { useAuth } from './context/AuthContext';
-
-function PrivateRoute({ children }) {
-  const { user } = useAuth();
-  return user ? children : <Navigate to="/login" />;
-}
+import { useAuth } from './hooks/useAuth';
 
 function MentorRoute({ children }) {
-  const { user } = useAuth();
+  const { user, accessToken, loading } = useAuth();
+  
+  if (loading) {
+    return (
+        <div className="loading-container">
+            <div className="loader"></div>
+            <p>Authenticating...</p>
+        </div>
+    );
+  }
+
   if (!user) return <Navigate to="/login" />;
   if (user.role === 'student') return <Navigate to="/student-dashboard" />;
   if (!user.major || user.major === 'Undeclared') return <Navigate to="/declare-major" />;
@@ -46,82 +51,104 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            
             <Route path="/" element={
               <MentorRoute>
                 <Dashboard />
               </MentorRoute>
             } />
+            
             <Route path="/session/:id" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <SessionRun />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/workshops" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <Workshops />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/workshop/:id" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <WorkshopWorkspace />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/students" element={
               <MentorRoute>
                 <Students />
               </MentorRoute>
             } />
+            
             <Route path="/questions" element={
               <MentorRoute>
                 <Questions />
               </MentorRoute>
             } />
+            
             <Route path="/leaderboard" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <Leaderboard />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/history" element={
               <MentorRoute>
                 <History />
               </MentorRoute>
             } />
+            
             <Route path="/calendar" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <Calendar />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
-            <Route path="/admin" element={<AdminPanel />} />
+            
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin', 'mentor']}>
+                <AdminPanel />
+              </ProtectedRoute>
+            } />
+            
             <Route path="/practice" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <AIPractice />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/student-dashboard" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <StudentDashboard />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/declare-major" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <DeclareMajor />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/student-reports" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <StudentReportsPage />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/profile" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <Profile />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+            
             <Route path="/announcements" element={
-              <PrivateRoute>
+              <ProtectedRoute>
                 <Announcements />
-              </PrivateRoute>
+              </ProtectedRoute>
             } />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
       </ConfirmProvider>

@@ -1,12 +1,12 @@
 // client/src/pages/DeclareMajor.jsx
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { getMajors, updateUserProfile } from '../api';
 import { BookOpen } from 'lucide-react';
 
 export default function DeclareMajor() {
-    const { user, login } = useAuth();
+    const { user, accessToken, login } = useAuth();
     const navigate = useNavigate();
     const [majors, setMajors] = useState([]);
 
@@ -23,7 +23,7 @@ export default function DeclareMajor() {
     const isMentor = user?.role === 'mentor';
 
     useEffect(() => {
-        const fetchMajors = async () => {
+        const fetchMajorsList = async () => {
             try {
                 const data = await getMajors();
                 setMajors(data);
@@ -34,7 +34,7 @@ export default function DeclareMajor() {
                 setLoading(false);
             }
         };
-        fetchMajors();
+        fetchMajorsList();
     }, []);
 
     const handleCheckboxChange = (majorName) => {
@@ -69,13 +69,12 @@ export default function DeclareMajor() {
         try {
             const res = await updateUserProfile({ major: majorToSave });
 
-            // Update auth context and local storage
-            const storedToken = localStorage.getItem('token');
+            // Update auth context
             const updatedUser = {
                 ...res.user,
                 avatar: res.user?.avatar_url || res.user?.avatar || user?.avatar || ''
             };
-            login(storedToken, updatedUser);
+            login(accessToken, updatedUser);
 
             navigate(isMentor ? '/' : '/student-dashboard');
         } catch (err) {
@@ -157,3 +156,4 @@ export default function DeclareMajor() {
         </div>
     );
 }
+

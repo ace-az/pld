@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
 import { getSessions, createSession, updateSession, deleteSession } from '../api';
 import { Code, Calendar, Play, Plus, X, Edit, Trash2 } from 'lucide-react';
@@ -372,3 +372,4 @@ export default function Workshops() {
         </div>
     );
 }
+

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { getSessions } from '../api';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Clock, Calendar, ChevronDown, ChevronUp, Award } from 'lucide-react';
@@ -225,3 +225,4 @@ export default function StudentReportsPage() {
         </div>
     );
 }
+

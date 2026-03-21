@@ -1,6 +1,6 @@
 // client/src/pages/Register.jsx
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerUser, sendVerificationCode, verifyDiscordCode } from '../api';
 import { Eye, EyeOff } from 'lucide-react';
@@ -73,7 +73,7 @@ export default function Register() {
 
         try {
             const data = await registerUser(formData);
-            login(data.token, data.user);
+            login(data.accessToken, data.user);
 
             // Redirect based on role
             if (data.user.role === 'student') {
@@ -219,3 +219,4 @@ export default function Register() {
         </div>
     );
 }
+
