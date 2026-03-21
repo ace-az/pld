@@ -35,10 +35,15 @@ const generateRefreshToken = async (userId, familyId = null) => {
 
 const getCookieOptions = () => {
     const isProd = process.env.NODE_ENV === 'production';
+    const sameSite = isProd ? 'none' : 'lax';
+    
     return {
         httpOnly: true,
-        secure: isProd,
-        sameSite: isProd ? 'none' : 'lax', // 'none' is REQUIRED for Vercel + Railway cross-site cookies
+        // MUST be secure: true for SameSite: None. 
+        // We force it in prod or if the URL is clearly production (Railway/Vercel)
+        secure: sameSite === 'none' ? true : isProd,
+        sameSite: sameSite,
+        partitioned: sameSite === 'none', // CHIPS: for modern browser cross-site cookie support
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     };
 };
