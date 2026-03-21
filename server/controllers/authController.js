@@ -33,34 +33,38 @@ const generateRefreshToken = async (userId, familyId = null) => {
     return refreshToken;
 };
 
-const getCookieOptions = () => {
-    // Robust production check: either NODE_ENV is production OR we are on a known production domain
-    // If we're on any .railway.app or .up.railway.app, it's basically production
-    const isProd = process.env.NODE_ENV === 'production' || 
+const getCookieOptions = (req) => {
+    // Better detection: check the host header if available, fallback to env
+    const host = req?.headers?.host || '';
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+    
+    const isProd = !isLocal || 
+                   process.env.NODE_ENV === 'production' || 
                    process.env.RAILWAY_ENVIRONMENT_NAME === 'production' ||
-                   process.env.RAILWAY_STATIC_URL || 
-                   process.env.RAILWAY_SERVICE_ID ||
-                   (process.env.FRONTEND_URL && !process.env.FRONTEND_URL.includes('localhost'));
+                   process.env.RAILWAY_STATIC_URL;
     
     // In production (or cloud), we MUST use SameSite=None and Secure=true for cross-origin (Vercel -> Railway)
     const useSecure = isProd;
     const sameSite = useSecure ? 'none' : 'lax';
     
-    console.log(`[AUTH DEBUG] Simplified Cookie Options - isProd: ${isProd}, Resulting Secure: ${useSecure}, SameSite: ${sameSite}`);
+    const maxAgeMs = REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    const expiresDate = new Date(Date.now() + maxAgeMs);
+
+    console.log(`[AUTH DEBUG] Cookie Options - Host: ${host}, isProd: ${isProd}, Secure: ${useSecure}, SameSite: ${sameSite}`);
 
     return {
         httpOnly: true,
         secure: useSecure,
         sameSite: sameSite,
-        // Removed partitioned: true for maximum compatibility as it's still being rolled out
         path: '/', 
-        maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+        maxAge: maxAgeMs,
+        expires: expiresDate // Set both for maximum compatibility
     };
 };
 
-const setRefreshTokenCookie = (res, token) => {
-    const options = getCookieOptions();
-    console.log(`[AUTH] Setting refreshToken cookie. SECURE: ${options.secure}, SAMESITE: ${options.sameSite}, PATH: ${options.path}`);
+const setRefreshTokenCookie = (req, res, token) => {
+    const options = getCookieOptions(req);
+    console.log(`[AUTH] Setting refreshToken cookie. SECURE: ${options.secure}, SAMESITE: ${options.sameSite}`);
     res.cookie('refreshToken', token, options);
 };
 
@@ -138,7 +142,7 @@ exports.register = async (req, res) => {
         const accessToken = generateAccessToken(user);
         const refreshToken = await generateRefreshToken(user.id);
         
-        setRefreshTokenCookie(res, refreshToken.token);
+        setRefreshTokenCookie(req, res, refreshToken.token);
 
         res.json({
             accessToken,
@@ -183,7 +187,7 @@ exports.login = async (req, res) => {
         const refreshToken = await generateRefreshToken(user.id);
         
         console.log(`[LOGIN] Setting refresh token cookie...`);
-        setRefreshTokenCookie(res, refreshToken.token);
+        setRefreshTokenCookie(req, res, refreshToken.token);
 
         console.log(`[LOGIN SUCCESS] User: ${username}`);
         res.json({
@@ -259,7 +263,7 @@ exports.refreshToken = async (req, res) => {
         const newAccessToken = generateAccessToken(user);
         const newRefreshToken = await generateRefreshToken(user.id, refreshToken.familyId);
         
-        setRefreshTokenCookie(res, newRefreshToken.token);
+        setRefreshTokenCookie(req, res, newRefreshToken.token);
 
         res.json({ accessToken: newAccessToken });
     } catch (err) {
@@ -280,7 +284,7 @@ exports.logout = async (req, res) => {
             console.error('Logout revocation error:', err);
         }
     }
-    const { maxAge, ...clearOptions } = getCookieOptions();
+    const { maxAge, ...clearOptions } = getCookieOptions(req);
     res.clearCookie('refreshToken', clearOptions);
     res.json({ success: true, message: 'Logged out successfully' });
 };
@@ -488,7 +492,7 @@ exports.discordCallback = async (req, res) => {
         const accessToken = generateAccessToken(user);
         const refreshToken = await generateRefreshToken(user.id);
 
-        setRefreshTokenCookie(res, refreshToken.token);
+        setRefreshTokenCookie(req, res, refreshToken.token);
 
         res.json({
             accessToken,
