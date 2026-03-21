@@ -36,18 +36,25 @@ const generateRefreshToken = async (userId, familyId = null) => {
 const getCookieOptions = () => {
     // Robust production check: either NODE_ENV is production OR we are on a known production domain
     const isProd = process.env.NODE_ENV === 'production' || 
-                   (process.env.RAILWAY_ENVIRONMENT === 'production') ||
+                   (process.env.RAILWAY_ENVIRONMENT_NAME === 'production') ||
+                   (process.env.FRONTEND_URL && !process.env.FRONTEND_URL.includes('localhost')) ||
                    (process.env.VITE_FRONTEND_URL && !process.env.VITE_FRONTEND_URL.includes('localhost'));
     
-    // Always use 'none' for sameSite in production-like environments to support cross-site cookies
-    const sameSite = isProd ? 'none' : 'lax';
+    // Fallback: If we're on any .railway.app or .up.railway.app, it's basically production
+    const isRailway = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_SERVICE_ID || (process.env.RAILWAY_ENVIRONMENT_NAME);
+    const useSecure = isProd || isRailway;
     
+    // Always use 'none' for sameSite in production-like environments to support cross-site cookies
+    const sameSite = useSecure ? 'none' : 'lax';
+    
+    console.log(`[AUTH DEBUG] Cookie Options Calc - isProd: ${isProd}, isRailway: ${!!isRailway}, Resulting Secure: ${useSecure}, SameSite: ${sameSite}`);
+
     return {
         httpOnly: true,
-        secure: isProd, // Must be true for SameSite=None
+        secure: useSecure, // Must be true for SameSite=None
         sameSite: sameSite,
-        partitioned: isProd, // Support SHIPS for cross-site cookie privacy
-        path: '/', // Changed from /api/auth to / to ensure it's sent reliably
+        partitioned: useSecure, // Support CHIPS for cross-site cookie privacy
+        path: '/', // Ensure it's sent reliably to all /api routes
         maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     };
 };
