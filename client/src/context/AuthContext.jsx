@@ -48,11 +48,10 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    const silentLogout = useCallback(() => {
+    const silentLogout = useCallback(async () => {
         // Silently clear cookies and redirect to login
-        logout().then(() => {
-            window.location.href = '/login';
-        });
+        await logout();
+        window.location.href = '/login';
     }, [logout]);
 
     window.logoutUser = logout;
@@ -66,7 +65,7 @@ export const AuthProvider = ({ children }) => {
         lastActivityRef.current = now;
         localStorage.setItem('lastActivityTimestamp', now.toString());
         localStorage.removeItem('isIdle'); // Clear idle state on activity
-        
+
         setTimeout(() => {
             throttleRef.current = false;
         }, 30000); // Throttle to once every 30 seconds
@@ -237,24 +236,29 @@ export const AuthProvider = ({ children }) => {
     }, [user, checkSession, logout]);
 
     useEffect(() => {
-        // Initial silent refresh check
-        const storedActivity = localStorage.getItem('lastActivityTimestamp');
-        if (storedActivity) {
-             const difference = Date.now() - parseInt(storedActivity, 10);
-             if (difference >= 30 * 60 * 1000) {
-                 // Initial load detected 30+ min idle, clear and redirect immediately
-                 console.log("[Auth] Initial load found expired session, logging out silently.");
-                 silentLogout();
-                 setLoading(false);
-                 return;
-             }
-        }
+        const checkInitialSession = async () => {
+            // Initial silent refresh check
+            const storedActivity = localStorage.getItem('lastActivityTimestamp');
+            if (storedActivity) {
+                 const difference = Date.now() - parseInt(storedActivity, 10);
+                 if (difference >= 30 * 60 * 1000) {
+                     // Initial load detected 30+ min idle, clear and redirect immediately
+                     console.log("[Auth] Initial load found expired session, logging out silently.");
+                     // Do not set loading to false yet so we don't render protected routes
+                     await silentLogout();
+                     return;
+                 }
+            }
 
-        console.log('[AUTH] App Load: Starting initial session restoration...');
-        performSilentRefresh().then(success => {
+            console.log('[AUTH] App Load: Starting initial session restoration...');
+            const success = await performSilentRefresh(true);
             console.log(`[AUTH] App Load: Session restoration finished. Success: ${success}`);
+            // If the refresh failed (was logged in but now expired), performSilentRefresh
+            // will set user to null, so it's safe to set loading false.
             setLoading(false);
-        });
+        };
+
+        checkInitialSession();
     }, [performSilentRefresh, silentLogout]);
 
     const login = (token, userData) => {
