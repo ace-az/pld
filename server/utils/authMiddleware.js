@@ -6,9 +6,9 @@ const SECRET = getJwtSecret();
 
 module.exports = (req, res, next) => {
     const adminPass = req.headers['x-admin-password'];
-    const validAdminPass = process.env.VITE_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'admin123';
+    const validAdminPass = process.env.VITE_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
 
-    if (adminPass && adminPass === validAdminPass) {
+    if (adminPass && validAdminPass && adminPass === validAdminPass) {
         req.user = { id: 'admin', role: 'admin' };
         return next();
     }
