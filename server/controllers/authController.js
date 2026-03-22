@@ -6,6 +6,7 @@ const { createRefreshToken, findRefreshToken, revokeRefreshToken, revokeFamily }
 const { v4: uuidv4 } = require('uuid');
 const { verifications } = require('../index'); 
 const { getJwtSecret } = require('../utils/jwtSecret');
+const crypto = require('crypto');
 
 const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
@@ -317,7 +318,7 @@ exports.requestPasswordReset = async (req, res) => {
             return res.status(404).json({ error: `Discord user '${discordUsername}' not found in the server.` });
         }
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const code = crypto.randomInt(100000, 1000000).toString();
         verifications[discordUsername] = {
             code,
             type: 'password_reset',
