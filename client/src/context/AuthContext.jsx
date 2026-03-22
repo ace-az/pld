@@ -60,6 +60,18 @@ export const AuthProvider = ({ children }) => {
     const updateActivity = useCallback(() => {
         if (throttleRef.current || !user) return; // Only track if logged in and not throttled
 
+        // Before updating, verify we haven't ALREADY exceeded the 30-minute limit
+        // Otherwise, a mouse move after 30+ minutes will wrongly reset the timer and keep them logged in.
+        const storedActivity = localStorage.getItem('lastActivityTimestamp');
+        if (storedActivity) {
+             const difference = Date.now() - parseInt(storedActivity, 10);
+             if (difference >= 30 * 60 * 1000) {
+                 // The session expired while they were inactive, immediately trigger silent logout.
+                 silentLogout();
+                 return;
+             }
+        }
+
         throttleRef.current = true;
         const now = Date.now();
         lastActivityRef.current = now;
@@ -69,7 +81,7 @@ export const AuthProvider = ({ children }) => {
         setTimeout(() => {
             throttleRef.current = false;
         }, 30000); // Throttle to once every 30 seconds
-    }, [user]);
+    }, [user, silentLogout]);
 
     useEffect(() => {
         if (!user) return; // Only track if logged in
