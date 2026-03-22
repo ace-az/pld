@@ -149,6 +149,13 @@ export const refreshToken = async () => {
     } catch (err) {
         processQueue(err, null);
         isRefreshing = false;
+
+        // Break any infinite loop if refresh token itself is invalid
+        if (err.response?.status === 401 || err.response?.status === 403) {
+             console.warn('[AUTH CLIENT] Refresh token rejected. Logging out...');
+             if (window.logoutUser) window.logoutUser();
+        }
+
         throw err;
     }
 };

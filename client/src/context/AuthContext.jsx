@@ -48,11 +48,10 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    const silentLogout = useCallback(() => {
+    const silentLogout = useCallback(async () => {
         // Silently clear cookies and redirect to login
-        logout().then(() => {
-            window.location.href = '/login';
-        });
+        await logout();
+        window.location.href = '/login';
     }, [logout]);
 
     window.logoutUser = logout;
@@ -61,22 +60,36 @@ export const AuthProvider = ({ children }) => {
     const updateActivity = useCallback(() => {
         if (throttleRef.current || !user) return; // Only track if logged in and not throttled
 
+        // Before updating, verify we haven't ALREADY exceeded the 30-minute limit
+        // Otherwise, a mouse move after 30+ minutes will wrongly reset the timer and keep them logged in.
+        const storedActivity = localStorage.getItem('lastActivityTimestamp');
+        if (storedActivity) {
+             const difference = Date.now() - parseInt(storedActivity, 10);
+             if (difference >= 30 * 60 * 1000) {
+                 // The session expired while they were inactive, immediately trigger silent logout.
+                 silentLogout();
+                 return;
+             }
+        }
+
         throttleRef.current = true;
         const now = Date.now();
         lastActivityRef.current = now;
         localStorage.setItem('lastActivityTimestamp', now.toString());
         localStorage.removeItem('isIdle'); // Clear idle state on activity
-        
+
         setTimeout(() => {
             throttleRef.current = false;
         }, 30000); // Throttle to once every 30 seconds
-    }, [user]);
+    }, [user, silentLogout]);
 
     useEffect(() => {
         if (!user) return; // Only track if logged in
 
-        // Initial setup on login/mount
-        localStorage.setItem('lastActivityTimestamp', Date.now().toString());
+        // Ensure lastActivityTimestamp exists for a newly logged in user
+        if (!localStorage.getItem('lastActivityTimestamp')) {
+            localStorage.setItem('lastActivityTimestamp', Date.now().toString());
+        }
 
         const activityEvents = [
             'mousemove', 'mousedown', 'keydown',
@@ -237,24 +250,29 @@ export const AuthProvider = ({ children }) => {
     }, [user, checkSession, logout]);
 
     useEffect(() => {
-        // Initial silent refresh check
-        const storedActivity = localStorage.getItem('lastActivityTimestamp');
-        if (storedActivity) {
-             const difference = Date.now() - parseInt(storedActivity, 10);
-             if (difference >= 30 * 60 * 1000) {
-                 // Initial load detected 30+ min idle, clear and redirect immediately
-                 console.log("[Auth] Initial load found expired session, logging out silently.");
-                 silentLogout();
-                 setLoading(false);
-                 return;
-             }
-        }
+        const checkInitialSession = async () => {
+            // Initial silent refresh check
+            const storedActivity = localStorage.getItem('lastActivityTimestamp');
+            if (storedActivity) {
+                 const difference = Date.now() - parseInt(storedActivity, 10);
+                 if (difference >= 30 * 60 * 1000) {
+                     // Initial load detected 30+ min idle, clear and redirect immediately
+                     console.log("[Auth] Initial load found expired session, logging out silently.");
+                     // Do not set loading to false yet so we don't render protected routes
+                     await silentLogout();
+                     return;
+                 }
+            }
 
-        console.log('[AUTH] App Load: Starting initial session restoration...');
-        performSilentRefresh().then(success => {
+            console.log('[AUTH] App Load: Starting initial session restoration...');
+            const success = await performSilentRefresh(true);
             console.log(`[AUTH] App Load: Session restoration finished. Success: ${success}`);
+            // If the refresh failed (was logged in but now expired), performSilentRefresh
+            // will set user to null, so it's safe to set loading false.
             setLoading(false);
-        });
+        };
+
+        checkInitialSession();
     }, [performSilentRefresh, silentLogout]);
 
     const login = (token, userData) => {
@@ -263,6 +281,7 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('wasLoggedIn', 'true');
+        localStorage.setItem('lastActivityTimestamp', Date.now().toString());
     };
 
     return (
