@@ -74,8 +74,10 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (!user) return; // Only track if logged in
 
-        // Initial setup on login/mount
-        localStorage.setItem('lastActivityTimestamp', Date.now().toString());
+        // Ensure lastActivityTimestamp exists for a newly logged in user
+        if (!localStorage.getItem('lastActivityTimestamp')) {
+            localStorage.setItem('lastActivityTimestamp', Date.now().toString());
+        }
 
         const activityEvents = [
             'mousemove', 'mousedown', 'keydown',
@@ -267,6 +269,7 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('wasLoggedIn', 'true');
+        localStorage.setItem('lastActivityTimestamp', Date.now().toString());
     };
 
     return (
