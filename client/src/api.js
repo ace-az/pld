@@ -97,13 +97,14 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             
             try {
+                // Wait for the queue if a refresh is already in progress
                 const newToken = await refreshToken();
                 if (!newToken) throw new Error("No access token in refresh response");
 
                 originalRequest.headers['Authorization'] = 'Bearer ' + newToken;
                 return api(originalRequest);
             } catch (refreshError) {
-                window.logoutUser?.(); // Trigger logout from context
+                // window.logoutUser?.() will be called internally by refreshToken on 401/403
                 return Promise.reject(refreshError);
             }
         }
@@ -121,43 +122,48 @@ export const loginUser = (credentials) => api.post('/api/auth/login', credential
  * Handles locking, queuing, and state updates.
  * Returns the access token string on success.
  */
+let refreshPromise = null;
+
 export const refreshToken = async () => {
-    if (isRefreshing) {
+    if (isRefreshing && refreshPromise) {
         console.log('[AUTH CLIENT] Refresh already in progress. Queueing...');
-        return new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject });
-        });
+        return refreshPromise;
     }
 
     console.log('[AUTH CLIENT] Starting silent refresh attempt...');
     isRefreshing = true;
-    try {
-        const response = await api.post('/api/auth/refresh-token', {}, { _retry: true });
-        // Handle both standard axios response.data and my interceptor's auto-extraction
-        const newToken = response?.accessToken || response?.data?.accessToken;
-        
-        if (!newToken) throw new Error("No access token in refresh response");
 
-        console.log('[AUTH CLIENT] Silent refresh SUCCESS.');
-        // Sync with internal and React state
-        setAccessToken(newToken);
-        if (window.setAccessToken) window.setAccessToken(newToken);
+    refreshPromise = new Promise(async (resolve, reject) => {
+        try {
+            const response = await api.post('/api/auth/refresh-token', {}, { _retry: true });
+            // Handle both standard axios response.data and my interceptor's auto-extraction
+            const newToken = response?.accessToken || response?.data?.accessToken;
 
-        processQueue(null, newToken);
-        isRefreshing = false;
-        return newToken; // Return the string!
-    } catch (err) {
-        processQueue(err, null);
-        isRefreshing = false;
+            if (!newToken) throw new Error("No access token in refresh response");
 
-        // Break any infinite loop if refresh token itself is invalid
-        if (err.response?.status === 401 || err.response?.status === 403) {
-             console.warn('[AUTH CLIENT] Refresh token rejected. Logging out...');
-             if (window.logoutUser) window.logoutUser();
+            console.log('[AUTH CLIENT] Silent refresh SUCCESS.');
+            // Sync with internal and React state
+            setAccessToken(newToken);
+            if (window.setAccessToken) window.setAccessToken(newToken);
+
+            isRefreshing = false;
+            refreshPromise = null;
+            resolve(newToken); // Return the string!
+        } catch (err) {
+            isRefreshing = false;
+            refreshPromise = null;
+
+            // Break any infinite loop if refresh token itself is invalid
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                 console.warn('[AUTH CLIENT] Refresh token rejected. Logging out...');
+                 if (window.logoutUser) window.logoutUser();
+            }
+
+            reject(err);
         }
+    });
 
-        throw err;
-    }
+    return refreshPromise;
 };
 export const logoutUser = () => api.post('/api/auth/logout');
 export const requestPasswordReset = (discordUsername) => api.post('/api/auth/request-password-reset', { discordUsername });
