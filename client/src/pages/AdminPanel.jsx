@@ -23,8 +23,8 @@ const AdminPanel = () => {
 
     const handleLogin = (e) => {
         e.preventDefault();
-        const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
-        if (loginData.username === 'admin' && loginData.password === correctPassword) {
+        const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+        if (correctPassword && loginData.username === 'admin' && loginData.password === correctPassword) {
             setIsAuthenticated(true);
             sessionStorage.setItem('adminAuth', 'true');
             setError('');

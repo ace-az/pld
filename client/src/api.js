@@ -55,9 +55,9 @@ api.interceptors.request.use(
         const wasLoggedIn = localStorage.getItem('wasLoggedIn') === 'true';
         
         const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
-        const adminPass = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
+        const adminPass = import.meta.env.VITE_ADMIN_PASSWORD;
 
-        if (isAdmin) {
+        if (isAdmin && adminPass) {
             config.headers['x-admin-password'] = adminPass;
         }
 
