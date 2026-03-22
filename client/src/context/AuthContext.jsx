@@ -19,12 +19,12 @@ export const AuthProvider = ({ children }) => {
         // The app will mount and background refresh will handle the rest.
         return !localStorage.getItem('user');
     });
-    const [sessionExpiring, setSessionExpiring] = useState(false);
     
-    const activityTimeoutRef = useRef(null);
     const hasInitialized = useRef(false);
-    const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
-    const WARNING_TIME = 5 * 60 * 1000; // 5 minutes warning before 30m
+
+    // Activity tracking refs
+    const lastActivityRef = useRef(Date.now());
+    const throttleRef = useRef(false);
 
     // Expose setAccessToken and logout to window for Axios interceptor
     window.setAccessToken = (token) => {
@@ -40,49 +40,72 @@ export const AuthProvider = ({ children }) => {
         } finally {
             localStorage.removeItem('user');
             localStorage.removeItem('wasLoggedIn');
+            localStorage.removeItem('lastActivityTimestamp');
+            localStorage.removeItem('isIdle');
             setUser(null);
             setAccessToken(null);
             setApiToken(null);
-            setSessionExpiring(false);
-            if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
         }
     }, []);
 
+    const silentLogout = useCallback(() => {
+        // Silently clear cookies and redirect to login
+        logout().then(() => {
+            window.location.href = '/login';
+        });
+    }, [logout]);
+
     window.logoutUser = logout;
 
-    const resetActivityTimer = useCallback(() => {
-        if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
-        if (!user) return;
+    // --- ACTIVITY TRACKING LOGIC ---
+    const updateActivity = useCallback(() => {
+        if (throttleRef.current || !user) return; // Only track if logged in and not throttled
 
-        setSessionExpiring(false);
+        throttleRef.current = true;
+        const now = Date.now();
+        lastActivityRef.current = now;
+        localStorage.setItem('lastActivityTimestamp', now.toString());
+        localStorage.removeItem('isIdle'); // Clear idle state on activity
         
-        activityTimeoutRef.current = setTimeout(() => {
-            setSessionExpiring(true);
-            // After another 5 minutes of no action during warning, logout
-            activityTimeoutRef.current = setTimeout(() => {
-                logout();
-            }, WARNING_TIME);
-        }, INACTIVITY_LIMIT - WARNING_TIME);
-    }, [user, logout]);
+        setTimeout(() => {
+            throttleRef.current = false;
+        }, 30000); // Throttle to once every 30 seconds
+    }, [user]);
 
     useEffect(() => {
-        const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-        events.forEach(event => window.addEventListener(event, resetActivityTimer));
+        if (!user) return; // Only track if logged in
+
+        // Initial setup on login/mount
+        localStorage.setItem('lastActivityTimestamp', Date.now().toString());
+
+        const activityEvents = [
+            'mousemove', 'mousedown', 'keydown',
+            'scroll', 'touchstart', 'click'
+        ];
+
+        activityEvents.forEach(event => window.addEventListener(event, updateActivity));
+
+        const handleBeforeUnload = () => {
+            localStorage.setItem('lastActivityTimestamp', Date.now().toString());
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
         
         return () => {
-            events.forEach(event => window.removeEventListener(event, resetActivityTimer));
-            if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
+            activityEvents.forEach(event => window.removeEventListener(event, updateActivity));
+            window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-    }, [resetActivityTimer]);
+    }, [user, updateActivity]);
 
-    const performSilentRefresh = useCallback(async () => {
-        if (hasInitialized.current) return;
-        hasInitialized.current = true;
+    const performSilentRefresh = useCallback(async (isInitial = true) => {
+        if (isInitial) {
+            if (hasInitialized.current) return;
+            hasInitialized.current = true;
+        }
 
         // Optimization: Only attempt silent refresh if we were previously logged in
         if (!localStorage.getItem('wasLoggedIn')) {
             console.log("[Auth] Skipping silent refresh - no prior session recorded.");
-            setLoading(false);
+            if (isInitial) setLoading(false);
             return false;
         }
 
@@ -106,23 +129,133 @@ export const AuthProvider = ({ children }) => {
                 console.error("Initial silent refresh failed:", error);
             }
             localStorage.removeItem('user');
-            // If it failed with 401, we might want to clear wasLoggedIn 
-            // but usually it's better to keep it true if they actually had a cookie 
-            // and it just expired. But if no cookie, 401 happens.
+            localStorage.removeItem('wasLoggedIn');
+            setUser(null);
+            setAccessToken(null);
+            setApiToken(null);
             return false;
         } finally {
-            setLoading(false);
+            if (isInitial) setLoading(false);
         }
     }, []);
 
+    // --- SESSION CHECKING & INTERVAL LOGIC ---
+    const checkSession = useCallback(async (isReturningUser = false) => {
+        if (!user) return;
+
+        const storedActivity = localStorage.getItem('lastActivityTimestamp');
+        if (!storedActivity) return;
+
+        const lastActivityTimestamp = parseInt(storedActivity, 10);
+        const currentTime = Date.now();
+        const difference = currentTime - lastActivityTimestamp;
+
+        const THIRTY_MINUTES = 30 * 60 * 1000;
+        const FIFTEEN_MINUTES = 15 * 60 * 1000;
+
+        if (difference >= THIRTY_MINUTES) {
+            // User inactive for 30+ minutes, logout silently
+            silentLogout();
+        } else if (difference >= FIFTEEN_MINUTES) {
+            // Grace period 15-30 mins, mark idle
+            localStorage.setItem('isIdle', 'true');
+            if (isReturningUser) {
+                // Silently refresh the session when user returns within 30 mins
+                await performSilentRefresh(false);
+            }
+        } else {
+            // Less than 15 minutes, clear idle
+            localStorage.removeItem('isIdle');
+            if (isReturningUser) {
+                // Silently refresh the session when user returns within 30 mins
+                await performSilentRefresh(false);
+            }
+        }
+    }, [user, silentLogout, performSilentRefresh]);
+
     useEffect(() => {
-        // Initial silent refresh
+        if (!user) return;
+
+        let intervalId = null;
+
+        const startInterval = () => {
+            if (!intervalId) {
+                intervalId = setInterval(() => checkSession(false), 60 * 1000); // Check every 1 minute
+            }
+        };
+
+        const stopInterval = () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkSession(true); // Check immediately on return
+                startInterval();
+            } else {
+                stopInterval();
+            }
+        };
+
+        const handleFocus = () => {
+            if (document.visibilityState === 'visible') { // Fallback, only if visible
+                checkSession(true);
+            }
+        };
+
+        // Tab synchronization
+        const handleStorageChange = (e) => {
+            if (e.key === 'lastActivityTimestamp') {
+               // another tab updated activity, our checkSession will pick it up on interval
+               lastActivityRef.current = parseInt(e.newValue, 10);
+            }
+            if (e.key === 'wasLoggedIn' && !e.newValue) {
+               // another tab logged out
+               logout();
+               window.location.href = '/login';
+            }
+        };
+
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('storage', handleStorageChange);
+
+        // Initial setup
+        if (document.visibilityState === 'visible') {
+            startInterval();
+        }
+
+        return () => {
+            stopInterval();
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [user, checkSession, logout]);
+
+    useEffect(() => {
+        // Initial silent refresh check
+        const storedActivity = localStorage.getItem('lastActivityTimestamp');
+        if (storedActivity) {
+             const difference = Date.now() - parseInt(storedActivity, 10);
+             if (difference >= 30 * 60 * 1000) {
+                 // Initial load detected 30+ min idle, clear and redirect immediately
+                 console.log("[Auth] Initial load found expired session, logging out silently.");
+                 silentLogout();
+                 setLoading(false);
+                 return;
+             }
+        }
+
         console.log('[AUTH] App Load: Starting initial session restoration...');
         performSilentRefresh().then(success => {
             console.log(`[AUTH] App Load: Session restoration finished. Success: ${success}`);
             setLoading(false);
         });
-    }, [performSilentRefresh]);
+    }, [performSilentRefresh, silentLogout]);
 
     const login = (token, userData) => {
         setAccessToken(token);
@@ -130,7 +263,6 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('wasLoggedIn', 'true');
-        resetActivityTimer();
     };
 
     return (
@@ -140,9 +272,7 @@ export const AuthProvider = ({ children }) => {
             isAuthenticated: !!user,
             login, 
             logout, 
-            loading, 
-            sessionExpiring, 
-            extendSession: resetActivityTimer 
+            loading
         }}>
             {loading ? (
                 <div className="loading-container">
@@ -152,16 +282,6 @@ export const AuthProvider = ({ children }) => {
             ) : (
                 <>
                     {children}
-                    {sessionExpiring && (
-                        <div className="session-warning-modal">
-                            <div className="modal-content">
-                                <h3>Session Expiring</h3>
-                                <p>Your session will expire soon due to inactivity. Would you like to stay logged in?</p>
-                                <button onClick={resetActivityTimer}>Stay Logged In</button>
-                                <button onClick={logout} className="secondary">Logout</button>
-                            </div>
-                        </div>
-                    )}
                 </>
             )}
         </AuthContext.Provider>
