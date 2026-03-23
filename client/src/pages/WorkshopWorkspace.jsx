@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Play, CheckCircle, HelpCircle, Shield, X, Users, Code, Lock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Play, CheckCircle, HelpCircle, Shield, X, Users, Code, Lock, Layout, LayoutPanelLeft } from 'lucide-react';
 import { 
     getSession, 
     toggleWorkshopPermission, 
@@ -87,10 +87,18 @@ export default function WorkshopWorkspace() {
         const saved = localStorage.getItem('aiTutorEnabled');
         return saved === 'true';
     });
+    const [showQuestions, setShowQuestions] = useState(() => {
+        const saved = localStorage.getItem('showQuestions');
+        return saved !== 'false'; // Default to true
+    });
 
     useEffect(() => {
         localStorage.setItem('aiTutorEnabled', String(aiTutorEnabled));
     }, [aiTutorEnabled]);
+
+    useEffect(() => {
+        localStorage.setItem('showQuestions', String(showQuestions));
+    }, [showQuestions]);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -480,7 +488,7 @@ export default function WorkshopWorkspace() {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <div style={{ color: '#e0e0e0', opacity: 0.8 }}>$ {config.command}</div>
+                    <div style={{ color: 'var(--terminal-prompt)', opacity: 0.8 }}>$ {config.command}</div>
                     {terminalOutput.executionMode && (
                         <div style={{
                             fontSize: '0.75rem',
@@ -502,13 +510,13 @@ export default function WorkshopWorkspace() {
                     </div>
                 )}
 
-                <div style={{ color: isSuccess ? '#e0e0e0' : '#ef4444', padding: '0.5rem 0' }}>
+                <div style={{ color: isSuccess ? 'var(--terminal-text)' : 'var(--terminal-error)', padding: '0.5rem 0' }}>
                     {terminalOutput.output}
                 </div>
                 <div style={{
-                    color: isSuccess ? '#22c55e' : '#ef4444',
+                    color: isSuccess ? 'var(--terminal-success)' : 'var(--terminal-error)',
                     marginTop: '1rem',
-                    borderTop: '1px dashed #333',
+                    borderTop: '1px dashed var(--terminal-border)',
                     paddingTop: '0.5rem',
                     display: 'flex',
                     justifyContent: 'space-between'
@@ -516,19 +524,19 @@ export default function WorkshopWorkspace() {
                     <span>
                         {isSuccess ? '✓ Process exited with code 0' : `✗ Process exited with code ${terminalOutput.exitCode || 1}`}
                     </span>
-                    <span style={{ color: '#888' }}>[{terminalOutput.executionTime || 45}ms]</span>
+                    <span style={{ color: 'var(--terminal-prompt)' }}>[{terminalOutput.executionTime || 45}ms]</span>
                 </div>
                 {aiTutorEnabled && terminalOutput.explanation && (
-                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(67, 97, 238, 0.1)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', fontFamily: 'sans-serif' }}>
+                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--terminal-bg-accent)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', fontFamily: 'sans-serif' }}>
                         <div style={{ fontWeight: 'bold', color: 'var(--color-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             🤖 AI Tutor Feedback
                         </div>
-                        <div style={{ color: '#e0e0e0', marginBottom: '1rem', lineHeight: '1.5' }}>{terminalOutput.explanation}</div>
+                        <div style={{ color: 'var(--terminal-text)', marginBottom: '1rem', lineHeight: '1.5' }}>{terminalOutput.explanation}</div>
 
                         {terminalOutput.suggestions && terminalOutput.suggestions.length > 0 && (
                             <div style={{ marginBottom: '0.5rem' }}>
-                                <strong style={{ color: '#a78bfa' }}>Suggestions:</strong>
-                                <ul style={{ margin: '0.25rem 0', paddingLeft: '1.5rem', color: '#e0e0e0' }}>
+                                <strong style={{ color: 'var(--terminal-suggestion)' }}>Suggestions:</strong>
+                                <ul style={{ margin: '0.25rem 0', paddingLeft: '1.5rem', color: 'var(--terminal-text)' }}>
                                     {terminalOutput.suggestions.map((s, i) => <li key={i}>{s}</li>)}
                                 </ul>
                             </div>
@@ -536,8 +544,8 @@ export default function WorkshopWorkspace() {
 
                         {terminalOutput.hints && terminalOutput.hints.length > 0 && (
                             <div style={{ marginBottom: '0.5rem' }}>
-                                <strong style={{ color: '#fbbf24' }}>Hints:</strong>
-                                <ul style={{ margin: '0.25rem 0', paddingLeft: '1.5rem', color: '#e0e0e0' }}>
+                                <strong style={{ color: 'var(--terminal-hint)' }}>Hints:</strong>
+                                <ul style={{ margin: '0.25rem 0', paddingLeft: '1.5rem', color: 'var(--terminal-text)' }}>
                                     {terminalOutput.hints.map((s, i) => <li key={i}>{s}</li>)}
                                 </ul>
                             </div>
@@ -545,11 +553,11 @@ export default function WorkshopWorkspace() {
 
                         {terminalOutput.codeQuality && (
                             <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                                <strong style={{ color: '#cbd5e1' }}>Code Quality:</strong>
-                                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'white' }}>
+                                <strong style={{ color: 'var(--terminal-quality-label)' }}>Code Quality:</strong>
+                                <span style={{ background: 'var(--terminal-score-bg)', padding: '2px 6px', borderRadius: '4px', color: 'var(--terminal-score-text)' }}>
                                     {terminalOutput.codeQuality.score}/10
                                 </span>
-                                <span style={{ color: '#94a3b8' }}>- {terminalOutput.codeQuality.feedback}</span>
+                                <span style={{ color: 'var(--terminal-text)', opacity: 0.8 }}>- {terminalOutput.codeQuality.feedback}</span>
                             </div>
                         )}
                     </div>
@@ -613,6 +621,75 @@ export default function WorkshopWorkspace() {
                     display: flex;
                     flex-direction: column;
                 }
+
+                .premium-action-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+                    padding: 0.5rem 1rem;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    border-radius: 10px;
+                    border: 1px solid var(--border-color);
+                    background: var(--bg-card);
+                    color: var(--text-secondary);
+                    cursor: pointer;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                .premium-action-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                    border-color: var(--color-primary);
+                    color: var(--color-primary);
+                }
+
+                .premium-action-btn:active {
+                    transform: translateY(0);
+                }
+
+                .premium-action-btn svg {
+                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+
+                .premium-action-btn:hover svg {
+                    transform: scale(1.1);
+                }
+
+                .premium-btn-perms {
+                    border-color: rgba(var(--color-primary-rgb), 0.3);
+                    background: rgba(var(--color-primary-rgb), 0.03);
+                    color: var(--color-primary);
+                }
+
+                .premium-btn-perms:hover {
+                    background: rgba(var(--color-primary-rgb), 0.08);
+                    box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.15);
+                }
+
+                .premium-btn-tasks {
+                    min-width: 120px;
+                    justify-content: center;
+                }
+
+                .premium-btn-tasks.collapsed {
+                    border-color: var(--color-primary);
+                    background: rgba(var(--color-primary-rgb), 0.05);
+                    color: var(--color-primary);
+                }
+
+                .premium-btn-tasks .icon-wrapper {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                }
+
+                .premium-btn-tasks.collapsed .icon-wrapper {
+                    transform: rotate(180deg);
+                }
             `}</style>
 
             {/* Workspace Header */}
@@ -641,10 +718,24 @@ export default function WorkshopWorkspace() {
                         </span>
                     )}
                     {isMentor && (
-                        <button onClick={() => setShowPermissions(true)} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', fontSize: '0.85rem', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
-                            <Shield size={16} /> {isMobile ? 'Perms' : 'Manage Permissions'}
+                        <button 
+                            onClick={() => setShowPermissions(true)} 
+                            className="premium-action-btn premium-btn-perms"
+                        >
+                            <Shield size={16} /> 
+                            <span>{isMobile ? 'Perms' : 'Manage Permissions'}</span>
                         </button>
                     )}
+                    <button 
+                        onClick={() => setShowQuestions(!showQuestions)} 
+                        className={`premium-action-btn premium-btn-tasks ${!showQuestions ? 'collapsed' : ''}`}
+                        title={showQuestions ? "Hide Questions" : "Show Questions"}
+                    >
+                        <div className="icon-wrapper">
+                            {showQuestions ? <X size={16} /> : <LayoutPanelLeft size={16} />} 
+                        </div>
+                        <span>{!isMobile && (showQuestions ? 'Hide Tasks' : 'Show Tasks')}</span>
+                    </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         {!isMobile && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{user?.username}</span>}
                         <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.username}&background=random`} alt="User" style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)' }} />
@@ -654,48 +745,52 @@ export default function WorkshopWorkspace() {
 
             <Group orientation={isMobile ? "vertical" : "horizontal"} style={{ flex: 1, height: '100%', gap: '0' }}>
                 {/* Tasks & Instructions */}
-                <Panel defaultSize={isMobile ? 30 : 25} minSize={20}>
-                    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-                        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(var(--color-primary-rgb, 67, 97, 238), 0.05)' }}>
-                            <h2 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <HelpCircle size={18} />
-                                {isMobile ? `Task ${currentQuestionIdx + 1}` : `Task ${currentQuestionIdx + 1} of ${session.questions?.length || 0}`}
-                            </h2>
-                        </div>
+                {showQuestions && (
+                    <>
+                        <Panel defaultSize={isMobile ? 30 : 25} minSize={20}>
+                            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+                                <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(var(--color-primary-rgb, 67, 97, 238), 0.05)' }}>
+                                    <h2 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <HelpCircle size={18} />
+                                        {isMobile ? `Task ${currentQuestionIdx + 1}` : `Task ${currentQuestionIdx + 1} of ${session.questions?.length || 0}`}
+                                    </h2>
+                                </div>
 
-                        <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>
-                            {currentQuestion ? (
-                                <div>
-                                    {currentQuestion.topicName && (
-                                        <div style={{ display: 'inline-block', padding: '0.2rem 0.4rem', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                                            {currentQuestion.topicName}
+                                <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>
+                                    {currentQuestion ? (
+                                        <div>
+                                            {currentQuestion.topicName && (
+                                                <div style={{ display: 'inline-block', padding: '0.2rem 0.4rem', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                                                    {currentQuestion.topicName}
+                                                </div>
+                                            )}
+                                            <div style={{ fontSize: isMobile ? '0.9rem' : '0.95rem' }}>{currentQuestion.text || currentQuestion}</div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
+                                            No specific tasks loaded.
                                         </div>
                                     )}
-                                    <div style={{ fontSize: isMobile ? '0.9rem' : '0.95rem' }}>{currentQuestion.text || currentQuestion}</div>
                                 </div>
-                            ) : (
-                                <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
-                                    No specific tasks loaded.
-                                </div>
-                            )}
-                        </div>
 
-                        {session.questions && session.questions.length > 1 && (
-                            <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', background: 'var(--bg-app)', gap: '0.5rem' }}>
-                                <button onClick={() => handleQuestionSwitch(Math.max(0, currentQuestionIdx - 1))} disabled={currentQuestionIdx === 0} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-                                    <ArrowLeft size={14} /> Prev
-                                </button>
-                                <button onClick={() => handleQuestionSwitch(Math.min(session.questions.length - 1, currentQuestionIdx + 1))} disabled={currentQuestionIdx === session.questions.length - 1} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-                                    Next <ArrowRight size={14} />
-                                </button>
+                                {session.questions && session.questions.length > 1 && (
+                                    <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', background: 'var(--bg-app)', gap: '0.5rem' }}>
+                                        <button onClick={() => handleQuestionSwitch(Math.max(0, currentQuestionIdx - 1))} disabled={currentQuestionIdx === 0} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                            <ArrowLeft size={14} /> Prev
+                                        </button>
+                                        <button onClick={() => handleQuestionSwitch(Math.min(session.questions.length - 1, currentQuestionIdx + 1))} disabled={currentQuestionIdx === session.questions.length - 1} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                            Next <ArrowRight size={14} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                </Panel>
+                        </Panel>
 
-                <ResizeHandle direction={isMobile ? "vertical" : "horizontal"} />
+                        <ResizeHandle direction={isMobile ? "vertical" : "horizontal"} />
+                    </>
+                )}
 
-                <Panel defaultSize={isMobile ? 70 : 75}>
+                <Panel defaultSize={showQuestions ? (isMobile ? 70 : 75) : 100}>
                     <Group orientation="vertical" style={{ height: '100%' }}>
                         {/* Editor Panel */}
                         <Panel defaultSize={70} minSize={30}>

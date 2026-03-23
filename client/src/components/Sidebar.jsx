@@ -89,7 +89,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   onClick={(e) => handleExternalClick(e, item.path, item.name)}
                 >
                   <span className="icon">{item.icon}</span>
-                  <span className="text">{item.name}</span>
+                  <span className="sidebar-menu-text">{item.name}</span>
                 </a>
               ) : (
                 <Link
@@ -102,7 +102,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   }}
                 >
                   <span className="icon">{item.icon}</span>
-                  <span className="text">{item.name}</span>
+                  <span className="sidebar-menu-text">{item.name}</span>
                 </Link>
               )}
             </li>
@@ -112,7 +112,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="sidebar-bottom">
           <button className="btn-logout" onClick={logout}>
             <span className="icon"><LogOut size={20} /></span>
-            <span className="text">Logout</span>
+            <span className="sidebar-menu-text">Logout</span>
           </button>
         </div>
       </aside>

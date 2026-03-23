@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Code, Plus, Play, X, Edit, Trash2, Calendar } from 'lucide-react';
+import { Code, Plus, Play, X, Edit, Trash2, Calendar, RefreshCw } from 'lucide-react';
 import { getSessions, deleteSession, updateSession, createSession } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
@@ -188,11 +188,12 @@ export default function Workshops() {
                 <div className="workshops-actions">
                     <button 
                         onClick={fetchData} 
-                        className="btn-outline" 
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        className="refresh-btn" 
                         disabled={loading}
+                        title="Refresh Workshops"
                     >
-                        <Play size={16} /> Refresh
+                        <RefreshCw size={16} className={loading ? 'spinning' : ''} />
+                        <span>Refresh</span>
                     </button>
                     
                     {user?.role === 'mentor' && !showCreate && (

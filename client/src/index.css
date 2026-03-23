@@ -4,6 +4,7 @@
 :root {
   /* Brand Colors - Refined palette */
   --color-primary: #D32F2F;
+  --color-primary-rgb: 211, 47, 47;
   --color-primary-hover: #B71C1C;
   --color-primary-light: rgba(211, 47, 47, 0.1);
   --color-accent: #6366f1;
@@ -42,6 +43,19 @@
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Terminal Colors - Light Mode */
+  --terminal-text: #1e293b;
+  --terminal-prompt: #64748b;
+  --terminal-success: #059669;
+  --terminal-error: #dc2626;
+  --terminal-bg-accent: rgba(211, 47, 47, 0.05);
+  --terminal-border: #e2e8f0;
+  --terminal-suggestion: #4f46e5;
+  --terminal-hint: #9a3412;
+  --terminal-quality-label: #475569;
+  --terminal-score-bg: #f1f5f9;
+  --terminal-score-text: #1e293b;
 }
 
 [data-theme='dark'] {
@@ -63,6 +77,19 @@
   --sidebar-border: rgba(255, 255, 255, 0.05);
   --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
   --sidebar-shadow: 4px 0 15px rgba(0, 0, 0, 0.2);
+
+  /* Terminal Colors - Dark Mode */
+  --terminal-text: #e2e8f0;
+  --terminal-prompt: #94a3b8;
+  --terminal-success: #10b981;
+  --terminal-error: #ef4444;
+  --terminal-bg-accent: rgba(255, 255, 255, 0.05);
+  --terminal-border: rgba(255, 255, 255, 0.1);
+  --terminal-suggestion: #a78bfa;
+  --terminal-hint: #fbbf24;
+  --terminal-quality-label: #cbd5e1;
+  --terminal-score-bg: rgba(255, 255, 255, 0.1);
+  --terminal-score-text: #ffffff;
 }
 
 body {

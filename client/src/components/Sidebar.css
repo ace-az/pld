@@ -143,7 +143,7 @@
   transition: color 0.2s;
 }
 
-.text {
+.sidebar-menu-text {
   font-size: 0.95rem;
   pointer-events: none;
   white-space: nowrap;
@@ -151,7 +151,7 @@
   opacity: 0;
 }
 
-.sidebar.expanded .text {
+.sidebar.expanded .sidebar-menu-text {
   opacity: 1;
   position: static;
   width: auto;
@@ -159,23 +159,28 @@
   pointer-events: auto;
 }
 
-/* Tooltip on hover when sidebar is collapsed */
-.sidebar:not(.expanded) .menu-item:hover .text,
-.sidebar:not(.expanded) .btn-logout:hover .text {
-  opacity: 1;
-  left: calc(100% + 12px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--sidebar-bg);
-  color: var(--sidebar-text-primary);
-  padding: 6px 14px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--sidebar-border);
-  font-size: 0.88rem;
-  font-weight: 500;
-  pointer-events: none;
-  z-index: 2000;
+@media (min-width: 769px) {
+  /* Tooltip on hover when sidebar is collapsed */
+  .sidebar:not(.expanded) .menu-item:hover .sidebar-menu-text,
+  .sidebar:not(.expanded) .btn-logout:hover .sidebar-menu-text {
+    opacity: 1;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text-primary);
+    padding: 6px 14px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--sidebar-border);
+    font-size: 0.88rem;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 2000;
+    width: max-content;
+    max-width: 200px;
+    display: block;
+  }
 }
 
 /* Active indicator tab */
@@ -217,7 +222,7 @@
   color: #ef4444;
 }
 
-.btn-logout .text {
+.btn-logout .sidebar-menu-text {
   color: inherit;
 }
 
@@ -246,7 +251,7 @@
   }
 
   /* On mobile, always show text inline (not absolute) */
-  .sidebar .text {
+  .sidebar .sidebar-menu-text {
     position: static;
     opacity: 1;
     pointer-events: auto;
