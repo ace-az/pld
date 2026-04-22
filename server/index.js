@@ -84,6 +84,11 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Keep-alive endpoint for external cron pings (prevents Render from sleeping)
+app.get('/awake', (req, res) => {
+    res.json({ status: 'awake', timestamp: new Date().toISOString() });
+});
+
 // Discord Bot Setup
 const client = new Client({
     intents: [
