@@ -4,7 +4,7 @@ import { isTokenExpiringSoon } from './utils/tokenUtils';
 
 // In development, we use a Vite proxy to avoid CORS/Cookie issues between ports.
 // In production, we use the VITE_API_URL environment variable.
-const API_URL = ''; 
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Create Axios instance
 const api = axios.create({
