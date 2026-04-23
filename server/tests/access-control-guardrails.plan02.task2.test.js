@@ -84,7 +84,7 @@ async function makeRequest(router, method, routePath, token, body) {
     const app = express();
     app.use(express.json());
     app.use(cors({
-        origin: process.env.VITE_API_URL, // 👈 your frontend URL
+        origin: process.env.FRONTEND_URL, // 👈 your frontend URL
         credentials: true
     }));
     app.use('/api/sessions', router);
