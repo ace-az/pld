@@ -9,19 +9,19 @@
     "rewrites": [
         {
             "source": "/api-docs/:path*",
-            "destination": "https://pld-backend-dfcx.onrender.com/api-docs/:path*"
+            "destination": "https://pld-yh8t.onrender.com/api-docs/:path*"
         },
         {
             "source": "/api/:path*",
-            "destination": "https://pld-backend-dfcx.onrender.com/api/:path*"
+            "destination": "https://pld-yh8t.onrender.com/api/:path*"
         },
         {
             "source": "/register",
-            "destination": "https://pld-backend-dfcx.onrender.com/register"
+            "destination": "https://pld-yh8t.onrender.com/register"
         },
         {
             "source": "/verify",
-            "destination": "https://pld-backend-dfcx.onrender.com/verify"
+            "destination": "https://pld-yh8t.onrender.com/verify"
         },
         {
             "source": "/(.*)",
