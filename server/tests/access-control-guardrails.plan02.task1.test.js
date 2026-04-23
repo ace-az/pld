@@ -61,6 +61,10 @@ function loadAdminRouterWithMocks() {
 async function makeRequest(router, method, routePath, token) {
     const app = express();
     app.use(express.json());
+    app.use(cors({
+        origin: process.env.VITE_API_URL, // 👈 your frontend URL
+        credentials: true
+    }));
     app.use('/api/admin', router);
 
     const server = await new Promise((resolve) => {

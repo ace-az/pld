@@ -3,6 +3,7 @@
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "jsonwebtoken": "^9.0.3",
     "jwt-decode": "^4.0.0",
     "uuid": "^13.0.0"
