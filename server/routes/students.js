@@ -30,6 +30,25 @@ async function checkDiscordMembership(discordClient, discordUsername) {
     return false;
 }
 
+/**
+ * @swagger
+ * tags:
+ *   name: Students
+ *   description: Student management endpoints
+ */
+
+/**
+ * @swagger
+ * /api/students:
+ *   get:
+ *     summary: Get all students for the mentor
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Array of students
+ */
 router.get('/', async (req, res) => {
     try {
         const students = await studentModel.getStudents(req.user.id);
@@ -55,6 +74,31 @@ router.get('/', async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/students:
+ *   post:
+ *     summary: Add a new student
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               discord:
+ *                 type: string
+ *               major:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Student added
+ */
 // POST / — add a single student and auto-verify via Discord bot
 router.post('/', async (req, res) => {
     try {
@@ -76,6 +120,29 @@ router.post('/', async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/students/bulk:
+ *   post:
+ *     summary: Add multiple students at once
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               students:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Students added
+ */
 // POST /bulk — bulk add students and auto-verify via Discord bot
 router.post('/bulk', async (req, res) => {
     try {
@@ -107,6 +174,30 @@ router.post('/bulk', async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/students/{id}:
+ *   put:
+ *     summary: Update student data
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Student updated
+ */
 router.put('/:id', async (req, res) => {
     try {
         const student = await studentModel.updateStudent(req.params.id, req.body);
@@ -116,6 +207,29 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/students/all:
+ *   delete:
+ *     summary: Delete multiple students
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Students deleted
+ */
 router.delete('/all', async (req, res) => {
     try {
         const { ids } = req.body;
@@ -129,6 +243,24 @@ router.delete('/all', async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/students/{id}:
+ *   delete:
+ *     summary: Delete a specific student
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Student deleted
+ */
 router.delete('/:id', async (req, res) => {
     try {
         await studentModel.deleteStudent(req.params.id);

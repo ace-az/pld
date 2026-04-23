@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Plus, Users, ArrowRight, Trash2, Calendar, MoreHorizontal, FileText, X, Upload, Clock, HelpCircle, Shuffle } from 'lucide-react';
-import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets, deleteAllSessions } from '../api';
+import { getSessions, createSession, deleteSession, getMasterStudents, getQuestionSets, deleteAllSessions, getMajors } from '../api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import RandomSessionModal from '../components/RandomSessionModal';
@@ -106,8 +106,7 @@ export default function Dashboard() {
 
     const fetchMajors = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/majors`);
-            const data = await res.json();
+            const data = await getMajors();
             if (Array.isArray(data)) setMajors(data);
         } catch (err) {
             console.error('Fetch majors error:', err);

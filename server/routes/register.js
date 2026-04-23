@@ -4,6 +4,32 @@ const generateCode = require("../utils/generateCode");
 const verifications = require("../utils/verificationStore");
 const { findUserByDiscordId } = require('../models/userModel');
 
+/**
+ * @swagger
+ * tags:
+ *   name: Register
+ *   description: Discord registration endpoints
+ */
+
+/**
+ * @swagger
+ * /register:
+ *   post:
+ *     summary: Request Discord verification code
+ *     tags: [Register]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               discordUsername:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Code sent to Discord
+ */
 router.post("/", async (req, res) => {
     const { discordUsername } = req.body;
     if (!discordUsername) return res.status(400).send("Discord username required");

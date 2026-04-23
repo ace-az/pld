@@ -20,7 +20,10 @@ export default function Layout({ children }) {
     navigate('/login');
   };
 
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAuthPage = location.pathname === '/login' || 
+                     location.pathname === '/register' || 
+                     location.pathname === '/admin' || 
+                     location.pathname === '/admin-login';
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -45,7 +48,7 @@ export default function Layout({ children }) {
               </button>
             )}
             <Link
-              to={user?.role === 'student' ? '/student-dashboard' : '/'}
+              to={user ? (user.role === 'student' ? '/student-dashboard' : '/') : '/login'}
               className="logo-link"
             >
               <img src={logo} alt="Logo" className="logo-img" />

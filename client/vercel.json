@@ -1,8 +1,27 @@
 {
+    "redirects": [
+        {
+            "source": "/api-docs",
+            "destination": "/api-docs/",
+            "permanent": true
+        }
+    ],
     "rewrites": [
         {
+            "source": "/api-docs/:path*",
+            "destination": "https://pld-backend-dfcx.onrender.com/api-docs/:path*"
+        },
+        {
             "source": "/api/:path*",
-            "destination": "https://pld-management-app-production.up.railway.app/api/:path*"
+            "destination": "https://pld-backend-dfcx.onrender.com/api/:path*"
+        },
+        {
+            "source": "/register",
+            "destination": "https://pld-backend-dfcx.onrender.com/register"
+        },
+        {
+            "source": "/verify",
+            "destination": "https://pld-backend-dfcx.onrender.com/verify"
         },
         {
             "source": "/(.*)",

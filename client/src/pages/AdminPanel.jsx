@@ -1,6 +1,6 @@
 // client/src/pages/AdminPanel.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { getAdminUsers, deleteUserAccount, getMajors, addMajor, deleteMajor } from '../api';
 import { Shield, Trash2, User, Key, LogOut, ArrowLeft, Plus, Folder } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
@@ -11,7 +11,6 @@ const AdminPanel = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(() => {
         return sessionStorage.getItem('adminAuth') === 'true';
     });
-    const [loginData, setLoginData] = useState({ username: '', password: '' });
     const [users, setUsers] = useState([]);
     const [majors, setMajors] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
@@ -21,18 +20,6 @@ const AdminPanel = () => {
     const toast = useToast();
     const { confirm } = useConfirm();
 
-    const handleLogin = (e) => {
-        e.preventDefault();
-        const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD;
-        if (correctPassword && loginData.username === 'admin' && loginData.password === correctPassword) {
-            setIsAuthenticated(true);
-            sessionStorage.setItem('adminAuth', 'true');
-            setError('');
-            fetchData();
-        } else {
-            setError('Invalid Admin Credentials');
-        }
-    };
     const fetchData = () => {
         fetchUsers();
         fetchMajors();
@@ -113,50 +100,7 @@ const AdminPanel = () => {
     };
 
     if (!isAuthenticated) {
-        return (
-            <div className="container flex-center" style={{ minHeight: '80vh' }}>
-                <div className="card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
-                    <div style={{
-                        width: '60px',
-                        height: '60px',
-                        background: 'var(--color-primary-light)',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto 1.5rem auto'
-                    }}>
-                        <Shield size={32} color="var(--color-primary)" />
-                    </div>
-                    <h2>Admin Access</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Secure area for system management.</p>
-
-                    <form onSubmit={handleLogin}>
-                        <div className="input-group">
-                            <label>Username</label>
-                            <input
-                                className="input-control"
-                                value={loginData.username}
-                                onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                                required
-                            />
-                        </div>
-                        <div className="input-group">
-                            <label>Password</label>
-                            <input
-                                type="password"
-                                className="input-control"
-                                value={loginData.password}
-                                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                                required
-                            />
-                        </div>
-                        {error && <div style={{ color: 'var(--color-primary)', fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</div>}
-                        <button className="btn btn-primary" style={{ width: '100%' }}>Login as Admin</button>
-                    </form>
-                </div>
-            </div>
-        );
+        return <Navigate to="/admin-login" replace />;
     }
 
     return (

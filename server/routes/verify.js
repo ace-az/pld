@@ -2,6 +2,34 @@ const express = require("express");
 const router = express.Router();
 const verifications = require("../utils/verificationStore");
 
+/**
+ * @swagger
+ * tags:
+ *   name: Verify
+ *   description: Discord verification endpoints
+ */
+
+/**
+ * @swagger
+ * /verify:
+ *   post:
+ *     summary: Verify Discord code
+ *     tags: [Verify]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               discordUsername:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Verified successfully
+ */
 router.post("/", (req, res) => {
     const { discordUsername, code } = req.body;
     const record = verifications[discordUsername];

@@ -16,6 +16,7 @@ import StudentReportsPage from './pages/StudentReportsPage';
 import Leaderboard from './pages/Leaderboard';
 import AIPractice from './pages/AIPractice';
 import AdminPanel from './pages/AdminPanel';
+import AdminLogin from './pages/AdminLogin';
 import Calendar from './pages/Calendar';
 import Profile from './pages/Profile';
 import Announcements from './pages/Announcements';
@@ -106,11 +107,8 @@ export default function App() {
               </ProtectedRoute>
             } />
             
-            <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={['admin', 'mentor']}>
-                <AdminPanel />
-              </ProtectedRoute>
-            } />
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
             
             <Route path="/practice" element={
               <ProtectedRoute>

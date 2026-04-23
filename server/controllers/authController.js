@@ -86,25 +86,36 @@ exports.register = async (req, res) => {
 
         let role = 'student';
         const client = req.discordClient;
-        if (client) {
-            const guildId = process.env.DISCORD_GUILD_ID;
-            const studentRoleId = process.env.DISCORD_STUDENT_ROLE_ID;
-            const mentorRoleId = process.env.DISCORD_MENTOR_ROLE_ID;
+        
+        if (!client || !client.isReady()) {
+            return res.status(503).json({ error: 'Discord verification service is currently unavailable. Please try again later.' });
+        }
 
-            try {
-                const guild = client.guilds.cache.get(guildId);
-                if (guild) {
-                    const members = await guild.members.fetch({ query: discordId, limit: 10 });
-                    const member = members.find(m => m.user.username.toLowerCase() === discordId.toLowerCase());
+        const guildId = process.env.DISCORD_GUILD_ID;
+        const studentRoleId = process.env.DISCORD_STUDENT_ROLE_ID;
+        const mentorRoleId = process.env.DISCORD_MENTOR_ROLE_ID;
 
-                    if (member) {
-                        if (member.roles.cache.has(mentorRoleId)) role = 'mentor';
-                        else if (member.roles.cache.has(studentRoleId)) role = 'student';
-                    }
-                }
-            } catch (discordErr) {
-                console.error("Failed to fetch discord role on register:", discordErr);
+        try {
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) {
+                return res.status(500).json({ error: 'System is not configured with a valid Discord server.' });
             }
+
+            const members = await guild.members.fetch({ query: discordId, limit: 10 });
+            const member = members.find(m => m.user.username.toLowerCase() === discordId.toLowerCase());
+
+            if (!member) {
+                return res.status(404).json({ error: 'You are not in the Discord server. Please join the server first before registering.' });
+            }
+
+            if (member.roles.cache.has(mentorRoleId)) {
+                role = 'mentor';
+            } else if (member.roles.cache.has(studentRoleId)) {
+                role = 'student';
+            }
+        } catch (discordErr) {
+            console.error("Failed to fetch discord role on register:", discordErr);
+            return res.status(500).json({ error: 'Failed to communicate with Discord for verification.' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);

@@ -7,6 +7,42 @@ const authMiddleware = require('../utils/authMiddleware');
 
 router.use(authMiddleware);
 
+/**
+ * @swagger
+ * tags:
+ *   name: Announcements
+ *   description: Announcement routes
+ */
+
+/**
+ * @swagger
+ * /api/announcements:
+ *   post:
+ *     summary: Create a new announcement
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *               target:
+ *                 type: string
+ *               recipientDiscords:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Announcement created
+ */
 // POST /api/announcements — mentor creates announcement
 router.post('/', async (req, res) => {
     try {
@@ -103,6 +139,18 @@ router.post('/', async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/announcements:
+ *   get:
+ *     summary: Get announcements
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Array of announcements
+ */
 // GET /api/announcements — mentor gets all, student gets their own
 router.get('/', async (req, res) => {
     try {
@@ -119,6 +167,24 @@ router.get('/', async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/announcements/{id}:
+ *   delete:
+ *     summary: Delete an announcement
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Announcement deleted
+ */
 // DELETE /api/announcements/:id — mentor deletes their announcement
 router.delete('/:id', async (req, res) => {
     try {
@@ -129,6 +195,41 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/announcements/notify-groups:
+ *   post:
+ *     summary: Create sessions and notify groups
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               groups:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               topicIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               groupTimes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               scheduledDates:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Target groups notified
+ */
 // POST /api/announcements/notify-groups — creates sessions + sends personalized group notifications
 router.post('/notify-groups', async (req, res) => {
     try {

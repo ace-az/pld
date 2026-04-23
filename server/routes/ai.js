@@ -168,7 +168,99 @@ async function evaluateCode(language, code, tutorMode = false, expectedOutput = 
 const { scanCode } = require('../services/securityScanner');
 const { runCode } = require('../services/codeRunner');
 
-// POST /api/ai/evaluate
+/**
+ * @swagger
+ * tags:
+ *   name: AI
+ *   description: AI-powered code evaluation and mentoring
+ */
+
+/**
+ * @swagger
+ * /api/ai/evaluate:
+ *   post:
+ *     summary: Run code (sandbox or AI-predicted execution)
+ *     description: |
+ *       Evaluates a code snippet. Used as the "Run Code" button in the workshop workspace.
+ *       First scans for dangerous patterns — safe code is executed in a real sandbox, unsafe code gets AI-predicted output.
+ *       When `tutorMode` is enabled, AI tutor feedback (explanation, suggestions, hints, code quality) is also returned.
+ *     tags: [AI, Workshops]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - language
+ *               - code
+ *             properties:
+ *               language:
+ *                 type: string
+ *                 description: Programming language
+ *                 enum: [python, javascript, java, csharp, c, cpp, typescript, go, ruby, php, swift, kotlin, rust, sql, lua]
+ *                 example: python
+ *               code:
+ *                 type: string
+ *                 description: Source code to execute
+ *                 example: "print('Hello World')"
+ *               tutorMode:
+ *                 type: boolean
+ *                 description: Enable AI tutor feedback alongside execution
+ *                 default: false
+ *               expectedOutput:
+ *                 type: string
+ *                 description: Expected output for comparison (from question text)
+ *     responses:
+ *       200:
+ *         description: Execution result with optional AI tutor feedback
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 output:
+ *                   type: string
+ *                 exitCode:
+ *                   type: integer
+ *                 executionTime:
+ *                   type: integer
+ *                 executionMode:
+ *                   type: string
+ *                   enum: [real, ai]
+ *                   description: "'real' = sandbox execution, 'ai' = AI-predicted output"
+ *                 securityWarning:
+ *                   type: string
+ *                   description: Present when code was flagged as unsafe
+ *                 explanation:
+ *                   type: string
+ *                   description: AI tutor explanation (only when tutorMode=true)
+ *                 suggestions:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 hints:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 codeQuality:
+ *                   type: object
+ *                   properties:
+ *                     score:
+ *                       type: integer
+ *                       minimum: 1
+ *                       maximum: 10
+ *                     feedback:
+ *                       type: string
+ *       400:
+ *         description: Missing language or code, or code too long
+ *       500:
+ *         description: Server error
+ */
 router.post('/evaluate', authMiddleware, async (req, res) => {
     try {
         const { language, code, tutorMode, expectedOutput } = req.body;
@@ -224,7 +316,78 @@ router.post('/evaluate', authMiddleware, async (req, res) => {
     }
 });
 
-// POST /api/ai/tutor-review
+/**
+ * @swagger
+ * /api/ai/tutor-review:
+ *   post:
+ *     summary: Get AI tutor feedback on executed code
+ *     description: |
+ *       Provides AI tutor analysis for code that has already been executed.
+ *       Used in the workshop workspace when the AI Tutor toggle is enabled — called after `/api/ai/evaluate` returns the execution output.
+ *       Returns beginner-friendly explanation, improvement suggestions, error hints, and code quality score.
+ *     tags: [AI, Workshops]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - language
+ *               - code
+ *             properties:
+ *               language:
+ *                 type: string
+ *                 description: Programming language
+ *                 enum: [python, javascript, java, csharp, c, cpp, typescript, go, ruby, php, swift, kotlin, rust, sql, lua]
+ *                 example: javascript
+ *               code:
+ *                 type: string
+ *                 description: The source code to review
+ *                 example: "console.log('Hello World');"
+ *               expectedOutput:
+ *                 type: string
+ *                 description: Expected output from the question
+ *               realOutput:
+ *                 type: string
+ *                 description: Actual output from the code execution
+ *     responses:
+ *       200:
+ *         description: AI tutor feedback
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 explanation:
+ *                   type: string
+ *                   description: Beginner-friendly explanation of what the code does
+ *                 suggestions:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: Improvement suggestions
+ *                 hints:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: Error hints if something is wrong
+ *                 codeQuality:
+ *                   type: object
+ *                   properties:
+ *                     score:
+ *                       type: integer
+ *                       minimum: 1
+ *                       maximum: 10
+ *                     feedback:
+ *                       type: string
+ *       400:
+ *         description: Missing language or code
+ *       500:
+ *         description: Server error
+ */
 router.post('/tutor-review', authMiddleware, async (req, res) => {
     try {
         const { language, code, expectedOutput, realOutput } = req.body;
@@ -248,7 +411,31 @@ router.post('/tutor-review', authMiddleware, async (req, res) => {
     }
 });
 
-// POST /api/ai/generate-practice
+/**
+ * @swagger
+ * /api/ai/generate-practice:
+ *   post:
+ *     summary: Generate practice questions
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               topic:
+ *                 type: string
+ *               difficulty:
+ *                 type: string
+ *               count:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Array of questions
+ */
 router.post('/generate-practice', async (req, res) => {
     try {
         const { topic, difficulty, count } = req.body;
@@ -264,7 +451,33 @@ router.post('/generate-practice', async (req, res) => {
     }
 });
 
-// POST /api/ai/evaluate-practice
+/**
+ * @swagger
+ * /api/ai/evaluate-practice:
+ *   post:
+ *     summary: Evaluate user practice answer
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               question:
+ *                 type: string
+ *               answer:
+ *                 type: string
+ *               topic:
+ *                 type: string
+ *               difficulty:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Evaluation result
+ */
 router.post('/evaluate-practice', async (req, res) => {
     try {
         const { question, answer, topic, difficulty } = req.body;
@@ -280,7 +493,35 @@ router.post('/evaluate-practice', async (req, res) => {
     }
 });
 
-// POST /api/ai/chat-tutor
+/**
+ * @swagger
+ * /api/ai/chat-tutor:
+ *   post:
+ *     summary: Chat with the AI tutor
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *               mentorReport:
+ *                 type: object
+ *               studentLevel:
+ *                 type: string
+ *               chatHistory:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: AI Tutor response
+ */
 router.post('/chat-tutor', async (req, res) => {
     try {
         const { message, mentorReport, studentLevel, chatHistory } = req.body;
@@ -295,7 +536,31 @@ router.post('/chat-tutor', async (req, res) => {
     }
 });
 
-// POST /api/ai/generate-feedback (Discord)
+/**
+ * @swagger
+ * /api/ai/generate-feedback:
+ *   post:
+ *     summary: Generate feedback for Discord
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               studentName:
+ *                 type: string
+ *               projectName:
+ *                 type: string
+ *               mentorNotes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Feedback string
+ */
 router.post('/generate-feedback', async (req, res) => {
     try {
         const { studentName, projectName, mentorNotes } = req.body;
